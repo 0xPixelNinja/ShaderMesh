@@ -47,7 +47,8 @@ async function main() {
 
   console.log("\nWiring complete. ShaderMesh is deployed and authorized.");
 
-  // Persist addresses so off-chain services (orchestrator, agents) can discover them.
+  // Persist addresses AND ABIs so off-chain services (orchestrator, agents) can
+  // discover everything they need from one file, without hardcoding interfaces.
   const deployment = {
     network: network.name,
     chainId: Number((await ethers.provider.getNetwork()).chainId),
@@ -57,6 +58,12 @@ async function main() {
       ProviderRegistry: await registry.getAddress(),
       JobMarket: await market.getAddress(),
       Verification: await verification.getAddress(),
+    },
+    abis: {
+      SmeshToken: JSON.parse(Token.interface.formatJson()),
+      ProviderRegistry: JSON.parse(Registry.interface.formatJson()),
+      JobMarket: JSON.parse(Market.interface.formatJson()),
+      Verification: JSON.parse(Verification.interface.formatJson()),
     },
     timestamp: new Date().toISOString(),
   };
