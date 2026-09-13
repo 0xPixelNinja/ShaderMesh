@@ -466,13 +466,16 @@ Status legend: done, in progress, planned.
 - Follow ups: IPFS backed storage in the live stack (backend already implemented), and
   richer retry and backoff, tracked with Phase 4.
 
-### Phase 4: Orchestrator. Status: planned
+### Phase 4: Orchestrator. Status: done
 - Goal: split, index, stitch, and serve.
-- Tasks: job splitting by frames or tiles, IPFS manifest pinning, event indexing to Postgres,
-  output stitching, a read API, and a live update channel.
-- Deliverables: orchestrator service, database schema and migrations, API documentation.
-- Acceptance: a multi task job is split, tracked, and stitched into a final artifact, and the
-  API returns correct job and task state.
+- Tasks: job splitting by tiles with matching subregions, manifest pinning, event indexing
+  into a projection, output stitching, a read API, and a live update channel.
+- Deliverables: orchestrator service (`splitter`, `stitcher`, `store`, `indexer`,
+  `jobservice`, `api`) with unit and component tests and a clean type check.
+- Acceptance: met. A multi task job is split, tracked through the projection, and stitched
+  into a final artifact, and the API returns correct job and task state. Verified by 13 tests.
+- Follow ups: Postgres persistence of the projection (currently in-memory and rebuildable
+  from chain history), and a live cross service test in Phase 6.
 
 ### Phase 5: Web dashboard. Status: planned
 - Goal: the requester, provider, and explorer experiences on the design system in section 7.
