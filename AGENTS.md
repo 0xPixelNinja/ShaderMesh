@@ -99,7 +99,7 @@ cd simulator; python verification_game_sim.py
 - Secrets come from `.env` (gitignored). Commit only `*.env.example`.
 - Test keys (e.g. hardhat's default accounts) are fine in `*.env.example`; real
   keys are never committed anywhere.
-- The provider agent mounts the Docker socket — treat job inputs as untrusted and
+- The provider agent mounts the Docker socket, so treat job inputs as untrusted and
   run them in constrained containers.
 
 ## 7. Definition of Done
@@ -109,3 +109,31 @@ cd simulator; python verification_game_sim.py
   `cache/`, `deployments/`, `.env` are gitignored).
 - Docs/README updated if behavior or interfaces changed.
 - Commit(s) follow the convention in §4.
+
+## 8. Writing and UI style (REQUIRED)
+
+Applies to all docs, code comments, commit messages, and UI copy.
+
+- Use plain, professional English. Be concise and factual. No marketing language,
+  no hype, and no exclamation marks.
+- Do not use em dashes. Use commas, colons, periods, or parentheses instead.
+- Do not use emoji in the interface or in documentation.
+- Prefer active voice and short sentences.
+
+## 9. Design system (see docs/ShaderMesh-SRS.md §7)
+
+- Look: clean, modern, sharp, and professional. Not brutalist.
+- Accent: amber, used sparingly on primary actions, active states, and focus rings.
+  Light accent `#D97706`, dark accent `#F59E0B`.
+- Neutrals carry the layout (zinc scale). Hairline 1px borders, small radii
+  (6px controls, 8px cards), minimal shadows.
+- Typography: Inter or Geist Sans for UI, JetBrains Mono or Geist Mono for hashes,
+  addresses, and amounts.
+- Prohibited: neon colors, violet or purple gradients, glassmorphism, large glows,
+  decorative multi color gradients, and pill shaped buttons.
+- Accessibility: meet WCAG AA contrast and provide visible focus states.
+
+## 10. Full plan
+
+The authoritative scope, requirements, testing strategy, and phase roadmap live in
+[`docs/ShaderMesh-SRS.md`](docs/ShaderMesh-SRS.md). Read it before starting a new phase.
