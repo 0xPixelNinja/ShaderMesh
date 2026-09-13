@@ -1,0 +1,22 @@
+{
+  "name": "shadermesh-orchestrator",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "ShaderMesh orchestrator: job splitting, event indexing, tile stitching, API.",
+  "license": "MIT",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "ethers": "^6.13.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.7.4",
+    "tsx": "^4.19.1",
+    "typescript": "^5.6.2"
+  }
+}
