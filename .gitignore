@@ -1,0 +1,57 @@
+# Node
+node_modules/
+dist/
+build/
+.next/
+out/
+*.tsbuildinfo
+npm-debug.log*
+pnpm-debug.log*
+yarn-error.log*
+
+# Hardhat / Solidity
+contracts/artifacts/
+contracts/cache/
+contracts/typechain-types/
+coverage/
+coverage.json
+.solcover.js
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+*.egg-info/
+
+# Rust
+target/
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+keystore/
+secrets/
+
+# IPFS / data / renders
+.ipfs/
+data/
+outputs/
+renders/
+*.blend1
+
+# Generated deployment artifacts (addresses are environment-specific)
+deployments/
+!deployments/.gitkeep
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
