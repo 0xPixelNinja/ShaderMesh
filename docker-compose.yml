@@ -1,0 +1,127 @@
+# ShaderMesh local stack.
+#
+#   docker compose up --build                 # full stack
+#   docker compose up --build --scale agent=3 # 3 provider nodes
+#
+# Boot order is enforced with healthchecks + depends_on:
+#   chain (hardhat node) -> deployer (deploys + writes addresses) -> services
+# Contract addresses are shared via the `deployments` named volume.
+name: shadermesh
+
+services:
+  # --- Local Ethereum dev chain (deterministic hardhat node) ----------------
+  chain:
+    build:
+      context: ./contracts
+    image: shadermesh/contracts
+    command: npx hardhat node --hostname 0.0.0.0
+    ports:
+      - "8545:8545"
+    restart: unless-stopped
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://localhost:8545',{method:'POST',headers:{'content-type':'application/json'},body:'{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"eth_blockNumber\",\"params\":[]}'}).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  # --- One-shot: deploy contracts and publish addresses to a shared volume --
+  deployer:
+    image: shadermesh/contracts
+    depends_on:
+      chain:
+        condition: service_healthy
+    environment:
+      RPC_URL: http://chain:8545
+    command: npx hardhat run scripts/deploy.ts --network docker
+    volumes:
+      - deployments:/app/deployments
+    restart: "no"
+
+  # --- Content-addressed storage for inputs/outputs -------------------------
+  ipfs:
+    image: ipfs/kubo:latest
+    ports:
+      - "5001:5001" # API
+      - "8080:8080" # gateway
+    volumes:
+      - ipfs_data:/data/ipfs
+    restart: unless-stopped
+
+  # --- Off-chain index / dashboard datastore --------------------------------
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-shadermesh}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-shadermesh}
+      POSTGRES_DB: ${POSTGRES_DB:-shadermesh}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-shadermesh}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # --- Thin coordinator: split / index / stitch -----------------------------
+  orchestrator:
+    build:
+      context: ./orchestrator
+    image: shadermesh/orchestrator
+    depends_on:
+      chain:
+        condition: service_healthy
+      deployer:
+        condition: service_completed_successfully
+      ipfs:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+    environment:
+      RPC_URL: http://chain:8545
+      IPFS_API_URL: http://ipfs:5001
+      DATABASE_URL: postgres://${POSTGRES_USER:-shadermesh}:${POSTGRES_PASSWORD:-shadermesh}@postgres:5432/${POSTGRES_DB:-shadermesh}
+      DEPLOYMENTS_FILE: /app/deployments/docker.json
+      PORT: "4000"
+    volumes:
+      - deployments:/app/deployments:ro
+    ports:
+      - "4000:4000"
+    restart: unless-stopped
+
+  # --- Provider worker(s): scale with --scale agent=N -----------------------
+  agent:
+    build:
+      context: ./agent
+    image: shadermesh/agent
+    depends_on:
+      chain:
+        condition: service_healthy
+      deployer:
+        condition: service_completed_successfully
+      ipfs:
+        condition: service_started
+    environment:
+      RPC_URL: http://chain:8545
+      IPFS_API_URL: http://ipfs:5001
+      DEPLOYMENTS_FILE: /app/deployments/docker.json
+      # For real providers supply a unique PROVIDER_PRIVATE_KEY per replica.
+      PROVIDER_PRIVATE_KEY: ${PROVIDER_PRIVATE_KEY:-}
+      # Set CAPABILITIES in .env (JSON braces can't be an inline compose default).
+      CAPABILITIES: ${CAPABILITIES:-}
+    volumes:
+      - deployments:/app/deployments:ro
+      # Mount the host Docker socket so the agent can launch job containers.
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped
+
+volumes:
+  deployments:
+  ipfs_data:
+  pg_data:
