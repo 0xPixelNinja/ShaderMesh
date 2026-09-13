@@ -1,0 +1,5 @@
+# ShaderMesh provider compute agent
+web3==7.*          # Ethereum RPC + contract calls
+docker==7.*        # run jobs in sandboxed containers
+requests==2.*      # IPFS HTTP API / gateways
+python-dotenv==1.* # config
