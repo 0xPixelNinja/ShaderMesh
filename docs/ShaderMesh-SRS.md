@@ -453,14 +453,18 @@ Status legend: done, in progress, planned.
 - Planned hardening: commit and reveal, reputation weighting, perceptual policy.
 - Exit criteria: cheating is detected and slashed in tests. Met for the first version.
 
-### Phase 3: Provider agent end to end. Status: planned, next
+### Phase 3: Provider agent end to end. Status: done
 - Goal: a real agent that executes a deterministic job and settles on chain.
-- Tasks: auto register and stake, claim, IPFS fetch and pin, Docker execution with limits,
-  result commitment, challenger mode, retries and backoff.
-- Deliverables: a working `agent.py`, a sample deterministic job container, an integration
-  test that runs the agent against a local chain.
-- Acceptance: an end to end run posts a job, the agent completes a task, and settlement pays
-  the provider. A dishonest agent is slashed by an honest challenger in the test.
+- Tasks: auto register and stake, claim, storage fetch and put, execution with limits,
+  result commitment, challenger mode. Retries and backoff refined in later phases.
+- Deliverables: a modular agent (`chain`, `storage`, `executor`, `provider`), the
+  deterministic Mandelbrot job with a container image, and integration tests that run the
+  agent against a local chain.
+- Acceptance: met. An end to end run posts a job, the agent completes a task, and
+  settlement pays the provider. A dishonest agent is slashed by an honest challenger.
+  Both the local and Docker executors are verified.
+- Follow ups: IPFS backed storage in the live stack (backend already implemented), and
+  richer retry and backoff, tracked with Phase 4.
 
 ### Phase 4: Orchestrator. Status: planned
 - Goal: split, index, stitch, and serve.

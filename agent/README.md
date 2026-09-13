@@ -31,8 +31,31 @@ the agent can launch Blender containers. Scale providers with:
 docker compose up --build --scale agent=3
 ```
 
+## Modules
+
+| File | Responsibility |
+|------|----------------|
+| `config.py` | Environment driven configuration. |
+| `chain.py` | web3 client, loads addresses and ABIs from the deployment file, signs, sends transactions. |
+| `storage.py` | Content addressed storage: `LocalDirStorage` (tests) and `IpfsStorage` (stack). |
+| `executor.py` | Job execution: `LocalExecutor` (subprocess) and `DockerExecutor` (sandboxed container). |
+| `provider.py` | The `Agent`: register, stake, claim, execute, submit, challenge, discover. |
+| `agent.py` | Entrypoint that wires the above from config and runs the loop. |
+
+## Tests
+
+```powershell
+python -m venv .venv; .\.venv\Scripts\Activate.ps1
+pip install -r requirements-dev.txt
+python -m pytest tests -v
+```
+
+- `tests/test_deterministic_job.py` checks the render job is a valid, reproducible PNG.
+- `tests/test_agent_integration.py` starts a local chain, deploys, and drives the real
+  agent through the full lifecycle, including a cheating provider being slashed.
+
 ## Status
 
-Functional **skeleton** (`agent.py`): config loading, RPC connection, ABI wiring,
-and the loop structure are in place; IPFS I/O and container execution are
-marked `TODO` for Phase P3. See `../docs/ShaderMesh-Review1-Proposal.md`.
+Phase 3 complete. The agent runs the deterministic job end to end against a real chain,
+in both the local and Docker executors, and the challenger path slashes cheaters.
+Blender rendering arrives in Phase 7. See `../docs/ShaderMesh-SRS.md`.
