@@ -1,7 +1,7 @@
 # ShaderMesh: Software Requirements Specification and Phase Plan
 
-Version: 1.0
-Status: Draft for approval
+Version: 1.1
+Status: Repositioned to compute rental with an LLM focus (dual market model)
 Related documents: `docs/ShaderMesh-Review1-Proposal.md`, root `AGENTS.md`
 
 This document specifies what ShaderMesh must do, how the pieces fit together, how we
@@ -20,24 +20,38 @@ phase by phase roadmap for ShaderMesh.
 
 ### 1.2 Product scope
 
-ShaderMesh is a decentralized marketplace for verifiable off chain compute, coordinated
-by Ethereum smart contracts. Requesters post containerized jobs and lock payment in
-escrow. Staked providers claim tasks, execute them off chain in Docker, and commit
-results on chain. Honesty is enforced by an optimistic verification game that combines
-staking, on chain reputation, randomized re execution, and slashing. The flagship
-workload is distributed rendering, starting with a deterministic job and then Blender
-tile and frame rendering.
+ShaderMesh is a decentralized marketplace for renting compute, coordinated by Ethereum
+smart contracts. Providers stake and rent out GPU and CPU capacity; requesters lease it
+to run any containerized workload. The headline use case is AI and LLM compute: rent a
+GPU to run or fine-tune a model, or call a managed, provider-served, OpenAI-compatible
+inference endpoint. The blockchain is the trust, coordination, and payment layer.
+
+The marketplace has two modes over one staking, reputation, and slashing layer:
+
+- Rental (primary). A time-based lease of a node or GPU. A rented result cannot be
+  re-executed and checked, so trust is availability based: staking, signed uptime
+  heartbeats, hardware attestation and benchmark challenges, reputation, and slashing for
+  SLA breaches, with escrow that streams to the provider per interval. LLM serving and
+  fine-tuning run here.
+- Verifiable task (retained). A job with a checkable output such as rendering or batch
+  compute. Trust is an optimistic verification game: staking, reputation, randomized
+  re-execution (spot-checking), and slashing.
 
 In scope:
-- On chain marketplace, escrow, staking, reputation, and dispute resolution.
-- A provider agent that executes real jobs in Docker and reports results on chain.
-- A thin orchestrator that splits jobs, indexes events, and stitches outputs.
-- A web dashboard for requesters, providers, and an on chain explorer.
+- On chain rental market (lease lifecycle, streamed escrow, heartbeats, SLA slashing).
+- On chain verifiable-task market (escrow, tasks, spot-check verification, disputes).
+- Provider capability attestation (benchmark or challenge) in the registry.
+- A provider node agent that serves leases, serves LLM inference, and runs Docker jobs.
+- An orchestrator that indexes the market, routes inference through an OpenAI-compatible
+  gateway with metering, and splits and stitches verifiable jobs.
+- A web dashboard for renting GPUs, using models, running jobs, and an on chain explorer.
 - An economic simulator for evaluation.
 - Local deployment via Docker Compose and a public testnet deployment on Sepolia.
 
 Out of scope for this project:
 - A custom base layer blockchain or consensus algorithm. We inherit Ethereum.
+- Verifying LLM output correctness or training on chain. This is not practical; rented
+  compute is secured by availability and attestation, not by result re-execution.
 - Production grade custody, KYC, or fiat payment rails.
 - A token sale or any real financial instrument. SMESH is a utility and test token.
 
@@ -45,11 +59,16 @@ Out of scope for this project:
 
 | Term | Meaning |
 |------|---------|
-| Requester | User who posts a job and pays for compute. |
-| Provider | Staked node that executes tasks and earns payment. |
+| Requester | User who rents compute or posts a job and pays for it. |
+| Provider | Staked node that rents out capacity, serves inference, or executes tasks. |
+| Lease | A time-based rental of a node or GPU with escrow that streams per interval. |
+| Heartbeat | A signed message from a provider proving a lease is live during an interval. |
+| Attestation | A benchmark or challenge that proves a provider's advertised hardware. |
+| SLA | Service level agreement; downtime or failed attestation breaches it and is slashable. |
+| Inference gateway | Orchestrator component that routes OpenAI-compatible requests to providers. |
 | Challenger | Provider that re executes a submitted task to verify it. |
-| Task | An independent unit of a job, for example one frame or one image tile. |
-| Escrow | Funds locked in the JobMarket contract until settlement. |
+| Task | An independent unit of a verifiable job, for example one frame or image tile. |
+| Escrow | Funds locked in a market contract until settlement or streamed over a lease. |
 | Bond | Portion of a provider stake locked to a claimed task, at risk of slashing. |
 | Slashing | Programmatic confiscation of stake for provable misbehavior. |
 | Reputation | On chain score updated by an exponential moving average of outcomes. |
@@ -78,17 +97,21 @@ the trusted settlement and validation layer. Everything off chain is untrusted a
 not be able to steal funds or force acceptance of an incorrect result.
 
 ```
-Trusted (on chain):     SmeshToken, ProviderRegistry, JobMarket, Verification
-Untrusted (off chain):  Orchestrator, Provider agents, Web dashboard, IPFS, Postgres
+Trusted (on chain):     SmeshToken, ProviderRegistry (+ attestation),
+                        RentalMarket, JobMarket, Verification
+Untrusted (off chain):  Orchestrator (inference gateway, index, split/stitch),
+                        Provider agents, Web dashboard, IPFS, Postgres
 ```
 
 ### 2.2 Actors and user classes
 
 | Actor | Description | Primary goals |
 |-------|-------------|---------------|
-| Requester | Individual or studio needing compute. | Post jobs, fund escrow, receive verified outputs at a fair price. |
-| Provider | Owner of idle GPU or CPU capacity. | Stake, claim work, execute honestly, earn payment, build reputation. |
-| Challenger | A provider acting in verification mode. | Detect incorrect results, earn slashed bonds and reputation. |
+| Requester (rental) | Needs a GPU or node to run or fine-tune a model. | Lease capacity at a fair price, get a live endpoint, pay only for uptime. |
+| Requester (inference) | Needs model output without managing hardware. | Call a managed OpenAI-compatible endpoint, pay per usage. |
+| Requester (task) | Has a deterministic job with a checkable output. | Submit a job, receive a verified result. |
+| Provider | Owner of idle GPU or CPU capacity. | Stake, pass attestation, serve leases and inference, earn, build reputation. |
+| Challenger | A provider acting in verification mode. | Detect incorrect task results, earn slashed bonds and reputation. |
 | Operator | Person running the local or testnet deployment. | Bring up the stack, deploy contracts, monitor health. |
 | Reviewer | Course evaluator or portfolio viewer. | Understand the design and see a working demo. |
 
@@ -137,6 +160,9 @@ Untrusted (off chain):  Orchestrator, Provider agents, Web dashboard, IPFS, Post
 | FR-REG-05 | Restrict bond, unbond, slash, and reputation updates to authorized protocol contracts. | must |
 | FR-REG-06 | Expose an eligibility check that requires registration, an active flag, and a minimum stake. | must |
 | FR-REG-07 | Allow a provider to toggle availability without withdrawing stake. | should |
+| FR-REG-08 | Record structured capabilities (GPU model, VRAM, CPU, region) alongside the free form description. | must |
+| FR-REG-09 | Support a benchmark or attestation challenge that proves advertised hardware; a failed challenge is slashable and lowers reputation. | should |
+| FR-REG-10 | Update reputation from lease outcomes (uptime and SLA) as well as task outcomes. | must |
 
 ### 3.3 Job market and escrow
 
@@ -187,18 +213,22 @@ Untrusted (off chain):  Orchestrator, Provider agents, Web dashboard, IPFS, Post
 | FR-AGT-05 | Operate in challenger mode by sampling submitted tasks and re executing them. | must |
 | FR-AGT-06 | Apply resource limits and treat all job inputs as untrusted. | must |
 | FR-AGT-07 | Recover from transient RPC and IPFS failures with retries and backoff. | should |
+| FR-AGT-08 | Serve an active lease: launch the requester's container or expose the leased GPU, and send signed heartbeats per interval. | must |
+| FR-AGT-09 | Serve advertised models via an OpenAI-compatible inference endpoint. | must |
+| FR-AGT-10 | Respond to benchmark and attestation challenges from the registry. | should |
 
 ### 3.7 Web dashboard
 
 | ID | Requirement | Level |
 |----|-------------|-------|
 | FR-WEB-01 | Connect a wallet and display the connected account and SMESH balance. | must |
-| FR-WEB-02 | Let a requester post a job, fund escrow, and track task progress in real time. | must |
-| FR-WEB-03 | Show a live view of tiles or frames assembling as tasks are verified. | should |
-| FR-WEB-04 | Let a provider register, stake, view earnings and reputation, and toggle availability. | must |
-| FR-WEB-05 | Provide an explorer of jobs, tasks, disputes, and slashing events. | must |
-| FR-WEB-06 | Display hashes, addresses, and amounts in monospace with copy actions and safe truncation. | should |
-| FR-WEB-07 | Perform all writes through the user wallet and never store secrets. | must |
+| FR-WEB-02 | Let a requester browse GPU listings, open a lease, and monitor uptime and streamed spend. | must |
+| FR-WEB-03 | Provide a model catalog and a prompt playground for managed inference, with usage and cost. | must |
+| FR-WEB-04 | Let a requester post a verifiable job and track task progress, including live tile assembly for rendering. | should |
+| FR-WEB-05 | Let a provider register, stake, list capacity, view earnings, uptime, and reputation, and toggle availability. | must |
+| FR-WEB-06 | Provide an explorer of leases, jobs, tasks, disputes, and slashing events. | must |
+| FR-WEB-07 | Display hashes, addresses, and amounts in monospace with copy actions and safe truncation. | should |
+| FR-WEB-08 | Perform all writes through the user wallet and never store secrets. | must |
 
 ### 3.8 Simulator
 
@@ -207,6 +237,32 @@ Untrusted (off chain):  Orchestrator, Provider agents, Web dashboard, IPFS, Post
 | FR-SIM-01 | Model the verification game economics and validate the break even spot check rate. | must |
 | FR-SIM-02 | Report the security and cost tradeoff across spot check rates and bond sizes. | must |
 | FR-SIM-03 | Support heterogeneous provider populations including honest, lazy, and colluding behavior. | should |
+| FR-SIM-04 | Model rental economics: uptime, SLA slashing, and streamed payment over a lease. | should |
+
+### 3.9 Rental market and leases (primary)
+
+| ID | Requirement | Level |
+|----|-------------|-------|
+| FR-RENT-01 | Allow a provider to list capacity with price per interval, resource spec, and minimum and maximum duration. | must |
+| FR-RENT-02 | Allow a requester to open a lease against a listing and fund escrow for the requested duration. | must |
+| FR-RENT-03 | Bond a portion of the provider stake for the duration of an active lease. | must |
+| FR-RENT-04 | Stream escrow to the provider per settled interval and refund the requester for unused intervals on early end. | must |
+| FR-RENT-05 | Require a signed provider heartbeat per interval; a settled interval must be backed by a valid heartbeat. | must |
+| FR-RENT-06 | Let the requester or anyone terminate a lease for missed heartbeats (downtime) and slash the provider for the SLA breach. | must |
+| FR-RENT-07 | Allow the requester to extend an active lease by adding escrow. | should |
+| FR-RENT-08 | Update provider reputation from lease outcomes (uptime percentage and disputes). | must |
+| FR-RENT-09 | Emit events for listing, lease open, interval settled, heartbeat, extend, end, and slash. | must |
+
+### 3.10 LLM inference and gateway
+
+| ID | Requirement | Level |
+|----|-------------|-------|
+| FR-LLM-01 | Let a provider advertise served models (name, context length, price per token or request). | must |
+| FR-LLM-02 | Run an OpenAI-compatible inference server in the provider agent for advertised models. | must |
+| FR-LLM-03 | Route requester inference calls through the orchestrator gateway to a healthy provider and meter usage. | must |
+| FR-LLM-04 | Debit prepaid credits from a requester escrow as usage is metered, and settle to the provider. | must |
+| FR-LLM-05 | Support a best-effort deterministic spot-check (temperature 0, fixed seed) that compares a sampled response and feeds reputation, not hard slashing. | should |
+| FR-LLM-06 | Support raw GPU lease as an alternative to managed inference, where the requester deploys their own model or fine-tune container. | must |
 
 ---
 
@@ -214,23 +270,33 @@ Untrusted (off chain):  Orchestrator, Provider agents, Web dashboard, IPFS, Post
 
 ### 4.1 On chain interfaces
 
-The contracts expose the functions and events already implemented in `contracts/`.
-Off chain services depend on the following events at minimum:
-- JobPosted, TaskClaimed, ResultSubmitted, TaskPaid, TaskSlashed, TaskReopened, JobCompleted.
-- DisputeOpened, ChallengeVote, DisputeResolved.
+The contracts expose the functions and events implemented in `contracts/`. Off chain
+services depend on the following events at minimum:
+- Verifiable task: JobPosted, TaskClaimed, ResultSubmitted, TaskPaid, TaskSlashed,
+  TaskReopened, JobCompleted, DisputeOpened, ChallengeVote, DisputeResolved.
+- Rental (planned): ListingCreated, LeaseOpened, IntervalSettled, HeartbeatPosted,
+  LeaseExtended, LeaseEnded, LeaseSlashed.
 
 The deployment file at `contracts/deployments/<network>.json` publishes the network name,
-chain id, deployer, and the four contract addresses.
+chain id, deployer, and each contract address and ABI, so off chain services load
+everything they need from one file.
 
 ### 4.2 Off chain API
 
-The orchestrator exposes a read only HTTP API. Planned resources:
+The orchestrator exposes a read API, a job prepare helper, and an inference gateway:
 - GET /health returns service status.
 - GET /jobs and GET /jobs/:id return indexed job and task state.
-- GET /providers returns provider stake and reputation.
-- A live channel, either server sent events or websocket, streams task updates.
+- GET /listings and GET /leases and GET /leases/:id return rental state.
+- GET /providers returns provider stake, reputation, capabilities, and uptime.
+- GET /models returns served models across providers.
+- POST /jobs/prepare splits an image and pins the manifest (no chain write).
+- POST /v1/chat/completions is the OpenAI-compatible gateway: it routes to a healthy
+  provider for a paid lease or prepaid inference credit and meters usage.
+- A live channel (server sent events) streams market updates.
 
-Writes are never sent to the orchestrator. Clients submit transactions through the wallet.
+Value writes are never sent to the orchestrator. Requesters submit lease, job, and escrow
+transactions through their wallet. The gateway routes metered requests but does not custody
+funds; settlement is on chain.
 
 ### 4.3 Storage
 
@@ -263,11 +329,13 @@ The dashboard is described by the design system in section 7.
 
 ---
 
-## 6. Verification game specification
+## 6. Trust model specification
 
-This is the core intellectual contribution and deserves precise definition.
+The two market modes are secured differently, and this is the core of the design.
+Verifiable tasks use result re-execution (6.1 to 6.4). Rentals cannot be checked by
+re-execution, so they use availability and attestation (6.5 to 6.6).
 
-### 6.1 Economic model
+### 6.1 Verifiable-task economic model
 
 Let R be the reward per task and B be the bonded stake per task. A provider that cheats
 skips real computation. If the task is spot checked with probability s and at least one
@@ -310,6 +378,42 @@ verification overhead. The simulator validates this relationship.
 | Two providers collude on the same wrong answer. | Reputation weighting, random challenger selection, and honest majority reduce success probability. Future work can raise the number of required challengers. |
 | Challenger copies the original commitment. | Commit and reveal in the hardened design. |
 | Provider abandons a claimed task. | Timeout reclaim slashes the bond and reopens the task. |
+
+### 6.5 Rental trust model (availability based)
+
+A rented result cannot be re-executed, so trust comes from proving the service was
+delivered, not the result. A lease is divided into intervals. For each interval:
+
+1. The provider posts a signed heartbeat (EIP-712) proving the node is live and serving.
+2. Escrow settles that interval to the provider only if a valid heartbeat exists.
+3. If heartbeats are missed for a grace period, the lease can be terminated: unused escrow
+   is refunded to the requester and the provider is slashed for the SLA breach.
+
+Capability honesty is enforced by attestation. Before or during a lease, the provider must
+answer a benchmark or attestation challenge that is hard to pass without the advertised
+hardware. A failed challenge is slashable and lowers reputation. Reputation is an EMA over
+uptime and dispute outcomes, and it gates listings and required stake.
+
+Economic intuition: let V be the value a provider captures per interval by claiming uptime
+it did not deliver, D the deposit or stake at risk, and h the probability a missed interval
+is detected (heartbeat gap plus challenge). Cheating is deterred when h * D exceeds V, so a
+sufficient stake and frequent heartbeats make advertised but undelivered service
+unprofitable. The simulator extends to this case.
+
+For managed LLM inference specifically, an optional deterministic spot-check (temperature 0
+and a fixed seed) lets a challenger re-run a sampled prompt and compare outputs within a
+tolerance. Because cross-hardware determinism is not guaranteed, this feeds reputation
+rather than hard slashing.
+
+### 6.6 Rental threats and mitigations
+
+| Threat | Mitigation |
+|--------|------------|
+| Provider advertises a GPU it does not have. | Benchmark or attestation challenge; failure is slashed. |
+| Provider takes a lease then goes offline. | Missed heartbeats terminate the lease, refund the requester, and slash the provider. |
+| Provider serves a smaller or throttled model than advertised. | Inference spot-checks and reputation; requesters can end the lease and re-rent. |
+| Requester claims downtime that did not happen. | Signed heartbeats are on chain evidence; settlement follows the heartbeat record. |
+| Gateway tries to skim or misroute. | The gateway custodies no funds; settlement is on chain and metered against signed usage. |
 
 ---
 
@@ -477,39 +581,70 @@ Status legend: done, in progress, planned.
 - Follow ups: Postgres persistence of the projection (currently in-memory and rebuildable
   from chain history), and a live cross service test in Phase 6.
 
-### Phase 5: Web dashboard. Status: planned
-- Goal: the requester, provider, and explorer experiences on the design system in section 7.
-- Tasks: design tokens and base components, wallet connection, post job flow, provider
-  staking and reputation view, explorer, and a live tile assembly view.
-- Deliverables: a Next.js application, a web service in Compose, and a component library.
-- Acceptance: a user completes the full flow in the browser against the local devnet.
+The pivot to compute rental inserts the rental and LLM phases next. The verifiable-task
+path (phases 1 to 4) is complete and is retained as the second market mode.
 
-### Phase 6: Full stack end to end and continuous integration. Status: planned
+### Phase 5: Rental market contracts. Status: planned, next
+- Goal: on chain leasing with streamed escrow, heartbeats, and SLA slashing.
+- Tasks: RentalMarket (listing, lease, per-interval settlement, extend, end, terminate),
+  signed heartbeat verification (EIP-712), and attestation or benchmark challenge in the
+  registry, all reusing SmeshToken and ProviderRegistry.
+- Deliverables: RentalMarket and attestation code with unit and property tests.
+- Acceptance: a lease funds escrow, settles per interval against heartbeats, refunds unused
+  intervals on early end, and slashes a provider that misses heartbeats or fails attestation.
+
+### Phase 6: Provider rental serving and LLM inference. Status: planned
+- Goal: providers actually serve leases and models.
+- Tasks: agent serves a leased container or exposes the leased GPU, signs heartbeats per
+  interval, responds to benchmark challenges, and runs an OpenAI-compatible inference server
+  for advertised models.
+- Deliverables: agent rental and inference modules with integration tests against a local chain.
+- Acceptance: a real lease runs end to end with heartbeats and streamed payment, and an
+  inference request returns a completion from a provider.
+
+### Phase 7: Orchestrator rental index and inference gateway. Status: planned
+- Goal: discovery and routing.
+- Tasks: index listings and leases, expose listings, leases, providers, and models APIs, and
+  implement the OpenAI-compatible gateway with metering and health-aware routing.
+- Deliverables: orchestrator rental index and gateway with tests.
+- Acceptance: a client calls /v1/chat/completions and is routed to a healthy provider, and
+  usage is metered and reconciled with on chain settlement.
+
+### Phase 8: Web dashboard. Status: planned
+- Goal: rent GPUs, use models, run jobs, and explore, on the design system in section 7.
+- Tasks: design tokens and base components, wallet connection, GPU listing and lease flow with
+  live uptime and streamed spend, model catalog and playground, verifiable-job flow with live
+  tile assembly, provider console, and explorer.
+- Deliverables: a Next.js application, a web service in Compose, and a component library.
+- Acceptance: a user leases a GPU, calls a model, and runs a job in the browser on the devnet.
+
+### Phase 9: Full stack end to end and continuous integration. Status: planned
 - Goal: confidence that the whole system works together.
-- Tasks: contract lifecycle e2e, agent integration tests, Playwright suite, and a CI pipeline.
+- Tasks: contract lifecycle e2e for both markets, agent integration tests, a Playwright suite,
+  and a CI pipeline.
 - Deliverables: test suites and a green pipeline.
 - Acceptance: the pipeline runs all layers and passes on a clean checkout.
 
-### Phase 7: Blender rendering workload. Status: planned
-- Goal: the visual flagship.
+### Phase 10: Rendering workload and perceptual verification. Status: planned
+- Goal: the visual verifiable-task showcase.
 - Tasks: split a Blender scene into tiles or frames, execute headless Blender in the agent,
   apply the perceptual verification policy, and assemble the final image.
 - Deliverables: a rendering job type, sample scenes, and the perceptual policy in Verification.
 - Acceptance: a scene is rendered across the mesh and assembled correctly, with a cheating
   render detected by perceptual comparison.
 
-### Phase 8: Testnet and hardening. Status: planned
+### Phase 11: Testnet and hardening. Status: planned
 - Goal: a public showcase and a security pass.
-- Tasks: deploy to Sepolia, host the frontend, review access control and reentrancy, and
-  produce a gas report.
+- Tasks: deploy to Sepolia, host the frontend, review access control and reentrancy across both
+  markets, and produce a gas report.
 - Deliverables: a live testnet deployment, a hosted dashboard, and a security and gas report.
-- Acceptance: the public demo completes a job and the report documents costs and checks.
+- Acceptance: the public demo completes a lease and a job, and the report documents costs and checks.
 
-### Phase 9: Evaluation and delivery. Status: planned
+### Phase 12: Evaluation and delivery. Status: planned
 - Goal: measure and present.
-- Tasks: run the evaluation, record the demo, finalize the report and slides.
+- Tasks: run the evaluation for both trust models, record the demo, finalize the report and slides.
 - Deliverables: evaluation results, a recorded demo, the final report, and the presentation.
-- Acceptance: results reproduce the deterrence claim and the demo shows the full flow.
+- Acceptance: results reproduce the deterrence claims and the demo shows renting, inference, and a job.
 
 ---
 
@@ -517,14 +652,17 @@ Status legend: done, in progress, planned.
 
 | Requirement group | Realized in phase |
 |-------------------|-------------------|
-| FR-TKN, FR-REG, FR-JOB | Phase 1 |
+| FR-TKN, FR-REG core, FR-JOB | Phase 1 |
 | FR-VER core | Phase 2 |
-| FR-VER hardening | Phase 7 |
-| FR-AGT | Phase 3, extended in Phase 7 |
-| FR-ORC | Phase 4 |
-| FR-WEB | Phase 5 |
-| FR-SIM | done, extended in Phase 9 |
-| NFR security and testing | Phase 6 and Phase 8 |
+| FR-AGT core | Phase 3 |
+| FR-ORC core | Phase 4 |
+| FR-RENT, FR-REG attestation | Phase 5 |
+| FR-AGT rental and inference, FR-LLM serving | Phase 6 |
+| FR-LLM gateway, FR-ORC rental index | Phase 7 |
+| FR-WEB | Phase 8 |
+| FR-VER hardening | Phase 10 |
+| FR-SIM | done, extended in Phase 12 |
+| NFR security and testing | Phase 9 and Phase 11 |
 
 ---
 
@@ -538,6 +676,10 @@ Status legend: done, in progress, planned.
 | Scope creep across many components. | Missed deadlines. | Medium | Phase gates with clear acceptance criteria and a deterministic first workload. |
 | Testnet variability, faucets and RPC. | Flaky public demo. | Medium | Local devnet is the primary target. Testnet is a bonus. |
 | Native toolchain issues in containers. | Broken builds. | Low | Pin base images and versions. Prefer Debian slim for Node images. |
+| LLM output cannot be verified on chain. | Overpromising verifiable AI. | High | Rentals are secured by availability and attestation, not result checks. This is stated in scope. Inference spot-checks feed reputation only. |
+| Provider spoofs advertised hardware. | Requester pays for less than promised. | Medium | Benchmark or attestation challenge with slashing; reputation and the ability to end and re-rent. |
+| Streamed escrow accounting errors. | Funds locked or mispaid. | Medium | Interval accounting invariants with property tests; unused escrow always refundable to the requester. |
+| GPU passthrough and inference runtime setup on varied hosts. | Demo friction. | Medium | Provide a CPU-served small model fallback for the inference demo; document GPU setup. |
 
 ---
 
