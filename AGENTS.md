@@ -13,14 +13,26 @@ file you are editing wins** on conflicts.
 
 ## 1. What this project is
 
-**ShaderMesh** — a decentralized, verifiable marketplace for GPU/CPU compute on
-Ethereum. Requesters post containerized jobs (flagship: GPU rendering split into
-tiles/frames); staked provider nodes execute them off-chain and commit results
-on-chain; honesty is enforced by an **optimistic verification game** (staking +
-reputation + randomized re-execution + slashing). The blockchain is the trust,
-coordination, and payment layer — **never** the compute layer.
+**ShaderMesh** is a decentralized marketplace for renting compute on Ethereum.
+Providers stake and rent out GPU and CPU capacity; requesters lease it to run any
+containerized workload. The headline use case is AI and LLM compute (a managed,
+provider-served, OpenAI-compatible inference endpoint plus raw GPU leases),
+generalized to any compute. The blockchain is the trust, coordination, and
+payment layer, never the compute layer.
 
-Full design: [`docs/ShaderMesh-Review1-Proposal.md`](docs/ShaderMesh-Review1-Proposal.md).
+Two market modes share one staking, reputation, and slashing layer:
+
+- **Rental (primary).** Lease a node or GPU and run anything, including LLMs. A
+  rented result cannot be re-executed and checked, so trust is availability based:
+  staking, signed uptime heartbeats, hardware attestation and benchmark
+  challenges, reputation, and slashing for SLA breaches, with escrow that streams
+  to the provider per interval.
+- **Verifiable task (retained).** Submit a job with a checkable output (rendering,
+  batch). Trust is an optimistic verification game: staking, reputation,
+  randomized re-execution (spot-checking), and slashing.
+
+Full design: [`docs/ShaderMesh-Review1-Proposal.md`](docs/ShaderMesh-Review1-Proposal.md);
+authoritative scope and roadmap: [`docs/ShaderMesh-SRS.md`](docs/ShaderMesh-SRS.md).
 
 ## 2. Repository map
 

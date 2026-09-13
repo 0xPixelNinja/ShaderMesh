@@ -8,13 +8,21 @@ This is the **only** place value moves or results are validated. If a change let
 an off-chain component custody funds or force an outcome without on-chain checks,
 it is wrong.
 
-Contracts:
-- `SmeshToken` — ERC-20 utility token (payments, staking, rewards, testnet faucet).
-- `ProviderRegistry` — stake/bond/slash + reputation; economic mutations are
-  `onlyAuthorized` (JobMarket, Verification).
-- `JobMarket` — escrow, task state machine, optimistic settlement; dispute
-  outcomes are `onlyVerification`.
-- `Verification` — spot-check challenge game; resolves disputes.
+The marketplace has two modes over one staking and reputation layer: rental (primary,
+availability based) and verifiable task (retained, re-execution based).
+
+Contracts (built):
+- `SmeshToken`: ERC-20 utility token (payments, staking, rewards, testnet faucet).
+- `ProviderRegistry`: stake, bond, slash, reputation; economic mutations are
+  `onlyAuthorized`. Attestation and structured capabilities are being added.
+- `JobMarket`: verifiable-task escrow, task state machine, optimistic settlement;
+  dispute outcomes are `onlyVerification`.
+- `Verification`: spot-check challenge game; resolves disputes.
+
+Contracts (planned, next phase):
+- `RentalMarket`: listings, leases, per-interval streamed escrow, EIP-712 signed
+  heartbeats, extend and end, refunds for unused time, and SLA slashing. Reuses
+  `SmeshToken` and `ProviderRegistry` and is `onlyAuthorized` for registry mutations.
 
 ## Rules
 

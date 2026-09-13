@@ -1,59 +1,78 @@
 # ShaderMesh
 
-**A decentralized, verifiable marketplace for GPU/CPU compute — coordinated by Ethereum smart contracts.**
+**A decentralized marketplace for renting compute, coordinated by Ethereum smart contracts.**
 
-Requesters post containerized jobs (flagship: GPU rendering split into tiles/frames). A mesh of
-staked provider nodes claims tasks, runs them off-chain in Docker, and submits result commitments
-on-chain. Honesty is enforced by an **optimistic verification game**: staking + on-chain reputation
-+ reputation-weighted **randomized re-execution (spot-checking)** + **slashing**. The blockchain is
-the trust, coordination, and payment layer — not the compute layer.
+Providers stake and rent out GPU and CPU capacity. Requesters lease it to run any containerized
+workload. The headline use case is AI and LLM compute: rent a GPU to run or fine-tune a model, or
+call a managed, provider-served, OpenAI-compatible inference endpoint. It generalizes to any
+compute. The blockchain is the trust, coordination, and payment layer, not the compute layer.
+
+The marketplace has two modes:
+
+- **Rental (primary).** Lease a node or GPU for a duration and run anything, including LLMs. Because
+  a rented result cannot be re-executed and checked (LLM output is non-deterministic and training is
+  unverifiable), trust comes from **staking, signed uptime heartbeats, hardware attestation and
+  benchmark challenges, reputation, and slashing for SLA breaches**, with escrow that streams to the
+  provider per interval.
+- **Verifiable task (retained).** Submit a job with a checkable output (rendering, batch compute).
+  Trust comes from an **optimistic verification game**: staking, reputation, randomized re-execution
+  (spot-checking), and slashing.
 
 > Course project (Blockchain / Cryptocurrency). See the full design in
-> [`docs/ShaderMesh-Review1-Proposal.md`](docs/ShaderMesh-Review1-Proposal.md).
+> [`docs/ShaderMesh-Review1-Proposal.md`](docs/ShaderMesh-Review1-Proposal.md) and the SRS in
+> [`docs/ShaderMesh-SRS.md`](docs/ShaderMesh-SRS.md).
 
 ---
 
 ## Why this is different
 
-Existing decentralized-compute networks are domain-locked (Render = rendering, Livepeer = video),
-rely on heavy multi-round disputes (TrueBit), require special hardware (iExec/SGX), or optimize
-liveness over correctness (Akash). **ShaderMesh** contributes a *generalized containerized job
-abstraction* with a *pluggable, low-overhead optimistic verification policy*, demonstrated
-end-to-end on distributed GPU rendering, on commodity hardware.
+Centralized clouds gate GPU supply behind an oligopoly and opaque billing. Existing decentralized
+networks are domain-locked (Render for rendering, Livepeer for video) or optimize only liveness
+(Akash). ShaderMesh combines a **general compute-rental market** (headlined by LLM and AI compute,
+with a managed inference endpoint and raw GPU leases) with a **verifiable task mode** for
+deterministic jobs. One staking, reputation, and slashing layer secures both, on commodity hardware.
 
 ## Architecture (high level)
 
 ```
-Requester ──post job + escrow──►  JobMarket (chain)  ◄──split/stitch──  Orchestrator (off-chain)
-    │                                   │                                     │
-    └──upload scene──► IPFS ◄───────────┼───────────pull inputs──────────► Provider Agents (Docker/Blender)
-                                        │                                     │
-                        Verification (chain) ◄──submit hash+CID / challenge──┘
-                          │  spot-check + slash + reputation
-                ProviderRegistry (stake/reputation) · SmeshToken (ERC-20)
+                         ┌──────────────── on-chain (Ethereum) ────────────────┐
+  Requester ──lease──►   RentalMarket   escrow-stream · heartbeats · SLA slash  │
+     │                   JobMarket      escrow · tasks · verifiable settlement   │
+     │                   Verification   spot-check re-execution · disputes       │
+     │                   ProviderRegistry (stake · attestation · reputation)     │
+     │                   SmeshToken (ERC-20: pay · stake · rewards)              │
+                         └──────────────────────────────────────────────────────┘
+     │                                   ▲                          ▲
+     └── call inference / manage ──► Orchestrator ──index/route──► Provider Agents
+                                    (gateway, metering,           (lease serving,
+                                     rental index, stitch)         LLM inference,
+                                                                   Docker jobs)
+                                          IPFS (inputs / outputs / manifests)
 ```
 
-Full diagrams (block, state machine, sequence, gantt) live in the proposal doc.
+Full diagrams (block, state machine, sequence, roadmap) live in the proposal doc.
 
 ## Monorepo layout
 
 | Path | What | Stack |
 |------|------|-------|
 | `contracts/` | Smart contracts + tests + deploy scripts | Solidity 0.8.x, Hardhat, OpenZeppelin |
-| `agent/` | Provider compute agent (claim → Docker → IPFS → submit) | Python 3.11+, web3.py, Docker SDK |
-| `orchestrator/` | Job splitting, event indexing, tile stitching, API | Node + TypeScript, viem |
+| `agent/` | Provider node agent: rental serving, LLM inference, Docker jobs, heartbeats | Python 3.11+, web3.py, Docker SDK |
+| `orchestrator/` | Rental index, inference gateway, job split/stitch, event index, API | Node + TypeScript, viem |
 | `web/` | Requester + provider dashboard, on-chain explorer | Next.js, wagmi/viem, Tailwind |
 | `simulator/` | N-provider simulation + attacker strategies | Python |
 | `docs/` | Proposal, architecture, review materials | Markdown |
 
 ## Contracts
 
-| Contract | Responsibility |
-|----------|----------------|
-| `SmeshToken` | ERC-20 utility token: payments, staking, verification rewards (+ testnet faucet). |
-| `ProviderRegistry` | Provider registration, staking, capabilities, reputation (EMA), slashing. |
-| `JobMarket` | Job posting, escrow, task metadata, claiming, state machine, settlement. |
-| `Verification` | Result commitments, spot-check scheduling, dispute resolution, reward/slash. |
+| Contract | Responsibility | Status |
+|----------|----------------|--------|
+| `SmeshToken` | ERC-20 utility token: payments, staking, rewards (+ testnet faucet). | built |
+| `ProviderRegistry` | Registration, staking, capabilities, reputation (EMA), slashing. | built |
+| `JobMarket` | Verifiable-task market: escrow, tasks, claiming, settlement. | built |
+| `Verification` | Result commitments, spot-check scheduling, disputes, reward/slash. | built |
+| `RentalMarket` | Rental market: lease lifecycle, streamed escrow, heartbeats, SLA slashing. | planned |
+| Attestation (in `ProviderRegistry`) | Benchmark/attestation challenges proving advertised hardware. | planned |
 
 ## Quick start (dev)
 
@@ -92,8 +111,11 @@ orchestrator health `:4000`.
 
 ## Status
 
-Early scaffold. **Review 1 (proposal & design) is complete.** Implementation follows the phase plan
-in the proposal (P1 contracts → P2 verification game → P3 agent → P4 orchestrator → …).
+Built and tested: the verifiable-task path end to end (`SmeshToken`, `ProviderRegistry`, `JobMarket`,
+`Verification`), the provider agent, the orchestrator, and the economic simulator. The project is
+being repositioned toward compute rental with an LLM focus; the rental market, attestation, and the
+managed inference layer are the next phases. See the roadmap in
+[`docs/ShaderMesh-SRS.md`](docs/ShaderMesh-SRS.md).
 
 ## License
 
