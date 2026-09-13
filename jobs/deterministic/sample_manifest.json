@@ -1,0 +1,9 @@
+{
+  "width": 128,
+  "height": 128,
+  "re_min": -2.2,
+  "re_max": 0.8,
+  "im_min": -1.5,
+  "im_max": 1.5,
+  "max_iter": 200
+}
