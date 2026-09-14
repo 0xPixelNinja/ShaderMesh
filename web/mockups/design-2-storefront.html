@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ShaderMesh — Design 2: Storefront Marketplace</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg:#FCFCFD;--surface:#FFFFFF;--panel:#F4F4F5;--hover:#F7F7F8;--border:#E4E4E7;--border2:#D4D4D8;
+    --ink:#18181B;--ink2:#3F3F46;--muted:#52525B;--faint:#8A8A93;
+    --accent:#D97706;--accent2:#B45309;--accentw:#FEF3C7;--onacc:#1A1205;--success:#15803D;
+    --mono:'JetBrains Mono',ui-monospace,monospace;--sans:'Inter',system-ui,'Segoe UI',sans-serif;
+  }
+  *{box-sizing:border-box}html,body{margin:0}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased}
+  .navbar{display:flex;align-items:center;gap:22px;padding:0 26px;height:60px;background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:5}
+  .brand{display:flex;align-items:center;gap:10px}
+  .mk{width:26px;height:26px;border-radius:6px;background:#fff;border:1px solid var(--border2);display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);gap:2px;padding:4px}
+  .mk i{background:#D4D4D8;border-radius:1px}.mk i:nth-child(1),.mk i:nth-child(5),.mk i:nth-child(9){background:var(--accent)}
+  .brand b{font-weight:600;font-size:15px}
+  .links{display:flex;gap:4px}
+  .links a{padding:8px 12px;border-radius:6px;color:var(--muted);text-decoration:none;font-weight:500;font-size:14px}
+  .links a:hover{background:var(--hover);color:var(--ink)}
+  .links a.on{color:var(--ink);background:var(--panel)}
+  .sp{flex:1}
+  .bal{font-family:var(--mono);font-size:12px;color:var(--ink2);border:1px solid var(--border);border-radius:6px;padding:8px 10px;background:#fff}.bal b{color:var(--accent);font-weight:600}
+  .btn{border:1px solid var(--accent);background:var(--accent);color:var(--onacc);font-weight:600;border-radius:6px;padding:9px 14px;font-size:13px;cursor:pointer;font-family:var(--sans)}.btn:hover{background:var(--accent2);color:#fff}
+  .hero{padding:26px 26px 8px}
+  .hero h1{margin:0;font-size:22px;font-weight:600;letter-spacing:-.02em}
+  .hero p{margin:4px 0 16px;color:var(--muted)}
+  .searchrow{display:flex;gap:10px}
+  .search{flex:1;display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--border);border-radius:8px;padding:11px 14px}
+  .search svg{width:17px;height:17px;color:var(--faint)}.search input{border:0;outline:0;font-size:14px;width:100%;font-family:var(--sans)}
+  .sort{border:1px solid var(--border);background:#fff;border-radius:8px;padding:0 14px;display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink2)}.sort svg{width:14px;height:14px;color:var(--faint)}
+  .wrap{display:grid;grid-template-columns:230px 1fr;gap:22px;padding:16px 26px 32px;align-items:start}
+  .filters{border:1px solid var(--border);border-radius:8px;background:#fff;padding:16px;position:sticky;top:76px}
+  .filters h4{margin:0 0 10px;font-size:12px;font-weight:600}
+  .fg{padding:12px 0;border-top:1px solid var(--border)}.fg:first-of-type{border:0;padding-top:0}
+  .fg .lbl{font-size:11px;color:var(--faint);text-transform:uppercase;letter-spacing:.03em;font-weight:500;margin-bottom:8px}
+  .chk{display:flex;align-items:center;gap:8px;padding:5px 0;color:var(--ink2);font-size:13px}
+  .chk .b{width:15px;height:15px;border:1px solid var(--border2);border-radius:4px;display:grid;place-items:center}
+  .chk.on .b{background:var(--accent);border-color:var(--accent)}.chk.on .b svg{width:11px;height:11px;color:#fff}
+  .chk .n{margin-left:auto;font-family:var(--mono);color:var(--faint);font-size:11px}
+  .range{height:5px;background:var(--panel);border-radius:999px;position:relative;margin:12px 2px 6px}
+  .range i{position:absolute;left:10%;right:35%;top:0;bottom:0;background:var(--accent);border-radius:999px}
+  .range .k{position:absolute;top:50%;width:14px;height:14px;border-radius:50%;background:#fff;border:2px solid var(--accent);transform:translate(-50%,-50%)}
+  .rl{display:flex;justify-content:space-between;font-family:var(--mono);font-size:11px;color:var(--faint)}
+  .count{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+  .count b{font-size:14px}.count span{color:var(--muted);font-size:13px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:16px}
+  .gcard{border:1px solid var(--border);border-radius:10px;background:#fff;padding:16px;display:flex;flex-direction:column;gap:12px}
+  .gcard:hover{border-color:var(--border2)}
+  .gtop{display:flex;align-items:flex-start;justify-content:space-between}
+  .gpu{display:flex;gap:10px;align-items:center}
+  .gpu .ch{width:36px;height:36px;border-radius:8px;background:var(--panel);border:1px solid var(--border);display:grid;place-items:center;color:var(--accent)}.gpu .ch svg{width:18px;height:18px}
+  .gpu b{font-weight:600;font-size:15px;display:block}.gpu small{color:var(--faint);font-size:12px;font-family:var(--mono)}
+  .rep{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--success);font-weight:500;background:#EAF6EE;border:1px solid #BBE3C7;border-radius:999px;padding:3px 8px}
+  .specs{display:flex;gap:8px;flex-wrap:wrap}
+  .spec{font-size:11px;color:var(--ink2);background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-family:var(--mono)}
+  .prow{display:flex;align-items:flex-end;justify-content:space-between;margin-top:2px}
+  .price{font-family:var(--mono)}.price b{font-size:22px;font-weight:600}.price small{color:var(--muted);font-size:12px}
+  .up{font-family:var(--mono);font-size:12px;color:var(--muted)}.up b{color:var(--ink);font-weight:500}
+  .prov{display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--border);padding-top:12px}
+  .prov .a{font-family:var(--mono);font-size:12px;color:var(--muted)}
+  .rent{border:1px solid var(--accent);background:var(--accent);color:var(--onacc);font-weight:600;border-radius:6px;padding:7px 14px;font-size:13px;cursor:pointer}.rent:hover{background:var(--accent2);color:#fff}
+  .rent.o{background:#fff;color:var(--accent)}.rent.o:hover{background:var(--accentw);color:var(--accent2)}
+</style>
+</head>
+<body>
+  <nav class="navbar">
+    <div class="brand"><div class="mk"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><b>ShaderMesh</b></div>
+    <div class="links"><a class="on" href="#">Marketplace</a><a href="#">Models</a><a href="#">Providers</a><a href="#">Docs</a></div>
+    <div class="sp"></div>
+    <span class="bal"><b>1,240</b> SMESH</span>
+    <button class="btn">0x7a3f…9C21</button>
+  </nav>
+
+  <section class="hero">
+    <h1>Rent GPUs from the mesh</h1>
+    <p>Lease compute from staked providers worldwide. Pay per interval, only while it stays online.</p>
+    <div class="searchrow">
+      <div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg><input placeholder="Search RTX 4090, A100, H100, region, provider…" /></div>
+      <div class="sort">Sort: Best value <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></div>
+    </div>
+  </section>
+
+  <div class="wrap">
+    <aside class="filters">
+      <div class="fg">
+        <div class="lbl">GPU model</div>
+        <div class="chk on"><span class="b"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12l5 5L20 6"/></svg></span>RTX 4090 <span class="n">41</span></div>
+        <div class="chk"><span class="b"></span>A100 80GB <span class="n">18</span></div>
+        <div class="chk"><span class="b"></span>H100 80GB <span class="n">7</span></div>
+        <div class="chk"><span class="b"></span>RTX 3090 <span class="n">33</span></div>
+        <div class="chk"><span class="b"></span>L40S <span class="n">12</span></div>
+      </div>
+      <div class="fg">
+        <div class="lbl">Price / hour</div>
+        <div class="range"><i></i><span class="k" style="left:10%"></span><span class="k" style="left:65%"></span></div>
+        <div class="rl"><span>0.10</span><span>2.50</span></div>
+      </div>
+      <div class="fg">
+        <div class="lbl">Min VRAM</div>
+        <div class="chk on"><span class="b"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12l5 5L20 6"/></svg></span>24 GB+</div>
+        <div class="chk"><span class="b"></span>48 GB+</div>
+        <div class="chk"><span class="b"></span>80 GB+</div>
+      </div>
+      <div class="fg">
+        <div class="lbl">Region</div>
+        <div class="chk"><span class="b"></span>us-east</div>
+        <div class="chk"><span class="b"></span>eu-west</div>
+        <div class="chk"><span class="b"></span>ap-south</div>
+      </div>
+    </aside>
+
+    <div>
+      <div class="count"><b>127 GPUs available</b><span>updated just now</span></div>
+      <div class="grid">
+        <!-- card -->
+        <article class="gcard">
+          <div class="gtop"><div class="gpu"><span class="ch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="7" width="16" height="10" rx="2"/><path d="M8 7V5M16 7V5"/></svg></span><div><b>RTX 4090</b><small>us-east</small></div></div><span class="rep">98 rep</span></div>
+          <div class="specs"><span class="spec">24 GB VRAM</span><span class="spec">16 vCPU</span><span class="spec">99.8% up</span></div>
+          <div class="prow"><div class="price"><b>0.42</b><small> SMESH/hr</small></div><div class="up">up <b>99.8%</b></div></div>
+          <div class="prov"><span class="a">0x3C44…93BC</span><button class="rent">Rent</button></div>
+        </article>
+        <article class="gcard">
+          <div class="gtop"><div class="gpu"><span class="ch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="7" width="16" height="10" rx="2"/><path d="M8 7V5M16 7V5"/></svg></span><div><b>A100 80GB</b><small>eu-west</small></div></div><span class="rep">95 rep</span></div>
+          <div class="specs"><span class="spec">80 GB VRAM</span><span class="spec">32 vCPU</span><span class="spec">99.9% up</span></div>
+          <div class="prow"><div class="price"><b>0.95</b><small> SMESH/hr</small></div><div class="up">up <b>99.9%</b></div></div>
+          <div class="prov"><span class="a">0x90F1…21A0</span><button class="rent">Rent</button></div>
+        </article>
+        <article class="gcard">
+          <div class="gtop"><div class="gpu"><span class="ch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="7" width="16" height="10" rx="2"/><path d="M8 7V5M16 7V5"/></svg></span><div><b>H100 80GB</b><small>us-west</small></div></div><span class="rep">92 rep</span></div>
+          <div class="specs"><span class="spec">80 GB VRAM</span><span class="spec">48 vCPU</span><span class="spec">99.6% up</span></div>
+          <div class="prow"><div class="price"><b>2.10</b><small> SMESH/hr</small></div><div class="up">up <b>99.6%</b></div></div>
+          <div class="prov"><span class="a">0x51Bd…4E77</span><button class="rent">Rent</button></div>
+        </article>
+        <article class="gcard">
+          <div class="gtop"><div class="gpu"><span class="ch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="7" width="16" height="10" rx="2"/><path d="M8 7V5M16 7V5"/></svg></span><div><b>RTX 3090</b><small>ap-south</small></div></div><span class="rep">90 rep</span></div>
+          <div class="specs"><span class="spec">24 GB VRAM</span><span class="spec">12 vCPU</span><span class="spec">98.9% up</span></div>
+          <div class="prow"><div class="price"><b>0.30</b><small> SMESH/hr</small></div><div class="up">up <b>98.9%</b></div></div>
+          <div class="prov"><span class="a">0x2b8c…7f10</span><button class="rent">Rent</button></div>
+        </article>
+        <article class="gcard">
+          <div class="gtop"><div class="gpu"><span class="ch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="7" width="16" height="10" rx="2"/><path d="M8 7V5M16 7V5"/></svg></span><div><b>L40S</b><small>us-east</small></div></div><span class="rep">88 rep</span></div>
+          <div class="specs"><span class="spec">48 GB VRAM</span><span class="spec">24 vCPU</span><span class="spec">99.4% up</span></div>
+          <div class="prow"><div class="price"><b>0.78</b><small> SMESH/hr</small></div><div class="up">up <b>99.4%</b></div></div>
+          <div class="prov"><span class="a">0x6dE2…b8A4</span><button class="rent">Rent</button></div>
+        </article>
+        <article class="gcard">
+          <div class="gtop"><div class="gpu"><span class="ch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="7" width="16" height="10" rx="2"/><path d="M8 7V5M16 7V5"/></svg></span><div><b>RTX 4080</b><small>eu-west</small></div></div><span class="rep">86 rep</span></div>
+          <div class="specs"><span class="spec">16 GB VRAM</span><span class="spec">12 vCPU</span><span class="spec">99.1% up</span></div>
+          <div class="prow"><div class="price"><b>0.36</b><small> SMESH/hr</small></div><div class="up">up <b>99.1%</b></div></div>
+          <div class="prov"><span class="a">0x4fA1…0c33</span><button class="rent">Rent</button></div>
+        </article>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

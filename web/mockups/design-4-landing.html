@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ShaderMesh — Design 4: Marketing Landing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg:#FFFFFF;--soft:#FAFAF9;--panel:#F4F4F5;--border:#E7E5E4;--border2:#D6D3D1;
+    --ink:#1C1917;--ink2:#44403C;--muted:#57534E;--faint:#8A857E;
+    --accent:#D97706;--accent2:#B45309;--accentw:#FEF3C7;--onacc:#FFFFFF;--success:#15803D;
+    --mono:'JetBrains Mono',ui-monospace,monospace;--sans:'Inter',system-ui,'Segoe UI',sans-serif;
+  }
+  *{box-sizing:border-box}html,body{margin:0}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1120px;margin:0 auto;padding:0 24px}
+  .nav{display:flex;align-items:center;gap:20px;height:64px;border-bottom:1px solid var(--border)}
+  .brand{display:flex;align-items:center;gap:10px}
+  .mk{width:26px;height:26px;border-radius:6px;background:#fff;border:1px solid var(--border2);display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);gap:2px;padding:4px}
+  .mk i{background:#D6D3D1;border-radius:1px}.mk i:nth-child(1),.mk i:nth-child(5),.mk i:nth-child(9){background:var(--accent)}
+  .brand b{font-weight:600;font-size:15px}
+  .nav .links{display:flex;gap:6px;margin-left:14px}
+  .nav .links a{color:var(--muted);text-decoration:none;font-weight:500;font-size:14px;padding:8px 10px;border-radius:6px}
+  .nav .links a:hover{color:var(--ink);background:var(--soft)}
+  .sp{flex:1}
+  .lnk{color:var(--ink2);text-decoration:none;font-weight:500;font-size:14px}
+  .btn{border:1px solid var(--accent);background:var(--accent);color:var(--onacc);font-weight:600;border-radius:7px;padding:9px 15px;font-size:14px;cursor:pointer;text-decoration:none}
+  .btn:hover{background:var(--accent2)}
+  .btn.g{background:#fff;color:var(--ink);border-color:var(--border2)}.btn.g:hover{background:var(--soft)}
+  /* hero */
+  .hero{display:grid;grid-template-columns:1.1fr .9fr;gap:44px;align-items:center;padding:68px 0 40px}
+  .hero h1{font-size:46px;line-height:1.05;letter-spacing:-.03em;margin:0;font-weight:700;text-wrap:balance}
+  .hero h1 span{color:var(--accent)}
+  .hero p{font-size:17px;color:var(--muted);margin:18px 0 26px;max-width:36ch}
+  .cta{display:flex;gap:12px;align-items:center}
+  .trust{display:flex;gap:18px;margin-top:22px;color:var(--faint);font-size:13px;font-family:var(--mono)}
+  .trust span{display:inline-flex;gap:7px;align-items:center}.trust .d{width:7px;height:7px;border-radius:50%;background:var(--success)}
+  /* hero panel */
+  .panel{border:1px solid var(--border);border-radius:12px;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.04);overflow:hidden}
+  .ph{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--border);background:var(--soft)}
+  .ph b{font-size:13px}.ph .t{font-family:var(--mono);font-size:11px;color:var(--faint)}
+  .prow{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;padding:11px 14px;border-bottom:1px solid var(--border)}
+  .prow:last-child{border:0}
+  .prow .g{display:flex;align-items:center;gap:9px}.prow .ch{width:28px;height:28px;border-radius:6px;background:var(--panel);border:1px solid var(--border);display:grid;place-items:center;color:var(--accent)}.prow .ch svg{width:14px;height:14px}
+  .prow .g b{font-size:13px;font-weight:500}.prow .g small{display:block;font-size:11px;color:var(--faint);font-family:var(--mono)}
+  .prow .pr{font-family:var(--mono);font-weight:600;font-size:13px}.prow .pr small{color:var(--faint);font-weight:400}
+  .prow .rent{border:1px solid var(--accent);background:var(--accent);color:#fff;font-weight:600;font-size:12px;border-radius:6px;padding:5px 11px;cursor:pointer}
+  /* stats band */
+  .band{border-top:1px solid var(--border);border-bottom:1px solid var(--border);background:var(--soft)}
+  .band .wrap{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;padding:26px 24px}
+  .band .s .v{font-size:30px;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+  .band .s .k{color:var(--muted);font-size:13px;margin-top:2px}
+  /* sections */
+  section.blk{padding:56px 0}
+  .htitle{font-size:26px;font-weight:600;letter-spacing:-.02em;margin:0 0 6px}
+  .hsub{color:var(--muted);margin:0 0 28px;max-width:60ch}
+  .feat{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  .fc{border:1px solid var(--border);border-radius:10px;background:#fff;padding:18px}
+  .fc .g{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+  .fc .ch{width:34px;height:34px;border-radius:8px;background:var(--panel);border:1px solid var(--border);display:grid;place-items:center;color:var(--accent)}.fc .ch svg{width:17px;height:17px}
+  .fc b{font-weight:600}.fc small{display:block;color:var(--faint);font-size:12px;font-family:var(--mono)}
+  .fc .price{font-family:var(--mono);font-size:20px;font-weight:600;margin-top:6px}.fc .price small{font-size:12px;color:var(--muted);font-weight:400}
+  .fc .meta{display:flex;justify-content:space-between;color:var(--muted);font-size:12px;font-family:var(--mono);margin-top:10px;border-top:1px solid var(--border);padding-top:10px}
+  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+  .step .n{width:30px;height:30px;border-radius:8px;background:var(--accentw);border:1px solid #F5D9A8;color:var(--accent2);font-weight:700;display:grid;place-items:center;font-family:var(--mono);margin-bottom:12px}
+  .step h4{margin:0 0 6px;font-size:16px}.step p{margin:0;color:var(--muted);font-size:14px}
+  .split{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:center;background:var(--soft);border:1px solid var(--border);border-radius:12px;padding:28px}
+  .split h3{margin:0 0 8px;font-size:22px;letter-spacing:-.01em}.split p{margin:0 0 16px;color:var(--muted)}
+  .term{background:#0B0C0E;border-radius:10px;border:1px solid #26282D;padding:16px;font-family:var(--mono);font-size:12.5px;color:#D4D4D8}
+  .term .c{color:#71717A}.term .a{color:#F59E0B}.term .g{color:#22C55E}
+  footer{border-top:1px solid var(--border);padding:26px 0;color:var(--faint);font-size:13px}
+  footer .wrap{display:flex;align-items:center;gap:16px}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <nav class="nav">
+      <div class="brand"><div class="mk"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><b>ShaderMesh</b></div>
+      <div class="links"><a href="#">Marketplace</a><a href="#">Models</a><a href="#">Providers</a><a href="#">Docs</a></div>
+      <div class="sp"></div>
+      <a class="lnk" href="#">Sign in</a>
+      <a class="btn" href="#">Launch app</a>
+    </nav>
+  </div>
+
+  <div class="wrap">
+    <section class="hero">
+      <div>
+        <h1>Rent <span>GPU compute</span> from a global mesh.</h1>
+        <p>Lease staked providers by the hour and run anything, from LLM inference to fine-tuning. Pay per interval, only while it stays online. Settlement and uptime are enforced on chain.</p>
+        <div class="cta"><a class="btn" href="#">Browse GPUs</a><a class="btn g" href="#">Run a model</a></div>
+        <div class="trust"><span><span class="d"></span>99.3% fleet uptime</span><span>from 0.22 SMESH/hr</span><span>no lock-in</span></div>
+      </div>
+      <div class="panel">
+        <div class="ph"><b>Available now</b><span class="t">127 GPUs · live</span></div>
+        <div class="prow"><div class="g"><span class="ch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="7" width="16" height="10" rx="2"/><path d="M8 7V5M16 7V5"/></svg></span><div><b>RTX 4090</b><small>24GB · us-east · 98 rep</small></div></div><div class="pr">0.42 <small>/hr</small></div><button class="rent">Rent</button></div>
+        <div class="prow"><div class="g"><span class="ch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="7" width="16" height="10" rx="2"/><path d="M8 7V5M16 7V5"/></svg></span><div><b>A100 80GB</b><small>80GB · eu-west · 95 rep</small></div></div><div class="pr">0.95 <small>/hr</small></div><button class="rent">Rent</button></div>
+        <div class="prow"><div class="g"><span class="ch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="7" width="16" height="10" rx="2"/><path d="M8 7V5M16 7V5"/></svg></span><div><b>H100 80GB</b><small>80GB · us-west · 92 rep</small></div></div><div class="pr">2.10 <small>/hr</small></div><button class="rent">Rent</button></div>
+        <div class="prow"><div class="g"><span class="ch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="7" width="16" height="10" rx="2"/><path d="M8 7V5M16 7V5"/></svg></span><div><b>RTX 3090</b><small>24GB · ap-south · 90 rep</small></div></div><div class="pr">0.30 <small>/hr</small></div><button class="rent">Rent</button></div>
+      </div>
+    </section>
+  </div>
+
+  <div class="band"><div class="wrap">
+    <div class="s"><div class="v">127</div><div class="k">GPUs available</div></div>
+    <div class="s"><div class="v">54</div><div class="k">Providers online</div></div>
+    <div class="s"><div class="v">1.24M</div><div class="k">SMESH staked</div></div>
+    <div class="s"><div class="v">99.3%</div><div class="k">Fleet uptime</div></div>
+  </div></div>
+
+  <div class="wrap">
+    <section class="blk">
+      <h2 class="htitle">Featured GPUs</h2>
+      <p class="hsub">Top offers ranked by price, uptime, and provider reputation.</p>
+      <div class="feat">
+        <div class="fc"><div class="g"><span class="ch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="7" width="16" height="10" rx="2"/><path d="M8 7V5M16 7V5"/></svg></span><div><b>RTX 4090</b><small>24GB · us-east</small></div></div><div class="price">0.42<small> SMESH/hr</small></div><div class="meta"><span>up 99.8%</span><span>rep 98</span></div></div>
+        <div class="fc"><div class="g"><span class="ch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="7" width="16" height="10" rx="2"/><path d="M8 7V5M16 7V5"/></svg></span><div><b>A100 80GB</b><small>80GB · eu-west</small></div></div><div class="price">0.95<small> SMESH/hr</small></div><div class="meta"><span>up 99.9%</span><span>rep 95</span></div></div>
+        <div class="fc"><div class="g"><span class="ch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="7" width="16" height="10" rx="2"/><path d="M8 7V5M16 7V5"/></svg></span><div><b>L40S</b><small>48GB · us-east</small></div></div><div class="price">0.78<small> SMESH/hr</small></div><div class="meta"><span>up 99.4%</span><span>rep 88</span></div></div>
+      </div>
+    </section>
+
+    <section class="blk" style="padding-top:8px">
+      <h2 class="htitle">How renting works</h2>
+      <p class="hsub">Trust comes from availability, not from re-checking output. It is enforced by the contracts.</p>
+      <div class="steps">
+        <div class="step"><div class="n">1</div><h4>Lease and fund escrow</h4><p>Pick a GPU and open a lease. Your payment is locked in escrow for the duration.</p></div>
+        <div class="step"><div class="n">2</div><h4>Provider proves uptime</h4><p>The provider posts a signed heartbeat each interval and passes a hardware attestation.</p></div>
+        <div class="step"><div class="n">3</div><h4>Pay per interval</h4><p>Escrow streams per verified interval. Unused time is refunded and downtime is slashed.</p></div>
+      </div>
+    </section>
+
+    <section class="blk" style="padding-top:8px">
+      <div class="split">
+        <div>
+          <h3>Or call a model directly</h3>
+          <p>Skip the setup. Use a managed, OpenAI-compatible endpoint served by providers, billed per token from prepaid credits.</p>
+          <a class="btn" href="#">Open the playground</a>
+        </div>
+        <div class="term">
+          <div><span class="c"># call an open model on ShaderMesh</span></div>
+          <div>curl <span class="a">/v1/chat/completions</span> \</div>
+          <div>&nbsp;&nbsp;-d '{ "model": <span class="g">"llama-3.1-8b"</span>,</div>
+          <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"messages": [ ... ] }'</div>
+          <div style="margin-top:8px"><span class="c"># routed to provider 0x3C44…93BC · 412ms</span></div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <footer><div class="wrap"><div class="brand"><div class="mk"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><b>ShaderMesh</b></div><span class="sp"></span><span>Decentralized compute rental on Ethereum</span></div></footer>
+</body>
+</html>

@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ShaderMesh — Design 1: Sidebar Operations Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg:#0B0C0E;--surface:#121417;--panel:#17191D;--hover:#1D2024;--border:#26282D;--border2:#33363C;
+    --ink:#F4F4F5;--ink2:#D4D4D8;--muted:#A1A1AA;--faint:#71717A;
+    --accent:#F59E0B;--accent2:#FBBF24;--accentw:#2A2011;--success:#22C55E;--danger:#F87171;
+    --mono:'JetBrains Mono',ui-monospace,monospace;--sans:'Inter',system-ui,'Segoe UI',sans-serif;
+  }
+  *{box-sizing:border-box}html,body{margin:0;height:100%}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased}
+  .app{display:grid;grid-template-columns:240px 1fr;height:100vh}
+  .side{background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:16px 12px}
+  .brand{display:flex;align-items:center;gap:10px;padding:6px 8px 16px}
+  .mk{width:26px;height:26px;border-radius:6px;background:var(--bg);border:1px solid var(--border2);display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);gap:2px;padding:4px}
+  .mk i{background:var(--faint);border-radius:1px}.mk i:nth-child(1),.mk i:nth-child(5),.mk i:nth-child(9){background:var(--accent)}
+  .brand b{font-weight:600;font-size:15px;letter-spacing:-.01em}
+  h5{color:var(--faint);font-size:11px;font-weight:500;letter-spacing:.05em;text-transform:uppercase;margin:14px 8px 6px}
+  .nav a{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:6px;color:var(--ink2);text-decoration:none;font-weight:500;position:relative}
+  .nav a svg{width:16px;height:16px;color:var(--muted)}
+  .nav a:hover{background:var(--hover);color:var(--ink)}
+  .nav a.on{background:var(--hover);color:var(--ink)}
+  .nav a.on::before{content:"";position:absolute;left:-12px;top:8px;bottom:8px;width:2px;background:var(--accent);border-radius:2px}
+  .nav a.on svg{color:var(--accent)}
+  .grow{flex:1}
+  .who{display:flex;gap:10px;align-items:center;border:1px solid var(--border);background:var(--panel);border-radius:6px;padding:10px}
+  .who .d{width:8px;height:8px;border-radius:50%;background:var(--success)}
+  .who small{color:var(--muted);font-size:12px;display:block}.who span{font-family:var(--mono);font-size:12px}
+  .main{display:flex;flex-direction:column;min-width:0}
+  .top{display:flex;align-items:center;gap:14px;padding:14px 24px;border-bottom:1px solid var(--border)}
+  .top h1{margin:0;font-size:16px;font-weight:600}.top p{margin:2px 0 0;color:var(--muted);font-size:12px}
+  .sp{flex:1}
+  .pill{display:inline-flex;gap:7px;align-items:center;border:1px solid var(--border);background:var(--surface);border-radius:999px;padding:6px 11px;font-size:12px;color:var(--ink2)}
+  .pill .d{width:7px;height:7px;border-radius:50%;background:var(--success)}
+  .bal{font-family:var(--mono);font-size:12px;color:var(--ink2);border:1px solid var(--border);border-radius:6px;padding:7px 10px;background:var(--surface)}.bal b{color:var(--accent);font-weight:500}
+  .wal{font-family:var(--mono);font-size:12px;border:1px solid var(--border);border-radius:6px;padding:7px 10px;background:var(--surface);color:var(--ink2)}
+  .btn{border:1px solid var(--accent);background:var(--accent);color:#1A1205;font-weight:600;border-radius:6px;padding:8px 13px;font-size:13px;cursor:pointer;font-family:var(--sans)}
+  .btn:hover{background:var(--accent2)}
+  .content{padding:22px 24px;overflow:auto}
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--border);border-radius:8px;background:var(--surface);margin-bottom:20px}
+  .st{padding:16px 18px;border-right:1px solid var(--border)}.st:last-child{border:0}
+  .st .k{color:var(--muted);font-size:12px;font-weight:500}.st .v{font-size:24px;font-weight:600;letter-spacing:-.02em;margin-top:8px;font-variant-numeric:tabular-nums}.st .v small{font-size:13px;color:var(--muted);font-weight:500}
+  .st .c{font-size:12px;margin-top:4px;color:var(--faint)}.st .c b{color:var(--success);font-weight:500}
+  .cols{display:grid;grid-template-columns:1.6fr 1fr;gap:20px;align-items:start}
+  .card{border:1px solid var(--border);border-radius:8px;background:var(--surface)}.card+.card{margin-top:20px}
+  .hd{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--border)}
+  .hd h3{margin:0;font-size:14px;font-weight:600}.hd a{color:var(--accent);text-decoration:none;font-size:12px;font-weight:500}
+  table{width:100%;border-collapse:collapse}
+  th{text-align:left;font-size:11px;font-weight:500;letter-spacing:.03em;text-transform:uppercase;color:var(--faint);padding:10px 16px;border-bottom:1px solid var(--border)}
+  td{padding:12px 16px;border-bottom:1px solid var(--border);font-size:13px}tr:last-child td{border:0}tr:hover td{background:var(--hover)}
+  .g{display:flex;gap:10px;align-items:center}.g .ch{width:30px;height:30px;border-radius:6px;background:var(--panel);border:1px solid var(--border);display:grid;place-items:center;color:var(--accent)}.g .ch svg{width:15px;height:15px}
+  .g b{font-weight:500}.g small{color:var(--faint);font-size:11px;display:block;font-family:var(--mono)}
+  .mono{font-family:var(--mono);font-variant-numeric:tabular-nums}.addr{font-family:var(--mono);color:var(--muted);font-size:12px}
+  .hb{display:inline-flex;gap:2px}.hb i{width:4px;height:15px;border-radius:1px;background:var(--success);opacity:.85}.hb i.m{background:var(--danger)}
+  .tag{display:inline-flex;gap:6px;align-items:center;font-size:12px;font-weight:500;padding:3px 9px;border-radius:999px;border:1px solid var(--border);background:var(--panel);color:var(--ink2)}.tag .d{width:6px;height:6px;border-radius:50%}
+  .tag.a{color:var(--success)}.tag.a .d{background:var(--success)}.tag.e{color:var(--accent)}.tag.e .d{background:var(--accent)}
+  .spend{padding:16px}.spend .big{font-family:var(--mono);font-size:26px;font-weight:600}.spend .big small{font-size:13px;color:var(--muted);font-weight:400}
+  .chart{display:flex;align-items:flex-end;gap:5px;height:70px;margin:14px 0 4px}
+  .chart i{flex:1;background:var(--accentw);border:1px solid var(--border);border-bottom:0;border-radius:2px 2px 0 0}
+  .chart i.h{background:rgba(245,158,11,.35);border-color:var(--accent)}
+  .cl{display:flex;justify-content:space-between;color:var(--faint);font-size:11px;font-family:var(--mono)}
+  .promo{padding:16px}.promo p{margin:0 0 12px;color:var(--muted);font-size:13px}.promo .r{display:flex;gap:10px;align-items:center;margin-bottom:12px}
+  .promo .ic{width:34px;height:34px;border-radius:8px;background:var(--panel);border:1px solid var(--border);display:grid;place-items:center;color:var(--accent)}
+  .promo .ic svg{width:17px;height:17px}.promo b{font-weight:600}.promo small{color:var(--faint);font-size:12px;display:block}
+  .ghost{border:1px solid var(--border);background:transparent;color:var(--ink2);font-weight:500;border-radius:6px;padding:9px;font-size:13px;width:100%;cursor:pointer}.ghost:hover{background:var(--hover);color:var(--ink)}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="brand"><div class="mk"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><b>ShaderMesh</b></div>
+    <h5>Compute</h5>
+    <nav class="nav">
+      <a class="on" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Overview</a>
+      <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="7" width="16" height="10" rx="2"/><path d="M8 7V5M16 7V5M9 21h6"/></svg>Rent GPUs</a>
+      <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10"/></svg>My leases</a>
+    </nav>
+    <h5>AI</h5>
+    <nav class="nav">
+      <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z"/></svg>Models</a>
+    </nav>
+    <h5>Network</h5>
+    <nav class="nav">
+      <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>Providers</a>
+      <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>Explorer</a>
+    </nav>
+    <div class="grow"></div>
+    <div class="who"><span class="d"></span><div><small>Wallet</small><span>0x7a3f…9C21</span></div></div>
+  </aside>
+  <div class="main">
+    <header class="top">
+      <div><h1>Overview</h1><p>Your rentals and network health</p></div>
+      <div class="sp"></div>
+      <span class="pill"><span class="d"></span>Sepolia</span>
+      <span class="bal"><b>1,240</b> SMESH</span>
+      <span class="wal">0x7a3f…9C21</span>
+      <button class="btn">Rent a GPU</button>
+    </header>
+    <div class="content">
+      <section class="stats">
+        <div class="st"><div class="k">Active leases</div><div class="v">3</div><div class="c">2 serving models</div></div>
+        <div class="st"><div class="k">Streaming now</div><div class="v">1.90<small> /hr</small></div><div class="c">SMESH from escrow</div></div>
+        <div class="st"><div class="k">Spend today</div><div class="v">18.4</div><div class="c">SMESH</div></div>
+        <div class="st"><div class="k">Fleet uptime</div><div class="v">99.3<small>%</small></div><div class="c"><b>SLA met</b> 24h</div></div>
+      </section>
+      <div class="cols">
+        <section class="card">
+          <div class="hd"><h3>Your active leases</h3><a href="#">Manage all</a></div>
+          <table>
+            <thead><tr><th>GPU</th><th>Provider</th><th>Uptime</th><th>Streamed</th><th>Status</th></tr></thead>
+            <tbody>
+              <tr><td><div class="g"><span class="ch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="7" width="16" height="10" rx="2"/><path d="M8 7V5M16 7V5"/></svg></span><div><b>RTX 4090</b><small>24GB · llama-3.1-8b</small></div></div></td><td class="addr">0x3C44…93BC</td><td><span class="hb"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span></td><td class="mono">3.82</td><td><span class="tag a"><span class="d"></span>Active</span></td></tr>
+              <tr><td><div class="g"><span class="ch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="7" width="16" height="10" rx="2"/><path d="M8 7V5M16 7V5"/></svg></span><div><b>A100 80GB</b><small>80GB · qwen2.5-14b</small></div></div></td><td class="addr">0x90F1…21A0</td><td><span class="hb"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span></td><td class="mono">11.40</td><td><span class="tag a"><span class="d"></span>Active</span></td></tr>
+              <tr><td><div class="g"><span class="ch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="7" width="16" height="10" rx="2"/><path d="M8 7V5M16 7V5"/></svg></span><div><b>RTX 3090</b><small>24GB · fine-tune</small></div></div></td><td class="addr">0x2b8c…7f10</td><td><span class="hb"><i></i><i></i><i class="m"></i><i></i><i></i><i></i><i></i><i></i></span></td><td class="mono">2.05</td><td><span class="tag e"><span class="d"></span>Ending</span></td></tr>
+            </tbody>
+          </table>
+        </section>
+        <div>
+          <section class="card">
+            <div class="hd"><h3>Spend</h3><a href="#">7 days</a></div>
+            <div class="spend">
+              <div class="big">18.4 <small>SMESH today</small></div>
+              <div class="chart"><i style="height:40%"></i><i style="height:55%"></i><i style="height:35%"></i><i style="height:70%"></i><i style="height:50%"></i><i style="height:62%"></i><i class="h" style="height:80%"></i></div>
+              <div class="cl"><span>Mon</span><span>Sun</span></div>
+            </div>
+          </section>
+          <section class="card">
+            <div class="hd"><h3>Run a model</h3></div>
+            <div class="promo">
+              <div class="r"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z"/></svg></span><div><b>Managed inference</b><small>OpenAI-compatible endpoint</small></div></div>
+              <p>Call open models served by providers, billed per token from prepaid credits.</p>
+              <button class="ghost">Open playground</button>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
