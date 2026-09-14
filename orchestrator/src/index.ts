@@ -35,13 +35,11 @@ async function main() {
     await provider.getNetwork();
 
     const market = new ethers.Contract(dep.contracts.JobMarket, dep.abis.JobMarket, provider);
-    const verification = new ethers.Contract(
-      dep.contracts.Verification,
-      dep.abis.Verification,
-      provider
-    );
+    const verification = new ethers.Contract(dep.contracts.Verification, dep.abis.Verification, provider);
+    const rental = new ethers.Contract(dep.contracts.RentalMarket, dep.abis.RentalMarket, provider);
+    const registry = new ethers.Contract(dep.contracts.ProviderRegistry, dep.abis.ProviderRegistry, provider);
 
-    const indexer = new Indexer(market, verification, store, emitter);
+    const indexer = new Indexer(market, verification, rental, registry, store, emitter);
 
     // Stitch automatically once a job's tasks all settle.
     emitter.on("update", async (u: { name: string; payload: any }) => {

@@ -69,6 +69,48 @@ export function createApi(store: ProjectionStore, jobService: JobService, emitte
         return sendJson(res, 200, prepared);
       }
 
+      // --- rental market ---
+      if (path === "/listings" && method === "GET") {
+        return sendJson(res, 200, store.listListings());
+      }
+      if (path === "/leases" && method === "GET") {
+        return sendJson(res, 200, store.listLeases());
+      }
+      const leaseMatch = path.match(/^\/leases\/(\d+)$/);
+      if (leaseMatch && method === "GET") {
+        const lease = store.getLease(Number(leaseMatch[1]));
+        if (!lease) return sendJson(res, 404, { error: "lease not found" });
+        return sendJson(res, 200, lease);
+      }
+      if (path === "/providers" && method === "GET") {
+        return sendJson(res, 200, store.listProviders());
+      }
+      if (path === "/models" && method === "GET") {
+        return sendJson(res, 200, store.listModels());
+      }
+
+      // --- inference gateway: route a metered request to a serving provider ---
+      if (path === "/v1/chat/completions" && method === "POST") {
+        const body = await readBody(req);
+        if (!body.model) return sendJson(res, 400, { error: "model required" });
+        const route = store.findEndpointForModel(body.model);
+        if (!route || !route.listing.endpoint) {
+          return sendJson(res, 503, { error: "no provider currently serving this model" });
+        }
+        try {
+          const upstream = await fetch(`${route.listing.endpoint}/v1/chat/completions`, {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify(body),
+          });
+          const json: any = await upstream.json();
+          json.routedTo = route.listing.provider;
+          return sendJson(res, upstream.status, json);
+        } catch (err) {
+          return sendJson(res, 502, { error: "provider unreachable", detail: String(err) });
+        }
+      }
+
       if (path === "/events" && method === "GET") {
         res.writeHead(200, {
           "content-type": "text/event-stream",
