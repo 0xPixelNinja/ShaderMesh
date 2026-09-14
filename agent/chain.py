@@ -39,6 +39,11 @@ class ChainClient:
         self.registry = self._contract(contracts["ProviderRegistry"], abis["ProviderRegistry"])
         self.market = self._contract(contracts["JobMarket"], abis["JobMarket"])
         self.verification = self._contract(contracts["Verification"], abis["Verification"])
+        # RentalMarket is the primary market; present in current deployments.
+        if "RentalMarket" in contracts:
+            self.rental = self._contract(contracts["RentalMarket"], abis["RentalMarket"])
+        else:
+            self.rental = None
 
     def _contract(self, address: str, abi: Any):
         return self.w3.eth.contract(address=Web3.to_checksum_address(address), abi=abi)
