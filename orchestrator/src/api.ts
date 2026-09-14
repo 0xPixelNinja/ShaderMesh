@@ -20,7 +20,12 @@ async function readBody(req: IncomingMessage): Promise<any> {
  * Read-only HTTP API over the projection, plus a prepare helper (split + pin)
  * and a live update stream. No writes to the chain happen here.
  */
-export function createApi(store: ProjectionStore, jobService: JobService, emitter?: EventEmitter) {
+export function createApi(
+  store: ProjectionStore,
+  jobService: JobService,
+  emitter?: EventEmitter,
+  deployment?: { chainId: number; contracts: Record<string, string> }
+) {
   return createServer(async (req, res) => {
     try {
       const url = new URL(req.url ?? "/", "http://localhost");
@@ -38,6 +43,10 @@ export function createApi(store: ProjectionStore, jobService: JobService, emitte
 
       if (path === "/health") {
         return sendJson(res, 200, { service: "orchestrator", status: "ok", jobs: store.jobs.size });
+      }
+
+      if (path === "/deployment" && method === "GET") {
+        return sendJson(res, 200, deployment ?? { chainId: 0, contracts: {} });
       }
 
       if (path === "/jobs" && method === "GET") {

@@ -26,7 +26,15 @@ async function main() {
   const jobService = new JobService(storage, store);
   const emitter = new EventEmitter();
 
-  const server = createApi(store, jobService, emitter);
+  let deploymentInfo: { chainId: number; contracts: Record<string, string> } | undefined;
+  try {
+    const dep = JSON.parse(readFileSync(cfg.deploymentsFile, "utf-8"));
+    deploymentInfo = { chainId: dep.chainId, contracts: dep.contracts };
+  } catch {
+    deploymentInfo = undefined;
+  }
+
+  const server = createApi(store, jobService, emitter, deploymentInfo);
   server.listen(cfg.port, () => console.log(`[orchestrator] API on :${cfg.port}`));
 
   try {
