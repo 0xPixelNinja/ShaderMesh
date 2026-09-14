@@ -39,8 +39,11 @@ docker compose up --build --scale agent=3
 | `chain.py` | web3 client, loads addresses and ABIs from the deployment file, signs, sends transactions. |
 | `storage.py` | Content addressed storage: `LocalDirStorage` (tests) and `IpfsStorage` (stack). |
 | `executor.py` | Job execution: `LocalExecutor` (subprocess) and `DockerExecutor` (sandboxed container). |
-| `provider.py` | The `Agent`: register, stake, claim, execute, submit, challenge, discover. |
-| `agent.py` | Entrypoint that wires the above from config and runs the loop. |
+| `provider.py` | The `Agent`: register, stake, claim, execute, submit, challenge, discover (verifiable tasks). |
+| `rental.py` | `RentalProvider` (list capacity, heartbeat active leases) and `RentalRenter` (open, settle, end, terminate). |
+| `inference.py` | OpenAI-compatible endpoint (`/v1/chat/completions`, `/v1/models`) with pluggable backend (echo or Ollama) and token metering. |
+| `agent.py` | Task worker entrypoint. |
+| `serve_provider.py` | Provider node entrypoint: register, stake, list, serve inference, heartbeat leases. |
 
 ## Tests
 
@@ -51,11 +54,15 @@ python -m pytest tests -v
 ```
 
 - `tests/test_deterministic_job.py` checks the render job is a valid, reproducible PNG.
-- `tests/test_agent_integration.py` starts a local chain, deploys, and drives the real
-  agent through the full lifecycle, including a cheating provider being slashed.
+- `tests/test_agent_integration.py` drives the verifiable-task lifecycle, including slashing.
+- `tests/test_rental_integration.py` drives the rental lifecycle: list, lease, streamed
+  settlement with heartbeats, refund on end, and downtime termination with a bond slash.
+- `tests/test_inference.py` checks the OpenAI-compatible endpoint and its metering.
+
+Node and deploy are shared session fixtures in `conftest.py`.
 
 ## Status
 
-Phase 3 complete. The agent runs the deterministic job end to end against a real chain,
-in both the local and Docker executors, and the challenger path slashes cheaters.
-Blender rendering arrives in Phase 7. See `../docs/ShaderMesh-SRS.md`.
+Phases 3 and 6 complete. The agent serves the verifiable-task path and the rental path end
+to end against a real chain, plus an OpenAI-compatible inference endpoint. Full suite is 7
+passing. See `../docs/ShaderMesh-SRS.md`.

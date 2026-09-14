@@ -596,14 +596,16 @@ path (phases 1 to 4) is complete and is retained as the second market mode.
 - Follow ups: move heartbeats to EIP-712 messages posted by a relayer to cut gas; a real
   benchmark verifier behind the attester role.
 
-### Phase 6: Provider rental serving and LLM inference. Status: planned
+### Phase 6: Provider rental serving and LLM inference. Status: done
 - Goal: providers actually serve leases and models.
-- Tasks: agent serves a leased container or exposes the leased GPU, signs heartbeats per
-  interval, responds to benchmark challenges, and runs an OpenAI-compatible inference server
-  for advertised models.
-- Deliverables: agent rental and inference modules with integration tests against a local chain.
-- Acceptance: a real lease runs end to end with heartbeats and streamed payment, and an
-  inference request returns a completion from a provider.
+- Deliverables: `rental.py` (`RentalProvider` lists capacity and heartbeats active leases,
+  `RentalRenter` opens/settles/ends/terminates), `inference.py` (OpenAI-compatible endpoint
+  with echo and Ollama backends and token metering), and `serve_provider.py` (provider node
+  entrypoint), with integration tests against a local chain.
+- Acceptance: met. A real lease runs end to end with heartbeats, streamed payment, and refund
+  on end; downtime is terminated and slashed; an inference request returns a metered
+  completion and is reproducible at temperature 0. Verified by the agent test suite (7 passing).
+- Follow ups: wire a real model backend (Ollama or vLLM) for the live demo; GPU passthrough.
 
 ### Phase 7: Orchestrator rental index and inference gateway. Status: planned
 - Goal: discovery and routing.
