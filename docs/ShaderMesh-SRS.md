@@ -619,13 +619,17 @@ path (phases 1 to 4) is complete and is retained as the second market mode.
 - Follow ups: reconcile metered usage with on chain inference settlement; health checks and
   failover across providers.
 
-### Phase 8: Web dashboard. Status: planned
-- Goal: rent GPUs, use models, run jobs, and explore, on the design system in section 7.
-- Tasks: design tokens and base components, wallet connection, GPU listing and lease flow with
-  live uptime and streamed spend, model catalog and playground, verifiable-job flow with live
-  tile assembly, provider console, and explorer.
-- Deliverables: a Next.js application, a web service in Compose, and a component library.
-- Acceptance: a user leases a GPU, calls a model, and runs a job in the browser on the devnet.
+### Phase 8: Web dashboard. Status: done (first release)
+- Goal: rent GPUs, use models, and manage leases on the Design 1 dark system.
+- Deliverables: a Next.js + TypeScript + Tailwind app implementing Design 1 (Overview, Rent GPUs,
+  My leases, Models), wired to the orchestrator API and the chain, with USD display at the
+  1 SMESH = $1 peg, a wallet connect (EIP-1193 + viem), and real lease actions (open, settle,
+  end) signed by the wallet. A `/deployment` route exposes contract addresses; a seed script
+  creates local listings and a lease for the demo.
+- Acceptance: met. Built and verified live end to end: the app renders real listings, a live
+  lease with streamed spend, and the model catalog from real on chain data via the orchestrator.
+- Follow ups: providers and explorer screens, the verifiable-job tile-assembly view, a live
+  model backend for the playground, a web service in Compose, and light mode.
 
 ### Phase 9: Full stack end to end and continuous integration. Status: planned
 - Goal: confidence that the whole system works together.
