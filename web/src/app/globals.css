@@ -1,0 +1,60 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #0b0c0e;
+  --surface: #121417;
+  --panel: #17191d;
+  --hover: #1d2024;
+  --border: #26282d;
+  --border-strong: #33363c;
+  --ink: #f4f4f5;
+  --ink2: #d4d4d8;
+  --muted: #a1a1aa;
+  --faint: #71717a;
+  --accent: #f59e0b;
+  --accent-hover: #fbbf24;
+  --accent-weak: #2a2011;
+  --success: #22c55e;
+  --danger: #f87171;
+  --font-sans: "Inter", system-ui, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+}
+
+@layer base {
+  *,
+  ::before,
+  ::after {
+    border-color: var(--border);
+  }
+  html,
+  body {
+    background: var(--bg);
+    color: var(--ink);
+  }
+  body {
+    font-family: var(--font-sans);
+  }
+}
+
+@layer utilities {
+  .mono {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* Thin dark scrollbars to match the console aesthetic. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 999px;
+}
