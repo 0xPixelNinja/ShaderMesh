@@ -95,30 +95,50 @@ services:
       - "4000:4000"
     restart: unless-stopped
 
-  # --- Provider worker(s): scale with --scale agent=N -----------------------
-  agent:
+  # --- Provider node: serves the OpenAI-compatible inference endpoint --------
+  provider:
     build:
       context: ./agent
+    image: shadermesh/agent
+    command: python inference.py
+    environment:
+      INFERENCE_HOST: 0.0.0.0
+      INFERENCE_PORT: "8100"
+      INFERENCE_BACKEND: echo
+      MODELS: llama-3.1-8b,mistral-7b,qwen2.5-14b
+    ports:
+      - "8100:8100"
+    restart: unless-stopped
+
+  # --- One-shot: seed real listings and a lease so the dashboard is populated -
+  seed:
     image: shadermesh/agent
     depends_on:
       chain:
         condition: service_healthy
       deployer:
         condition: service_completed_successfully
-      ipfs:
+      provider:
         condition: service_started
     environment:
       RPC_URL: http://chain:8545
-      IPFS_API_URL: http://ipfs:5001
       DEPLOYMENTS_FILE: /app/deployments/docker.json
-      # For real providers supply a unique PROVIDER_PRIVATE_KEY per replica.
-      PROVIDER_PRIVATE_KEY: ${PROVIDER_PRIVATE_KEY:-}
-      # Set CAPABILITIES in .env (JSON braces can't be an inline compose default).
-      CAPABILITIES: ${CAPABILITIES:-}
+      INFERENCE_ENDPOINT: http://provider:8100
+    command: python seed_demo.py
     volumes:
       - deployments:/app/deployments:ro
-      # Mount the host Docker socket so the agent can launch job containers.
-      - /var/run/docker.sock:/var/run/docker.sock
+    restart: "no"
+
+  # --- Dashboard ------------------------------------------------------------
+  web:
+    build:
+      context: ./web
+    image: shadermesh/web
+    depends_on:
+      orchestrator:
+        condition: service_started
+    ports:
+      - "3000:3000"
     restart: unless-stopped
 
 volumes:

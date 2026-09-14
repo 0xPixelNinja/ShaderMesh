@@ -30,8 +30,11 @@ KEYS = {
     4: "0x47e179ec197488593b187f80a00eb0da91f1b9d0b13f8733639f19c30a34926a",
 }
 
+# The provider that serves inference; the gateway routes here for the demo.
+ENDPOINT = os.environ.get("INFERENCE_ENDPOINT", "http://127.0.0.1:8100")
+
 SPECS = [
-    (1, '{"gpu":"RTX 4090","vram":24,"region":"us-east","models":["llama-3.1-8b"],"endpoint":"http://127.0.0.1:8100"}', 0.42, "RTX 4090", 24),
+    (1, f'{{"gpu":"RTX 4090","vram":24,"region":"us-east","models":["llama-3.1-8b"],"endpoint":"{ENDPOINT}"}}', 0.42, "RTX 4090", 24),
     (2, '{"gpu":"A100 80GB","vram":80,"region":"eu-west","models":["qwen2.5-14b"]}', 0.95, "A100 80GB", 80),
     (3, '{"gpu":"RTX 3090","vram":24,"region":"ap-south","models":["mistral-7b"]}', 0.30, "RTX 3090", 24),
 ]
