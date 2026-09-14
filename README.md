@@ -102,12 +102,14 @@ orchestrator, and provider agents. Boot order is handled via healthchecks; the
 
 ```powershell
 Copy-Item .env.example .env          # adjust as needed (test values only)
-docker compose up --build            # full stack
-docker compose up --build --scale agent=3   # 3 provider nodes
+docker compose up --build            # full stack, seeded, with the dashboard
 ```
 
-Endpoints: chain `:8545`, IPFS API `:5001` / gateway `:8080`, Postgres `:5432`,
-orchestrator health `:4000`.
+This boots the chain, deploys the contracts, seeds real listings and an active lease,
+serves a model, and publishes the dashboard. Open it at **http://localhost:3000**.
+
+Endpoints: dashboard `:3000`, orchestrator API `:4000`, chain `:8545`,
+inference provider `:8100`, IPFS `:5001` / `:8080`, Postgres `:5432`.
 
 ## Status
 
