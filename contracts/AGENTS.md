@@ -13,16 +13,17 @@ availability based) and verifiable task (retained, re-execution based).
 
 Contracts (built):
 - `SmeshToken`: ERC-20 utility token (payments, staking, rewards, testnet faucet).
-- `ProviderRegistry`: stake, bond, slash, reputation; economic mutations are
-  `onlyAuthorized`. Attestation and structured capabilities are being added.
+- `ProviderRegistry`: stake, bond, slash, reputation, and attestation (attester role);
+  economic mutations are `onlyAuthorized`.
 - `JobMarket`: verifiable-task escrow, task state machine, optimistic settlement;
   dispute outcomes are `onlyVerification`.
 - `Verification`: spot-check challenge game; resolves disputes.
+- `RentalMarket`: listings, leases, per-interval streamed escrow, heartbeats, extend,
+  end, finalize, and SLA slashing on downtime. Reuses `SmeshToken` and `ProviderRegistry`
+  and is `onlyAuthorized` for registry mutations. Requires provider attestation to list.
 
-Contracts (planned, next phase):
-- `RentalMarket`: listings, leases, per-interval streamed escrow, EIP-712 signed
-  heartbeats, extend and end, refunds for unused time, and SLA slashing. Reuses
-  `SmeshToken` and `ProviderRegistry` and is `onlyAuthorized` for registry mutations.
+Heartbeats are direct provider transactions for now; EIP-712 relayed heartbeats are a
+planned gas optimization.
 
 ## Rules
 

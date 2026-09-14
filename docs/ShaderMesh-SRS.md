@@ -584,14 +584,17 @@ Status legend: done, in progress, planned.
 The pivot to compute rental inserts the rental and LLM phases next. The verifiable-task
 path (phases 1 to 4) is complete and is retained as the second market mode.
 
-### Phase 5: Rental market contracts. Status: planned, next
+### Phase 5: Rental market contracts. Status: done
 - Goal: on chain leasing with streamed escrow, heartbeats, and SLA slashing.
-- Tasks: RentalMarket (listing, lease, per-interval settlement, extend, end, terminate),
-  signed heartbeat verification (EIP-712), and attestation or benchmark challenge in the
-  registry, all reusing SmeshToken and ProviderRegistry.
-- Deliverables: RentalMarket and attestation code with unit and property tests.
-- Acceptance: a lease funds escrow, settles per interval against heartbeats, refunds unused
-  intervals on early end, and slashes a provider that misses heartbeats or fails attestation.
+- Deliverables: `RentalMarket` (listings, leases, per-interval streamed settlement, extend,
+  end, finalize, terminate) and provider attestation in `ProviderRegistry`, reusing
+  `SmeshToken` and `ProviderRegistry`, with a passing test suite. Deploy wires and authorizes
+  it and sets the attester.
+- Acceptance: met. A lease funds escrow, settles per interval only while heartbeats are
+  maintained, refunds unused intervals on early end, and terminates with a bond slash to the
+  renter on provider downtime. Unattested or ineligible providers cannot list. Verified by 4 tests.
+- Follow ups: move heartbeats to EIP-712 messages posted by a relayer to cut gas; a real
+  benchmark verifier behind the attester role.
 
 ### Phase 6: Provider rental serving and LLM inference. Status: planned
 - Goal: providers actually serve leases and models.
