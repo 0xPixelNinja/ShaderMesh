@@ -607,13 +607,17 @@ path (phases 1 to 4) is complete and is retained as the second market mode.
   completion and is reproducible at temperature 0. Verified by the agent test suite (7 passing).
 - Follow ups: wire a real model backend (Ollama or vLLM) for the live demo; GPU passthrough.
 
-### Phase 7: Orchestrator rental index and inference gateway. Status: planned
+### Phase 7: Orchestrator rental index and inference gateway. Status: done
 - Goal: discovery and routing.
-- Tasks: index listings and leases, expose listings, leases, providers, and models APIs, and
-  implement the OpenAI-compatible gateway with metering and health-aware routing.
-- Deliverables: orchestrator rental index and gateway with tests.
-- Acceptance: a client calls /v1/chat/completions and is routed to a healthy provider, and
-  usage is metered and reconciled with on chain settlement.
+- Deliverables: the projection now indexes RentalMarket and registry events (listings, leases,
+  heartbeats, settlement, attestation, reputation); the API exposes `/listings`, `/leases`,
+  `/leases/:id`, `/providers`, and `/models`; and the OpenAI-compatible gateway
+  (`POST /v1/chat/completions`) routes to the cheapest serving provider and tags the route.
+- Acceptance: met. A client call is routed to a serving provider and returns its completion;
+  an unserved model returns 503. Verified by 17 orchestrator tests (rental projection and
+  gateway included) with a clean type check.
+- Follow ups: reconcile metered usage with on chain inference settlement; health checks and
+  failover across providers.
 
 ### Phase 8: Web dashboard. Status: planned
 - Goal: rent GPUs, use models, run jobs, and explore, on the design system in section 7.

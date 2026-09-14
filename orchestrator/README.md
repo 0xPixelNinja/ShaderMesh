@@ -39,8 +39,12 @@ Built and started by the root `docker-compose.yml` after `deployer` completes
 | Route | Purpose |
 |-------|---------|
 | `GET /health` | Service status. |
-| `GET /jobs` | List indexed jobs. |
-| `GET /jobs/:id` | Job with its tasks. |
+| `GET /listings` | Active GPU rental offers. |
+| `GET /leases` and `GET /leases/:id` | Rental leases and their state. |
+| `GET /providers` | Providers with reputation, attestation, and served models. |
+| `GET /models` | Model catalog aggregated from active listings. |
+| `POST /v1/chat/completions` | OpenAI-compatible gateway; routes to a serving provider. |
+| `GET /jobs` and `GET /jobs/:id` | Verifiable jobs and tasks. |
 | `GET /jobs/:id/result` | Final stitched artifact CID. |
 | `POST /jobs/prepare` | Split an image and pin the manifest; returns inputCID and taskCount. |
 | `GET /events` | Server sent events stream of on-chain updates. |
