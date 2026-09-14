@@ -40,10 +40,18 @@ async function main() {
   await verification.waitForDeployment();
   console.log("Verification:    ", await verification.getAddress());
 
+  const Rental = await ethers.getContractFactory("RentalMarket");
+  const rental = await Rental.deploy(await token.getAddress(), await registry.getAddress(), owner);
+  await rental.waitForDeployment();
+  console.log("RentalMarket:    ", await rental.getAddress());
+
   // Wire permissions.
   await (await registry.setAuthorized(await market.getAddress(), true)).wait();
   await (await registry.setAuthorized(await verification.getAddress(), true)).wait();
+  await (await registry.setAuthorized(await rental.getAddress(), true)).wait();
   await (await market.setVerification(await verification.getAddress())).wait();
+  // The deployer acts as the attestation verifier for the demo.
+  await (await registry.setAttester(owner)).wait();
 
   console.log("\nWiring complete. ShaderMesh is deployed and authorized.");
 
@@ -58,12 +66,14 @@ async function main() {
       ProviderRegistry: await registry.getAddress(),
       JobMarket: await market.getAddress(),
       Verification: await verification.getAddress(),
+      RentalMarket: await rental.getAddress(),
     },
     abis: {
       SmeshToken: JSON.parse(Token.interface.formatJson()),
       ProviderRegistry: JSON.parse(Registry.interface.formatJson()),
       JobMarket: JSON.parse(Market.interface.formatJson()),
       Verification: JSON.parse(Verification.interface.formatJson()),
+      RentalMarket: JSON.parse(Rental.interface.formatJson()),
     },
     timestamp: new Date().toISOString(),
   };

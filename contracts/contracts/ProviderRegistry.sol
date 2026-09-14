@@ -39,6 +39,22 @@ contract ProviderRegistry is Ownable {
     mapping(address => Provider) public providers;
     mapping(address => bool) public authorized; // protocol contracts allowed to mutate economics
 
+    /// @notice Structured, attested hardware capability for a provider. Proves the
+    ///         advertised GPU via a benchmark or attestation challenge answered off chain
+    ///         and recorded here by the trusted attester.
+    struct Attestation {
+        uint64 attestedAt;
+        uint32 vramGB;
+        uint256 benchmarkScore;
+        string gpuModel;
+    }
+
+    mapping(address => Attestation) public attestations;
+    /// @notice Address permitted to record attestations (the challenge verifier).
+    address public attester;
+    /// @notice Attestation is considered fresh for this long.
+    uint256 public attestationTtl = 7 days;
+
     event ProviderRegistered(address indexed provider, string capabilities);
     event Staked(address indexed provider, uint256 amount, uint256 totalStake);
     event Unstaked(address indexed provider, uint256 amount, uint256 totalStake);
@@ -48,6 +64,8 @@ contract ProviderRegistry is Ownable {
     event ReputationUpdated(address indexed provider, uint256 reputation, bool success);
     event AuthorizedSet(address indexed account, bool allowed);
     event ActiveSet(address indexed provider, bool active);
+    event AttesterSet(address indexed attester);
+    event Attested(address indexed provider, string gpuModel, uint32 vramGB, uint256 benchmarkScore);
 
     constructor(IERC20 token_, uint256 minStake_, address owner_) Ownable(owner_) {
         token = token_;
@@ -70,6 +88,40 @@ contract ProviderRegistry is Ownable {
 
     function setMinStake(uint256 value) external onlyOwner {
         minStake = value;
+    }
+
+    function setAttester(address account) external onlyOwner {
+        attester = account;
+        emit AttesterSet(account);
+    }
+
+    function setAttestationTtl(uint256 value) external onlyOwner {
+        attestationTtl = value;
+    }
+
+    /// @notice Record a passed hardware attestation for a provider. Only the attester
+    ///         (the challenge verifier) may call this.
+    function attest(
+        address provider,
+        string calldata gpuModel,
+        uint32 vramGB,
+        uint256 benchmarkScore
+    ) external {
+        require(msg.sender == attester, "registry: not attester");
+        require(providers[provider].registered, "registry: not registered");
+        attestations[provider] = Attestation({
+            attestedAt: uint64(block.timestamp),
+            vramGB: vramGB,
+            benchmarkScore: benchmarkScore,
+            gpuModel: gpuModel
+        });
+        emit Attested(provider, gpuModel, vramGB, benchmarkScore);
+    }
+
+    /// @notice Whether a provider has a fresh attestation on record.
+    function isAttested(address who) public view returns (bool) {
+        uint64 at = attestations[who].attestedAt;
+        return at != 0 && block.timestamp <= uint256(at) + attestationTtl;
     }
 
     // --------------------------------------------------------------------- //
