@@ -4,7 +4,8 @@ import { join } from "path";
 
 /**
  * Deploys the full ShaderMesh stack and wires up permissions:
- *   SmeshToken  -> ProviderRegistry -> JobMarket -> Verification
+ *   SmeshToken -> ProviderRegistry -> JobMarket -> Verification
+ *                              \-> RentalMarket / InferenceMarket
  * then authorizes JobMarket & Verification to mutate registry economics,
  * and points JobMarket at the Verification contract.
  */
@@ -18,6 +19,7 @@ async function main() {
 
   const Token = await ethers.getContractFactory("SmeshToken");
   const token = await Token.deploy(INITIAL_SUPPLY, owner);
+  const tokenReceipt = await token.deploymentTransaction()?.wait();
   await token.waitForDeployment();
   console.log("SmeshToken:      ", await token.getAddress());
 
@@ -45,6 +47,11 @@ async function main() {
   await rental.waitForDeployment();
   console.log("RentalMarket:    ", await rental.getAddress());
 
+  const Inference = await ethers.getContractFactory("InferenceMarket");
+  const inference = await Inference.deploy(await token.getAddress(), await registry.getAddress());
+  await inference.waitForDeployment();
+  console.log("InferenceMarket: ", await inference.getAddress());
+
   // Wire permissions.
   await (await registry.setAuthorized(await market.getAddress(), true)).wait();
   await (await registry.setAuthorized(await verification.getAddress(), true)).wait();
@@ -54,12 +61,16 @@ async function main() {
   await (await registry.setAttester(owner)).wait();
 
   console.log("\nWiring complete. ShaderMesh is deployed and authorized.");
+  const deploymentBlock = tokenReceipt?.blockNumber ?? await ethers.provider.getBlockNumber();
+  const deploymentBlockData = await ethers.provider.getBlock(deploymentBlock);
 
   // Persist addresses AND ABIs so off-chain services (orchestrator, agents) can
   // discover everything they need from one file, without hardcoding interfaces.
   const deployment = {
     network: network.name,
     chainId: Number((await ethers.provider.getNetwork()).chainId),
+    deploymentBlock,
+    deploymentTimestamp: deploymentBlockData?.timestamp ?? null,
     deployer: owner,
     contracts: {
       SmeshToken: await token.getAddress(),
@@ -67,6 +78,7 @@ async function main() {
       JobMarket: await market.getAddress(),
       Verification: await verification.getAddress(),
       RentalMarket: await rental.getAddress(),
+      InferenceMarket: await inference.getAddress(),
     },
     abis: {
       SmeshToken: JSON.parse(Token.interface.formatJson()),
@@ -74,6 +86,7 @@ async function main() {
       JobMarket: JSON.parse(Market.interface.formatJson()),
       Verification: JSON.parse(Verification.interface.formatJson()),
       RentalMarket: JSON.parse(Rental.interface.formatJson()),
+      InferenceMarket: JSON.parse(Inference.interface.formatJson()),
     },
     timestamp: new Date().toISOString(),
   };

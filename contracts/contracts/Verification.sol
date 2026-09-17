@@ -73,6 +73,10 @@ contract Verification is Ownable {
 
         if (!d.opened) {
             require(t.status == JobMarket.TaskStatus.Submitted, "verify: task not submitted");
+            require(
+                block.timestamp < uint256(t.submittedAt) + market.challengeWindow(),
+                "verify: challenge window closed"
+            );
             d.opened = true;
             d.providerHash = t.resultHash;
             d.deadline = uint64(block.timestamp + voteWindow);

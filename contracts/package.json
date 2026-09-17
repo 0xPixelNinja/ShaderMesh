@@ -6,9 +6,14 @@
   "scripts": {
     "compile": "hardhat compile",
     "test": "hardhat test",
+    "typecheck": "tsc --noEmit",
+    "gas": "hardhat run scripts/gas-report.ts",
     "node": "hardhat node",
     "deploy:local": "hardhat run scripts/deploy.ts --network localhost",
-    "deploy:sepolia": "hardhat run scripts/deploy.ts --network sepolia"
+    "deploy:sepolia": "hardhat run scripts/deploy.ts --network sepolia",
+    "bootstrap:local": "hardhat run scripts/bootstrap.ts --network localhost",
+    "bootstrap:sepolia": "hardhat run scripts/bootstrap.ts --network sepolia",
+    "configure:sepolia-demo": "hardhat run scripts/configure-demo.ts --network sepolia"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",

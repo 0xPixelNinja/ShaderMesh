@@ -1,9 +1,20 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
 import { time } from "@nomicfoundation/hardhat-network-helpers";
+import { anyValue } from "@nomicfoundation/hardhat-chai-matchers/withArgs";
 
 const E = (n: string | number) => ethers.parseEther(String(n));
 const HOUR = 3600;
+const MANIFEST = "ipfs://bafybeigdyrzt5sfp7udm7hu76uh7y26nf3ayu5ol5qi2ngv3a6h4q";
+
+enum Status {
+  Pending,
+  Active,
+  Ended,
+  Terminated,
+  Rejected,
+  Cancelled,
+}
 
 describe("RentalMarket", () => {
   async function deploy() {
@@ -21,107 +32,332 @@ describe("RentalMarket", () => {
     await registry.setAuthorized(await rental.getAddress(), true);
     await registry.setAttester(owner.address);
 
-    await token.transfer(requester.address, E(1000));
-    await token.transfer(provider.address, E(200));
-    await token.transfer(requester2.address, E(1000));
-    await token.transfer(provider2.address, E(200));
-    await token.transfer(stranger.address, E(200));
+    for (const account of [requester, requester2]) await token.transfer(account.address, E(1000));
+    for (const account of [provider, provider2, stranger]) await token.transfer(account.address, E(200));
 
     return { owner, requester, provider, requester2, provider2, stranger, token, registry, rental };
   }
 
-  async function readyProvider(ctx: any, provider: any) {
+  async function readyProvider(ctx: Awaited<ReturnType<typeof deploy>>, provider = ctx.provider) {
     await ctx.registry.connect(provider).register('{"gpu":"RTX4090"}');
     await ctx.token.connect(provider).approve(await ctx.registry.getAddress(), E(100));
     await ctx.registry.connect(provider).stake(E(100));
     await ctx.registry.connect(ctx.owner).attest(provider.address, "RTX4090", 24, 1000);
   }
 
-  it("streams escrow per interval, then refunds the unused remainder on end", async () => {
+  async function createListing(
+    ctx: Awaited<ReturnType<typeof deploy>>,
+    minIntervals = 1,
+    maxIntervals = 10,
+  ) {
+    const listingId = await ctx.rental.nextListingId();
+    await expect(
+      ctx.rental
+        .connect(ctx.provider)
+        .createListing(E(1), HOUR, minIntervals, maxIntervals, '{"gpu":"RTX4090"}'),
+    )
+      .to.emit(ctx.rental, "ListingCreated")
+      .withArgs(
+        listingId,
+        ctx.provider.address,
+        E(1),
+        HOUR,
+        minIntervals,
+        maxIntervals,
+        '{"gpu":"RTX4090"}',
+      );
+    return listingId;
+  }
+
+  async function request(
+    ctx: Awaited<ReturnType<typeof deploy>>,
+    listingId: bigint,
+    intervals = 3,
+    requester = ctx.requester,
+  ) {
+    await ctx.token.connect(requester).approve(await ctx.rental.getAddress(), E(1000));
+    const leaseId = await ctx.rental.nextLeaseId();
+    await ctx.rental.connect(requester).requestLease(listingId, intervals, MANIFEST);
+    return leaseId;
+  }
+
+  async function activeLease(ctx: Awaited<ReturnType<typeof deploy>>, intervals = 3, maxIntervals = 10) {
+    await readyProvider(ctx);
+    const listingId = await createListing(ctx, 1, maxIntervals);
+    const leaseId = await request(ctx, listingId, intervals);
+    await ctx.rental.connect(ctx.provider).acceptLease(leaseId);
+    return { listingId, leaseId };
+  }
+
+  it("creates a funded pending request bound to a non-empty manifest", async () => {
     const ctx = await deploy();
-    const { requester, provider, token, rental, registry } = ctx;
-    await readyProvider(ctx, provider);
+    await readyProvider(ctx);
+    const listingId = await createListing(ctx, 2, 5);
+    await ctx.token.connect(ctx.requester).approve(await ctx.rental.getAddress(), E(1000));
+    const leaseId = await ctx.rental.nextLeaseId();
 
-    const listingId = await rental.nextListingId();
-    await rental.connect(provider).createListing(E(1), HOUR, 1, 100, '{"gpu":"RTX4090","region":"us-east"}');
+    await expect(ctx.rental.connect(ctx.requester).requestLease(listingId, 3, MANIFEST))
+      .to.emit(ctx.rental, "LeaseRequested")
+      .withArgs(leaseId, listingId, ctx.requester.address, ctx.provider.address, 3, E(3), MANIFEST);
 
-    await token.connect(requester).approve(await rental.getAddress(), E(1000));
-    const leaseId = await rental.nextLeaseId();
-    await rental.connect(requester).openLease(listingId, 10); // escrow 10
+    const lease = await ctx.rental.getLease(leaseId);
+    expect(lease.status).to.equal(Status.Pending);
+    expect(lease.manifest).to.equal(MANIFEST);
+    expect(lease.start).to.equal(0);
+    expect(lease.bond).to.equal(0);
+    expect(lease.escrow).to.equal(E(3));
+    expect(await ctx.token.balanceOf(ctx.requester.address)).to.equal(E(997));
+    expect(await ctx.registry.availableStake(ctx.provider.address)).to.equal(E(100));
 
-    // Three intervals pass; provider keeps the lease alive, then it settles.
-    await time.increase(3 * HOUR);
-    await rental.connect(provider).heartbeat(leaseId);
-    await rental.settle(leaseId);
-
-    // Provider paid for 3 served intervals: 200 - 100 stake + 3 = 103.
-    expect(await token.balanceOf(provider.address)).to.equal(E(103));
-    let lease = await rental.getLease(leaseId);
-    expect(lease.settledIntervals).to.equal(3n);
-
-    // Renter ends the lease: unused 7 intervals refunded.
-    await rental.connect(requester).endLease(leaseId);
-    expect(await token.balanceOf(requester.address)).to.equal(E(997)); // 1000 - 10 + 7
-    lease = await rental.getLease(leaseId);
-    expect(Number(lease.status)).to.equal(1); // Ended
-    expect(await registry.availableStake(provider.address)).to.equal(E(100)); // bond released
-    expect(await registry.reputationOf(provider.address)).to.equal(6000n);
+    await expect(ctx.rental.connect(ctx.requester).requestLease(listingId, 3, "")).to.be.revertedWith(
+      "rental: empty manifest",
+    );
+    await expect(ctx.rental.connect(ctx.requester).requestLease(listingId, 1, MANIFEST)).to.be.revertedWith(
+      "rental: bad duration",
+    );
   });
 
-  it("terminates a lease on provider downtime and slashes the bond to the renter", async () => {
+  it("sets start, bond, and listing reservation only when the provider accepts", async () => {
     const ctx = await deploy();
-    const { requester2, provider2, token, rental, registry } = ctx;
-    await readyProvider(ctx, provider2);
+    await readyProvider(ctx);
+    const listingId = await createListing(ctx);
+    const leaseId = await request(ctx, listingId);
 
-    const listingId = await rental.nextListingId();
-    await rental.connect(provider2).createListing(E(1), HOUR, 1, 100, '{"gpu":"RTX4090"}');
+    await expect(ctx.rental.connect(ctx.provider).acceptLease(leaseId))
+      .to.emit(ctx.rental, "LeaseAccepted")
+      .and.to.emit(ctx.rental, "ListingAvailabilityChanged")
+      .withArgs(listingId, false, leaseId);
 
-    await token.connect(requester2).approve(await rental.getAddress(), E(1000));
-    const leaseId = await rental.nextLeaseId();
-    await rental.connect(requester2).openLease(listingId, 10);
-
-    // Provider never sends a heartbeat. Coverage ends at start + interval + grace.
-    await time.increase(HOUR + 2000); // ~1h33m: 1 interval served, then down
-    expect(await rental.isDown(leaseId)).to.equal(true);
-    await rental.connect(requester2).terminate(leaseId);
-
-    // Provider paid for the 1 covered interval, then slashed 50 bond.
-    expect(await token.balanceOf(provider2.address)).to.equal(E(101)); // 100 + 1
-    // Renter: 1000 - 10 escrow + 9 refund + 50 slash = 1049.
-    expect(await token.balanceOf(requester2.address)).to.equal(E(1049));
-    expect(await registry.availableStake(provider2.address)).to.equal(E(50)); // 100 - 50 slashed
-    const lease = await rental.getLease(leaseId);
-    expect(Number(lease.status)).to.equal(2); // Terminated
-    expect(await registry.reputationOf(provider2.address)).to.equal(4000n);
+    const lease = await ctx.rental.getLease(leaseId);
+    const listing = await ctx.rental.getListing(listingId);
+    expect(lease.status).to.equal(Status.Active);
+    expect(lease.start).not.to.equal(0);
+    expect(lease.bond).to.equal(E(50));
+    expect(listing.available).to.equal(false);
+    expect(listing.activeLeaseId).to.equal(leaseId);
+    expect(await ctx.registry.availableStake(ctx.provider.address)).to.equal(E(50));
   });
 
-  it("blocks listings from unattested or ineligible providers", async () => {
+  it("lets the provider reject and refunds all pending escrow", async () => {
     const ctx = await deploy();
-    const { registry, token, rental, stranger } = ctx;
+    await readyProvider(ctx);
+    const listingId = await createListing(ctx);
+    const leaseId = await request(ctx, listingId);
 
-    // Registered and staked, but never attested.
-    await registry.connect(stranger).register('{"gpu":"?"}');
-    await token.connect(stranger).approve(await registry.getAddress(), E(100));
-    await registry.connect(stranger).stake(E(100));
+    await expect(ctx.rental.connect(ctx.provider).rejectLease(leaseId))
+      .to.emit(ctx.rental, "LeaseRejected")
+      .withArgs(leaseId, ctx.provider.address, E(3));
+
+    expect((await ctx.rental.getLease(leaseId)).status).to.equal(Status.Rejected);
+    expect((await ctx.rental.getLease(leaseId)).escrow).to.equal(0);
+    expect(await ctx.token.balanceOf(ctx.requester.address)).to.equal(E(1000));
+    expect((await ctx.rental.getListing(listingId)).available).to.equal(true);
+  });
+
+  it("lets the requester cancel and refunds all pending escrow", async () => {
+    const ctx = await deploy();
+    await readyProvider(ctx);
+    const listingId = await createListing(ctx);
+    const leaseId = await request(ctx, listingId);
+
+    await expect(ctx.rental.connect(ctx.requester).cancelLease(leaseId))
+      .to.emit(ctx.rental, "LeaseCancelled")
+      .withArgs(leaseId, ctx.requester.address, E(3));
+
+    expect((await ctx.rental.getLease(leaseId)).status).to.equal(Status.Cancelled);
+    expect(await ctx.token.balanceOf(ctx.requester.address)).to.equal(E(1000));
+    expect(await ctx.registry.availableStake(ctx.provider.address)).to.equal(E(100));
+  });
+
+  it("prevents concurrent accepted leases and restores availability on end", async () => {
+    const ctx = await deploy();
+    await readyProvider(ctx);
+    const listingId = await createListing(ctx);
+    const firstLeaseId = await request(ctx, listingId);
+    const secondLeaseId = await request(ctx, listingId, 2, ctx.requester2);
+    await ctx.rental.connect(ctx.provider).acceptLease(firstLeaseId);
+
+    await expect(ctx.rental.connect(ctx.provider).acceptLease(secondLeaseId)).to.be.revertedWith(
+      "rental: listing unavailable",
+    );
+    await expect(ctx.rental.connect(ctx.requester2).requestLease(listingId, 2, MANIFEST)).to.be.revertedWith(
+      "rental: listing unavailable",
+    );
+
+    await expect(ctx.rental.connect(ctx.requester).endLease(firstLeaseId))
+      .to.emit(ctx.rental, "ListingAvailabilityChanged")
+      .withArgs(listingId, true, firstLeaseId);
+    expect((await ctx.rental.getListing(listingId)).activeLeaseId).to.equal(0);
+
+    await ctx.rental.connect(ctx.provider).acceptLease(secondLeaseId);
+    expect((await ctx.rental.getLease(secondLeaseId)).status).to.equal(Status.Active);
+  });
+
+  it("records one heartbeat per interval and rejects retroactive coverage", async () => {
+    const ctx = await deploy();
+    const { leaseId } = await activeLease(ctx);
+    const lease = await ctx.rental.getLease(leaseId);
+
+    await time.increaseTo(lease.start + BigInt(HOUR + 1));
+    await expect(ctx.rental.connect(ctx.provider).heartbeat(leaseId)).to.be.revertedWith(
+      "rental: interval missed",
+    );
+    expect(await ctx.rental.payableIntervals(leaseId)).to.equal(0);
+    await ctx.rental.settle(leaseId);
+    expect((await ctx.rental.getLease(leaseId)).settledIntervals).to.equal(0);
+  });
+
+  it("settles only completed intervals in the contiguous heartbeat prefix", async () => {
+    const ctx = await deploy();
+    const { leaseId } = await activeLease(ctx);
+    let lease = await ctx.rental.getLease(leaseId);
+
+    await expect(ctx.rental.connect(ctx.provider).heartbeat(leaseId))
+      .to.emit(ctx.rental, "Heartbeat")
+      .withArgs(leaseId, ctx.provider.address, 0, anyValue);
+    await expect(ctx.rental.connect(ctx.provider).heartbeat(leaseId)).to.be.revertedWith(
+      "rental: already heartbeated",
+    );
+    await ctx.rental.settle(leaseId);
+    expect((await ctx.rental.getLease(leaseId)).settledIntervals).to.equal(0);
+
+    await time.increaseTo(lease.start + BigInt(HOUR + 1));
+    await ctx.rental.connect(ctx.provider).heartbeat(leaseId);
+    expect(await ctx.rental.heartbeatAt(leaseId, 1)).not.to.equal(0);
+    await ctx.rental.settle(leaseId);
+    lease = await ctx.rental.getLease(leaseId);
+    expect(lease.settledIntervals).to.equal(1);
+    expect(await ctx.token.balanceOf(ctx.provider.address)).to.equal(E(101));
+
+    await time.increaseTo(lease.start + BigInt(2 * HOUR + 1));
+    await ctx.rental.settle(leaseId);
+    expect((await ctx.rental.getLease(leaseId)).settledIntervals).to.equal(2);
+    expect(await ctx.token.balanceOf(ctx.provider.address)).to.equal(E(102));
+  });
+
+  it("rejects expired heartbeats and finalizes a fully served lease", async () => {
+    const ctx = await deploy();
+    const { listingId, leaseId } = await activeLease(ctx, 2);
+    let lease = await ctx.rental.getLease(leaseId);
+    await ctx.rental.connect(ctx.provider).heartbeat(leaseId);
+
+    await time.increaseTo(lease.start + BigInt(HOUR + 1));
+    await ctx.rental.connect(ctx.provider).heartbeat(leaseId);
+    await expect(ctx.rental.finalizeExpired(leaseId)).to.be.revertedWith("rental: not fully served");
+
+    await time.increaseTo(lease.start + BigInt(2 * HOUR + 1));
+    await expect(ctx.rental.connect(ctx.provider).heartbeat(leaseId)).to.be.revertedWith(
+      "rental: lease expired",
+    );
+    await expect(ctx.rental.finalizeExpired(leaseId))
+      .to.emit(ctx.rental, "LeaseEnded")
+      .withArgs(leaseId, 0);
+
+    lease = await ctx.rental.getLease(leaseId);
+    expect(lease.status).to.equal(Status.Ended);
+    expect(lease.settledIntervals).to.equal(2);
+    expect(lease.escrow).to.equal(0);
+    expect((await ctx.rental.getListing(listingId)).available).to.equal(true);
+    expect(await ctx.token.balanceOf(ctx.provider.address)).to.equal(E(102));
+    expect(await ctx.token.balanceOf(ctx.requester.address)).to.equal(E(998));
+    expect(await ctx.token.balanceOf(await ctx.rental.getAddress())).to.equal(0);
+    expect(await ctx.registry.availableStake(ctx.provider.address)).to.equal(E(100));
+    expect(await ctx.registry.reputationOf(ctx.provider.address)).to.equal(6000);
+  });
+
+  it("conserves rental escrow across interval payment and early-end refund", async () => {
+    const ctx = await deploy();
+    const { leaseId } = await activeLease(ctx, 3);
+    const lease = await ctx.rental.getLease(leaseId);
+    const rentalAddress = await ctx.rental.getAddress();
+    const totalBefore =
+      (await ctx.token.balanceOf(ctx.requester.address)) +
+      (await ctx.token.balanceOf(ctx.provider.address)) +
+      (await ctx.token.balanceOf(rentalAddress));
+
+    await ctx.rental.connect(ctx.provider).heartbeat(leaseId);
+    await time.increaseTo(lease.start + BigInt(HOUR + 1));
+    await ctx.rental.connect(ctx.provider).heartbeat(leaseId);
+    await time.increaseTo(lease.start + BigInt(2 * HOUR + 1));
+    await expect(ctx.rental.connect(ctx.requester).endLease(leaseId))
+      .to.emit(ctx.rental, "IntervalSettled")
+      .withArgs(leaseId, ctx.provider.address, 2, E(2))
+      .and.to.emit(ctx.rental, "LeaseEnded")
+      .withArgs(leaseId, E(1));
+
+    const totalAfter =
+      (await ctx.token.balanceOf(ctx.requester.address)) +
+      (await ctx.token.balanceOf(ctx.provider.address)) +
+      (await ctx.token.balanceOf(rentalAddress));
+    expect(totalAfter).to.equal(totalBefore);
+    expect(await ctx.token.balanceOf(ctx.requester.address)).to.equal(E(998));
+    expect(await ctx.token.balanceOf(ctx.provider.address)).to.equal(E(102));
+    expect(await ctx.token.balanceOf(rentalAddress)).to.equal(0);
+  });
+
+  it("terminates at the first missed deadline, pays the prefix, refunds, and slashes", async () => {
+    const ctx = await deploy();
+    const { listingId, leaseId } = await activeLease(ctx);
+    const lease = await ctx.rental.getLease(leaseId);
+    await ctx.rental.connect(ctx.provider).heartbeat(leaseId);
+
+    await time.increaseTo(lease.start + BigInt(2 * HOUR + 301));
+    expect(await ctx.rental.isDown(leaseId)).to.equal(true);
+    await expect(ctx.rental.connect(ctx.stranger).terminate(leaseId))
+      .to.emit(ctx.rental, "LeaseTerminated")
+      .withArgs(leaseId, E(50), E(2));
+
+    expect(await ctx.token.balanceOf(ctx.provider.address)).to.equal(E(101));
+    expect(await ctx.token.balanceOf(ctx.requester.address)).to.equal(E(1049));
+    expect(await ctx.registry.availableStake(ctx.provider.address)).to.equal(E(50));
+    expect((await ctx.rental.getLease(leaseId)).status).to.equal(Status.Terminated);
+    expect((await ctx.rental.getListing(listingId)).available).to.equal(true);
+    expect(await ctx.registry.reputationOf(ctx.provider.address)).to.equal(4000);
+  });
+
+  it("does not allow extensions beyond the listing maximum duration", async () => {
+    const ctx = await deploy();
+    const { leaseId } = await activeLease(ctx, 2, 3);
+    await ctx.token.connect(ctx.requester).approve(await ctx.rental.getAddress(), E(10));
+
+    await expect(ctx.rental.connect(ctx.requester).extendLease(leaseId, 1))
+      .to.emit(ctx.rental, "LeaseExtended")
+      .withArgs(leaseId, 1, E(1));
+    expect((await ctx.rental.getLease(leaseId)).fundedIntervals).to.equal(3);
+    await expect(ctx.rental.connect(ctx.requester).extendLease(leaseId, 1)).to.be.revertedWith(
+      "rental: exceeds max duration",
+    );
+  });
+
+  it("enforces lifecycle authorization", async () => {
+    const ctx = await deploy();
+    await readyProvider(ctx);
+    const listingId = await createListing(ctx);
+    const leaseId = await request(ctx, listingId);
+
+    await expect(ctx.rental.connect(ctx.stranger).acceptLease(leaseId)).to.be.revertedWith("rental: not provider");
+    await expect(ctx.rental.connect(ctx.stranger).rejectLease(leaseId)).to.be.revertedWith("rental: not provider");
+    await expect(ctx.rental.connect(ctx.stranger).cancelLease(leaseId)).to.be.revertedWith("rental: not requester");
+    await ctx.rental.connect(ctx.provider).acceptLease(leaseId);
+    await expect(ctx.rental.connect(ctx.requester).heartbeat(leaseId)).to.be.revertedWith("rental: not provider");
+    await expect(ctx.rental.connect(ctx.stranger).extendLease(leaseId, 1)).to.be.revertedWith("rental: not requester");
+    await expect(ctx.rental.connect(ctx.stranger).endLease(leaseId)).to.be.revertedWith("rental: not requester");
+    await expect(ctx.rental.connect(ctx.provider).setListingAvailable(listingId, true)).to.be.revertedWith(
+      "rental: listing reserved",
+    );
+    await expect(ctx.rental.connect(ctx.stranger).setListingAvailable(listingId, true)).to.be.revertedWith(
+      "rental: not your listing",
+    );
+  });
+
+  it("blocks listings from unattested providers", async () => {
+    const ctx = await deploy();
+    await ctx.registry.connect(ctx.stranger).register('{"gpu":"?"}');
+    await ctx.token.connect(ctx.stranger).approve(await ctx.registry.getAddress(), E(100));
+    await ctx.registry.connect(ctx.stranger).stake(E(100));
 
     await expect(
-      rental.connect(stranger).createListing(E(1), HOUR, 1, 10, "{}")
+      ctx.rental.connect(ctx.stranger).createListing(E(1), HOUR, 1, 10, "{}"),
     ).to.be.revertedWith("rental: not attested");
-  });
-
-  it("only the provider can heartbeat, and duration bounds are enforced", async () => {
-    const ctx = await deploy();
-    const { requester, provider, token, rental } = ctx;
-    await readyProvider(ctx, provider);
-    const listingId = await rental.nextListingId();
-    await rental.connect(provider).createListing(E(1), HOUR, 2, 5, "{}");
-
-    await token.connect(requester).approve(await rental.getAddress(), E(1000));
-    await expect(rental.connect(requester).openLease(listingId, 1)).to.be.revertedWith("rental: bad duration");
-    await expect(rental.connect(requester).openLease(listingId, 6)).to.be.revertedWith("rental: bad duration");
-
-    const leaseId = await rental.nextLeaseId();
-    await rental.connect(requester).openLease(listingId, 3);
-    await expect(rental.connect(requester).heartbeat(leaseId)).to.be.revertedWith("rental: not provider");
   });
 });

@@ -8,40 +8,36 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {ProviderRegistry} from "./ProviderRegistry.sol";
 
 /// @title RentalMarket
-/// @notice The primary market: time-based leases of provider compute (GPU or CPU),
-///         used to run anything including LLM inference and fine-tuning. A rented
-///         result cannot be re-executed and checked, so trust is availability based:
-///         the provider stakes and posts a heartbeat each interval, escrow streams to
-///         the provider only for intervals it kept alive, unused time is refunded, and
-///         missed heartbeats (downtime) let anyone terminate the lease and slash the
-///         provider for the SLA breach.
-/// @dev    Reuses SmeshToken for escrow and ProviderRegistry for stake, attestation,
-///         reputation, and slashing. Must be authorized in the registry.
+/// @notice Time-based compute leases backed by requester escrow, provider stake,
+///         and explicit per-interval availability evidence.
+/// @dev Must be authorized in ProviderRegistry to bond and slash provider stake.
 contract RentalMarket is Ownable, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     IERC20 public immutable token;
     ProviderRegistry public immutable registry;
 
-    /// @notice Stake bonded by the provider for the duration of a lease.
     uint256 public bondPerLease = 50 ether;
-    /// @notice Extra time beyond one interval before a missing heartbeat is a breach.
     uint256 public graceSecs = 5 minutes;
 
     enum LeaseStatus {
+        Pending,
         Active,
         Ended,
-        Terminated
+        Terminated,
+        Rejected,
+        Cancelled
     }
 
     struct Listing {
         address provider;
-        uint256 pricePerInterval; // in SMESH base units
+        uint256 pricePerInterval;
         uint64 intervalSecs;
         uint32 minIntervals;
         uint32 maxIntervals;
-        bool active;
-        string spec; // JSON: gpu model, vram, region, served models, etc.
+        bool available;
+        uint256 activeLeaseId;
+        string spec;
     }
 
     struct Lease {
@@ -51,23 +47,45 @@ contract RentalMarket is Ownable, ReentrancyGuard {
         uint256 pricePerInterval;
         uint64 intervalSecs;
         uint64 start;
-        uint64 lastHeartbeat;
         uint32 fundedIntervals;
+        uint32 maxIntervals;
+        uint32 heartbeatedIntervals;
         uint32 settledIntervals;
-        uint256 escrow; // remaining funds held for this lease
+        uint256 escrow;
         uint256 bond;
         LeaseStatus status;
+        string manifest;
     }
 
     uint256 public nextListingId = 1;
     uint256 public nextLeaseId = 1;
     mapping(uint256 => Listing) public listings;
     mapping(uint256 => Lease) public leases;
+    mapping(uint256 => mapping(uint32 => uint64)) public heartbeatAt;
 
-    event ListingCreated(uint256 indexed listingId, address indexed provider, uint256 pricePerInterval, uint64 intervalSecs, string spec);
-    event ListingActiveSet(uint256 indexed listingId, bool active);
-    event LeaseOpened(uint256 indexed leaseId, uint256 indexed listingId, address indexed requester, address provider, uint32 fundedIntervals, uint256 escrow);
-    event Heartbeat(uint256 indexed leaseId, address indexed provider, uint64 timestamp);
+    event ListingCreated(
+        uint256 indexed listingId,
+        address indexed provider,
+        uint256 pricePerInterval,
+        uint64 intervalSecs,
+        uint32 minIntervals,
+        uint32 maxIntervals,
+        string spec
+    );
+    event ListingAvailabilityChanged(uint256 indexed listingId, bool available, uint256 indexed leaseId);
+    event LeaseRequested(
+        uint256 indexed leaseId,
+        uint256 indexed listingId,
+        address indexed requester,
+        address provider,
+        uint32 fundedIntervals,
+        uint256 escrow,
+        string manifest
+    );
+    event LeaseAccepted(uint256 indexed leaseId, address indexed provider, uint64 start, uint256 bond);
+    event LeaseRejected(uint256 indexed leaseId, address indexed provider, uint256 refunded);
+    event LeaseCancelled(uint256 indexed leaseId, address indexed requester, uint256 refunded);
+    event Heartbeat(uint256 indexed leaseId, address indexed provider, uint32 indexed interval, uint64 timestamp);
     event IntervalSettled(uint256 indexed leaseId, address indexed provider, uint32 intervals, uint256 amount);
     event LeaseExtended(uint256 indexed leaseId, uint32 addedIntervals, uint256 addedEscrow);
     event LeaseEnded(uint256 indexed leaseId, uint256 refunded);
@@ -82,16 +100,16 @@ contract RentalMarket is Ownable, ReentrancyGuard {
     // Admin
     // --------------------------------------------------------------------- //
 
-    function setBondPerLease(uint256 v) external onlyOwner {
-        bondPerLease = v;
+    function setBondPerLease(uint256 value) external onlyOwner {
+        bondPerLease = value;
     }
 
-    function setGraceSecs(uint256 v) external onlyOwner {
-        graceSecs = v;
+    function setGraceSecs(uint256 value) external onlyOwner {
+        graceSecs = value;
     }
 
     // --------------------------------------------------------------------- //
-    // Provider: listings
+    // Listings
     // --------------------------------------------------------------------- //
 
     function createListing(
@@ -114,136 +132,236 @@ contract RentalMarket is Ownable, ReentrancyGuard {
             intervalSecs: intervalSecs,
             minIntervals: minIntervals,
             maxIntervals: maxIntervals,
-            active: true,
+            available: true,
+            activeLeaseId: 0,
             spec: spec
         });
-        emit ListingCreated(listingId, msg.sender, pricePerInterval, intervalSecs, spec);
+        emit ListingCreated(
+            listingId,
+            msg.sender,
+            pricePerInterval,
+            intervalSecs,
+            minIntervals,
+            maxIntervals,
+            spec
+        );
     }
 
-    function setListingActive(uint256 listingId, bool active) external {
-        Listing storage l = listings[listingId];
-        require(l.provider == msg.sender, "rental: not your listing");
-        l.active = active;
-        emit ListingActiveSet(listingId, active);
+    function setListingAvailable(uint256 listingId, bool available) external {
+        Listing storage listing = listings[listingId];
+        require(listing.provider == msg.sender, "rental: not your listing");
+        require(listing.activeLeaseId == 0, "rental: listing reserved");
+        listing.available = available;
+        emit ListingAvailabilityChanged(listingId, available, 0);
     }
 
     // --------------------------------------------------------------------- //
-    // Requester: leases
+    // Lease requests
     // --------------------------------------------------------------------- //
 
-    function openLease(uint256 listingId, uint32 intervals) external nonReentrant returns (uint256 leaseId) {
-        Listing storage lst = listings[listingId];
-        require(lst.provider != address(0) && lst.active, "rental: listing unavailable");
-        require(intervals >= lst.minIntervals && intervals <= lst.maxIntervals, "rental: bad duration");
-        require(registry.isEligible(lst.provider), "rental: provider ineligible");
-        require(registry.isAttested(lst.provider), "rental: provider unattested");
+    function requestLease(
+        uint256 listingId,
+        uint32 intervals,
+        string calldata manifest
+    ) external nonReentrant returns (uint256 leaseId) {
+        Listing storage listing = listings[listingId];
+        require(listing.provider != address(0) && listing.available, "rental: listing unavailable");
+        require(intervals >= listing.minIntervals && intervals <= listing.maxIntervals, "rental: bad duration");
+        require(bytes(manifest).length > 0, "rental: empty manifest");
+        require(registry.isEligible(listing.provider), "rental: provider ineligible");
+        require(registry.isAttested(listing.provider), "rental: provider unattested");
 
-        uint256 escrow = lst.pricePerInterval * uint256(intervals);
-        token.safeTransferFrom(msg.sender, address(this), escrow);
-        registry.bond(lst.provider, bondPerLease);
-
+        uint256 escrow = listing.pricePerInterval * uint256(intervals);
         leaseId = nextLeaseId++;
         leases[leaseId] = Lease({
             listingId: listingId,
             requester: msg.sender,
-            provider: lst.provider,
-            pricePerInterval: lst.pricePerInterval,
-            intervalSecs: lst.intervalSecs,
-            start: uint64(block.timestamp),
-            lastHeartbeat: uint64(block.timestamp),
+            provider: listing.provider,
+            pricePerInterval: listing.pricePerInterval,
+            intervalSecs: listing.intervalSecs,
+            start: 0,
             fundedIntervals: intervals,
+            maxIntervals: listing.maxIntervals,
+            heartbeatedIntervals: 0,
             settledIntervals: 0,
             escrow: escrow,
-            bond: bondPerLease,
-            status: LeaseStatus.Active
+            bond: 0,
+            status: LeaseStatus.Pending,
+            manifest: manifest
         });
-        emit LeaseOpened(leaseId, listingId, msg.sender, lst.provider, intervals, escrow);
+
+        token.safeTransferFrom(msg.sender, address(this), escrow);
+        emit LeaseRequested(leaseId, listingId, msg.sender, listing.provider, intervals, escrow, manifest);
     }
 
-    /// @notice Provider proves the lease is live for the current interval.
+    function acceptLease(uint256 leaseId) external nonReentrant {
+        Lease storage lease = leases[leaseId];
+        require(lease.status == LeaseStatus.Pending, "rental: not pending");
+        require(lease.provider == msg.sender, "rental: not provider");
+
+        Listing storage listing = listings[lease.listingId];
+        require(listing.available && listing.activeLeaseId == 0, "rental: listing unavailable");
+        require(registry.isEligible(msg.sender), "rental: provider ineligible");
+        require(registry.isAttested(msg.sender), "rental: provider unattested");
+
+        uint256 bond = bondPerLease;
+        uint64 start = uint64(block.timestamp);
+        lease.status = LeaseStatus.Active;
+        lease.start = start;
+        lease.bond = bond;
+        listing.available = false;
+        listing.activeLeaseId = leaseId;
+
+        registry.bond(msg.sender, bond);
+        emit ListingAvailabilityChanged(lease.listingId, false, leaseId);
+        emit LeaseAccepted(leaseId, msg.sender, start, bond);
+    }
+
+    function rejectLease(uint256 leaseId) external nonReentrant {
+        Lease storage lease = leases[leaseId];
+        require(lease.status == LeaseStatus.Pending, "rental: not pending");
+        require(lease.provider == msg.sender, "rental: not provider");
+
+        uint256 refund = lease.escrow;
+        lease.escrow = 0;
+        lease.status = LeaseStatus.Rejected;
+
+        token.safeTransfer(lease.requester, refund);
+        emit LeaseRejected(leaseId, msg.sender, refund);
+    }
+
+    function cancelLease(uint256 leaseId) external nonReentrant {
+        Lease storage lease = leases[leaseId];
+        require(lease.status == LeaseStatus.Pending, "rental: not pending");
+        require(lease.requester == msg.sender, "rental: not requester");
+
+        uint256 refund = lease.escrow;
+        lease.escrow = 0;
+        lease.status = LeaseStatus.Cancelled;
+
+        token.safeTransfer(msg.sender, refund);
+        emit LeaseCancelled(leaseId, msg.sender, refund);
+    }
+
+    // --------------------------------------------------------------------- //
+    // Active leases
+    // --------------------------------------------------------------------- //
+
+    /// @notice Record evidence for the current interval. A missed interval cannot
+    ///         be covered by a later heartbeat.
     function heartbeat(uint256 leaseId) external {
-        Lease storage l = leases[leaseId];
-        require(l.status == LeaseStatus.Active, "rental: not active");
-        require(l.provider == msg.sender, "rental: not provider");
-        l.lastHeartbeat = uint64(block.timestamp);
-        emit Heartbeat(leaseId, msg.sender, l.lastHeartbeat);
+        Lease storage lease = leases[leaseId];
+        require(lease.status == LeaseStatus.Active, "rental: not active");
+        require(lease.provider == msg.sender, "rental: not provider");
+
+        uint256 currentInterval = (block.timestamp - uint256(lease.start)) / uint256(lease.intervalSecs);
+        require(currentInterval < lease.fundedIntervals, "rental: lease expired");
+        uint32 interval = uint32(currentInterval);
+        require(heartbeatAt[leaseId][interval] == 0, "rental: already heartbeated");
+        require(interval == lease.heartbeatedIntervals, "rental: interval missed");
+
+        uint64 timestamp = uint64(block.timestamp);
+        heartbeatAt[leaseId][interval] = timestamp;
+        lease.heartbeatedIntervals = interval + 1;
+        emit Heartbeat(leaseId, msg.sender, interval, timestamp);
     }
 
-    /// @notice Add more funded intervals to an active lease.
     function extendLease(uint256 leaseId, uint32 moreIntervals) external nonReentrant {
-        Lease storage l = leases[leaseId];
-        require(l.status == LeaseStatus.Active, "rental: not active");
-        require(l.requester == msg.sender, "rental: not renter");
+        Lease storage lease = leases[leaseId];
+        require(lease.status == LeaseStatus.Active, "rental: not active");
+        require(lease.requester == msg.sender, "rental: not requester");
         require(moreIntervals > 0, "rental: zero");
-        uint256 add = l.pricePerInterval * uint256(moreIntervals);
-        token.safeTransferFrom(msg.sender, address(this), add);
-        l.fundedIntervals += moreIntervals;
-        l.escrow += add;
-        emit LeaseExtended(leaseId, moreIntervals, add);
-    }
-
-    /// @notice Release payment for every interval the provider has kept alive.
-    ///         Callable by anyone.
-    function settle(uint256 leaseId) public nonReentrant {
-        Lease storage l = leases[leaseId];
-        require(l.status == LeaseStatus.Active, "rental: not active");
-        _settle(leaseId, l);
-    }
-
-    /// @notice Renter ends the lease. Served intervals are paid, unused time refunded.
-    function endLease(uint256 leaseId) external nonReentrant {
-        Lease storage l = leases[leaseId];
-        require(l.status == LeaseStatus.Active, "rental: not active");
-        require(l.requester == msg.sender, "rental: not renter");
-        _settle(leaseId, l);
-        uint256 refund = l.escrow;
-        l.escrow = 0;
-        l.status = LeaseStatus.Ended;
-        registry.unbond(l.provider, l.bond);
-        registry.recordOutcome(l.provider, true);
-        if (refund > 0) {
-            token.safeTransfer(l.requester, refund);
-        }
-        emit LeaseEnded(leaseId, refund);
-    }
-
-    /// @notice Finalize a lease whose funded time is fully served and paid.
-    function finalizeExpired(uint256 leaseId) external nonReentrant {
-        Lease storage l = leases[leaseId];
-        require(l.status == LeaseStatus.Active, "rental: not active");
-        _settle(leaseId, l);
-        require(l.settledIntervals == l.fundedIntervals, "rental: not fully served");
-        uint256 refund = l.escrow; // should be zero
-        l.escrow = 0;
-        l.status = LeaseStatus.Ended;
-        registry.unbond(l.provider, l.bond);
-        registry.recordOutcome(l.provider, true);
-        if (refund > 0) {
-            token.safeTransfer(l.requester, refund);
-        }
-        emit LeaseEnded(leaseId, refund);
-    }
-
-    /// @notice Terminate a lease whose provider stopped sending heartbeats (downtime).
-    ///         Served time is paid, unused time refunded, and the provider bond is
-    ///         slashed to the renter for the SLA breach. Callable by anyone.
-    function terminate(uint256 leaseId) external nonReentrant {
-        Lease storage l = leases[leaseId];
-        require(l.status == LeaseStatus.Active, "rental: not active");
         require(
-            block.timestamp > uint256(l.lastHeartbeat) + uint256(l.intervalSecs) + graceSecs,
-            "rental: provider still live"
+            uint256(lease.fundedIntervals) + uint256(moreIntervals) <= uint256(lease.maxIntervals),
+            "rental: exceeds max duration"
         );
-        _settle(leaseId, l);
-        uint256 refund = l.escrow;
-        uint256 bond = l.bond;
-        l.escrow = 0;
-        l.status = LeaseStatus.Terminated;
-        registry.slash(l.provider, bond, l.requester);
-        registry.recordOutcome(l.provider, false);
-        if (refund > 0) {
-            token.safeTransfer(l.requester, refund);
+
+        uint256 addedEscrow = lease.pricePerInterval * uint256(moreIntervals);
+        lease.fundedIntervals += moreIntervals;
+        lease.escrow += addedEscrow;
+
+        token.safeTransferFrom(msg.sender, address(this), addedEscrow);
+        emit LeaseExtended(leaseId, moreIntervals, addedEscrow);
+    }
+
+    /// @notice Pay all completed intervals in the contiguous heartbeated prefix.
+    function settle(uint256 leaseId) public nonReentrant {
+        Lease storage lease = leases[leaseId];
+        require(lease.status == LeaseStatus.Active, "rental: not active");
+        (uint32 due, uint256 amount) = _accrue(lease);
+        if (amount > 0) {
+            token.safeTransfer(lease.provider, amount);
+            emit IntervalSettled(leaseId, lease.provider, due, amount);
         }
+    }
+
+    /// @notice The requester voluntarily ends a lease. Completed heartbeated
+    ///         intervals are paid and all remaining escrow is refunded.
+    function endLease(uint256 leaseId) external nonReentrant {
+        Lease storage lease = leases[leaseId];
+        require(lease.status == LeaseStatus.Active, "rental: not active");
+        require(lease.requester == msg.sender, "rental: not requester");
+
+        (uint32 due, uint256 payment) = _accrue(lease);
+        uint256 refund = lease.escrow;
+        lease.escrow = 0;
+        lease.status = LeaseStatus.Ended;
+        _releaseListing(lease.listingId, leaseId);
+
+        registry.unbond(lease.provider, lease.bond);
+        registry.recordOutcome(lease.provider, true);
+        if (payment > 0) {
+            token.safeTransfer(lease.provider, payment);
+            emit IntervalSettled(leaseId, lease.provider, due, payment);
+        }
+        if (refund > 0) token.safeTransfer(lease.requester, refund);
+        emit LeaseEnded(leaseId, refund);
+    }
+
+    /// @notice Finalize a lease after every funded interval has completed and
+    ///         has explicit heartbeat evidence.
+    function finalizeExpired(uint256 leaseId) external nonReentrant {
+        Lease storage lease = leases[leaseId];
+        require(lease.status == LeaseStatus.Active, "rental: not active");
+
+        (uint32 due, uint256 payment) = _accrue(lease);
+        require(lease.settledIntervals == lease.fundedIntervals, "rental: not fully served");
+        uint256 refund = lease.escrow;
+        lease.escrow = 0;
+        lease.status = LeaseStatus.Ended;
+        _releaseListing(lease.listingId, leaseId);
+
+        registry.unbond(lease.provider, lease.bond);
+        registry.recordOutcome(lease.provider, true);
+        if (payment > 0) {
+            token.safeTransfer(lease.provider, payment);
+            emit IntervalSettled(leaseId, lease.provider, due, payment);
+        }
+        if (refund > 0) token.safeTransfer(lease.requester, refund);
+        emit LeaseEnded(leaseId, refund);
+    }
+
+    /// @notice Terminate after the first unheartbeated interval ends plus grace.
+    ///         Only the prior contiguous heartbeated intervals are payable.
+    function terminate(uint256 leaseId) external nonReentrant {
+        Lease storage lease = leases[leaseId];
+        require(lease.status == LeaseStatus.Active, "rental: not active");
+        require(_isDown(lease), "rental: provider still live");
+
+        (uint32 due, uint256 payment) = _accrue(lease);
+        uint256 refund = lease.escrow;
+        uint256 bond = lease.bond;
+        lease.escrow = 0;
+        lease.status = LeaseStatus.Terminated;
+        _releaseListing(lease.listingId, leaseId);
+
+        registry.slash(lease.provider, bond, lease.requester);
+        registry.recordOutcome(lease.provider, false);
+        if (payment > 0) {
+            token.safeTransfer(lease.provider, payment);
+            emit IntervalSettled(leaseId, lease.provider, due, payment);
+        }
+        if (refund > 0) token.safeTransfer(lease.requester, refund);
         emit LeaseTerminated(leaseId, bond, refund);
     }
 
@@ -251,29 +369,38 @@ contract RentalMarket is Ownable, ReentrancyGuard {
     // Internal
     // --------------------------------------------------------------------- //
 
-    function _settle(uint256 leaseId, Lease storage l) internal {
-        uint32 served = _servedIntervals(l);
-        if (served > l.settledIntervals) {
-            uint32 due = served - l.settledIntervals;
-            uint256 amount = uint256(due) * l.pricePerInterval;
-            l.settledIntervals = served;
-            l.escrow -= amount;
-            token.safeTransfer(l.provider, amount);
-            emit IntervalSettled(leaseId, l.provider, due, amount);
+    function _accrue(Lease storage lease) internal returns (uint32 due, uint256 amount) {
+        uint32 payableCount = _payableIntervals(lease);
+        if (payableCount > lease.settledIntervals) {
+            due = payableCount - lease.settledIntervals;
+            amount = uint256(due) * lease.pricePerInterval;
+            lease.settledIntervals = payableCount;
+            lease.escrow -= amount;
         }
     }
 
-    function _servedIntervals(Lease storage l) internal view returns (uint32) {
-        uint256 coverageEnd = uint256(l.lastHeartbeat) + uint256(l.intervalSecs) + graceSecs;
-        uint256 servedUntil = block.timestamp < coverageEnd ? block.timestamp : coverageEnd;
-        if (servedUntil <= l.start) {
-            return 0;
-        }
-        uint256 served = (servedUntil - uint256(l.start)) / uint256(l.intervalSecs);
-        if (served > l.fundedIntervals) {
-            served = l.fundedIntervals;
-        }
-        return uint32(served);
+    function _payableIntervals(Lease storage lease) internal view returns (uint32) {
+        if (lease.start == 0) return 0;
+        uint256 completed = (block.timestamp - uint256(lease.start)) / uint256(lease.intervalSecs);
+        if (completed > lease.fundedIntervals) completed = lease.fundedIntervals;
+        if (completed > lease.heartbeatedIntervals) completed = lease.heartbeatedIntervals;
+        return uint32(completed);
+    }
+
+    function _isDown(Lease storage lease) internal view returns (bool) {
+        if (lease.status != LeaseStatus.Active || lease.heartbeatedIntervals >= lease.fundedIntervals) return false;
+        uint256 deadline = uint256(lease.start)
+            + (uint256(lease.heartbeatedIntervals) + 1) * uint256(lease.intervalSecs)
+            + graceSecs;
+        return block.timestamp > deadline;
+    }
+
+    function _releaseListing(uint256 listingId, uint256 leaseId) internal {
+        Listing storage listing = listings[listingId];
+        require(listing.activeLeaseId == leaseId, "rental: reservation mismatch");
+        listing.activeLeaseId = 0;
+        listing.available = true;
+        emit ListingAvailabilityChanged(listingId, true, leaseId);
     }
 
     // --------------------------------------------------------------------- //
@@ -288,15 +415,11 @@ contract RentalMarket is Ownable, ReentrancyGuard {
         return leases[leaseId];
     }
 
-    /// @notice Intervals served (and payable) so far for a lease.
-    function servedIntervals(uint256 leaseId) external view returns (uint32) {
-        return _servedIntervals(leases[leaseId]);
+    function payableIntervals(uint256 leaseId) external view returns (uint32) {
+        return _payableIntervals(leases[leaseId]);
     }
 
-    /// @notice Whether a lease is currently past its downtime deadline.
     function isDown(uint256 leaseId) external view returns (bool) {
-        Lease storage l = leases[leaseId];
-        if (l.status != LeaseStatus.Active) return false;
-        return block.timestamp > uint256(l.lastHeartbeat) + uint256(l.intervalSecs) + graceSecs;
+        return _isDown(leases[leaseId]);
     }
 }

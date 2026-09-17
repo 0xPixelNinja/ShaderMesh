@@ -6,6 +6,7 @@ dotenv.config();
 
 const SEPOLIA_RPC_URL = process.env.SEPOLIA_RPC_URL || "";
 const PRIVATE_KEY = process.env.PRIVATE_KEY || "";
+const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY || "";
 // Used inside docker-compose: the deployer talks to the `chain` service.
 const DOCKER_RPC_URL = process.env.RPC_URL || "http://chain:8545";
 
@@ -29,6 +30,9 @@ const config: HardhatUserConfig = {
       url: SEPOLIA_RPC_URL,
       accounts: PRIVATE_KEY ? [PRIVATE_KEY] : [],
     },
+  },
+  etherscan: {
+    apiKey: ETHERSCAN_API_KEY,
   },
 };
 

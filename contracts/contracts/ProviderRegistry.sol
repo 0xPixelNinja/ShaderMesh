@@ -56,6 +56,7 @@ contract ProviderRegistry is Ownable {
     uint256 public attestationTtl = 7 days;
 
     event ProviderRegistered(address indexed provider, string capabilities);
+    event CapabilitiesUpdated(address indexed provider, string capabilities);
     event Staked(address indexed provider, uint256 amount, uint256 totalStake);
     event Unstaked(address indexed provider, uint256 amount, uint256 totalStake);
     event Bonded(address indexed provider, uint256 amount, uint256 totalBonded);
@@ -141,6 +142,7 @@ contract ProviderRegistry is Ownable {
     function updateCapabilities(string calldata capabilities) external {
         require(providers[msg.sender].registered, "registry: not registered");
         providers[msg.sender].capabilities = capabilities;
+        emit CapabilitiesUpdated(msg.sender, capabilities);
     }
 
     function setActive(bool active) external {

@@ -123,6 +123,7 @@ contract JobMarket is Ownable, ReentrancyGuard {
     ) external nonReentrant returns (uint256 jobId) {
         require(taskCount > 0, "market: no tasks");
         require(rewardPerTask > 0, "market: zero reward");
+        require(verificationPolicy <= 1, "market: bad verification policy");
 
         uint256 escrow = rewardPerTask * uint256(taskCount);
         token.safeTransferFrom(msg.sender, address(this), escrow);
@@ -205,6 +206,7 @@ contract JobMarket is Ownable, ReentrancyGuard {
         _reset(t);
         registry.slash(bad, bond, j.requester);
         registry.recordOutcome(bad, false);
+        emit TaskSlashed(jobId, index, bad, j.requester);
         emit TaskReopened(jobId, index);
     }
 

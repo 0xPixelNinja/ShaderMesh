@@ -12,7 +12,7 @@ RUN apt-get update \
 
 # Install deps first for better layer caching.
 COPY package*.json ./
-RUN npm install
+RUN npm ci
 
 # Copy sources and pre-compile so artifacts are baked into the image.
 COPY . .
