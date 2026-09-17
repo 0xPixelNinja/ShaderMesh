@@ -1,196 +1,142 @@
 # ShaderMesh
 
-A decentralized marketplace for renting compute, coordinated by Ethereum smart contracts.
+ShaderMesh is an Ethereum-coordinated marketplace for renting independently operated GPU and CPU capacity. Smart contracts control escrow, provider collateral, settlement, reputation, and penalties. Workloads, model inference, indexing, and storage remain off chain.
 
-Providers stake and list GPU and CPU capacity. Requesters can request provider-approved
-containerized workloads or call a managed, provider-served, OpenAI-compatible inference
-endpoint. The protocol targets general compute; the current agent does not execute arbitrary
-requester-defined containers. The blockchain is the trust, coordination, and payment layer,
-not the compute layer.
+> **Project status:** Functional research and testnet prototype. The complete local stack is reproducible with Docker Compose. The contracts are deployed and source-verified on Sepolia, and rental, inference, and deterministic-task flows have been validated on an NVIDIA provider.
 
-The marketplace has two modes:
+## Overview
 
-- **Rental (primary).** Request a node or GPU for a duration with a content-addressed workload
-  manifest. The request remains pending until the provider accepts it; only then do the lease clock,
-  listing reservation, and provider bond start. Escrow streams for completed intervals in the
-  contiguous heartbeat prefix. A provider can heartbeat only the current interval, so a missed
-  interval cannot be covered retroactively. Attestation records, stake, reputation, refunds, and
-  SLA slashing protect the requester, but the current attester remains trusted.
-- **Managed inference.** Providers publish model offers through `InferenceMarket`. A requester opens
-  prepaid credit for one provider and model, signs each gateway request, and submits cumulative token
-  counters on chain to pay the provider. This requester-metered prototype prevents third parties and
-  providers from debiting credit, but it does not independently prove usage against under-reporting.
-- **Verifiable task (retained).** Submit a job with a checkable output (rendering, batch compute).
-  Eligible challengers can re-execute submitted work, vote on exact result hashes, and trigger
-  slashing. Random selection, reputation weighting, commit-reveal, and SSIM remain planned.
+ShaderMesh uses separate trust models for workloads with different verification properties:
 
-> Course project (Blockchain / Cryptocurrency). See the full design in
-> [`docs/ShaderMesh-Review1-Proposal.md`](docs/ShaderMesh-Review1-Proposal.md) and the SRS in
-> [`docs/ShaderMesh-SRS.md`](docs/ShaderMesh-SRS.md).
+| Mode | Intended use | Settlement and trust model |
+|------|--------------|----------------------------|
+| **Compute rental** | Time-based GPU or CPU access, container workloads, fine-tuning | Manifest-bound requests, provider acceptance, prepaid escrow, strict per-interval heartbeats, stake, reputation, refunds, and SLA slashing |
+| **Managed inference** | OpenAI-compatible model requests | Provider offers, requester-funded credits, wallet-signed request authorization, cumulative token metering, and requester-controlled settlement |
+| **Verifiable tasks** | Deterministic rendering and batch work | Task escrow, provider bonds, result commitments, challenge voting, optimistic finalization, and slashing |
 
----
+The protocol does not claim that arbitrary off-chain computation or non-deterministic model output can be proven correct on chain. Ethereum is used only where shared economic state and deterministic enforcement are required.
 
-## Design
+## Architecture
 
-ShaderMesh separates availability-secured rentals from result-verifiable deterministic jobs.
-Managed inference uses a dedicated prepaid credit contract. Both market modes share provider
-stake and reputation while keeping computation off chain.
+![ShaderMesh container architecture](docs/_image/ShaderMesh-Review1-Architecture.png)
 
-## Architecture (high level)
+| Boundary | Components | Responsibility |
+|----------|------------|----------------|
+| **On chain** | `SmeshToken`, `ProviderRegistry`, `RentalMarket`, `InferenceMarket`, `JobMarket`, `Verification` | Funds, stake, bonds, lifecycle state, settlement, reputation, and disputes |
+| **Provider controlled** | Python agent, Ollama adapter, constrained Docker workloads | Capacity advertisement, accepted workload execution, inference, task execution, and heartbeats |
+| **Untrusted coordination** | TypeScript orchestrator, Postgres projection, IPFS, HTTP/SSE API | Event indexing, discovery, routing, replay protection, split/stitch, and read APIs |
+| **User controlled** | Next.js dashboard and browser wallet | Discovery, transaction signing, lease management, credits, provider operations, and exploration |
 
-```
-                         +---------------- on-chain (Ethereum) ----------------+
-  Requester --lease-->   RentalMarket    requests, escrow, heartbeat settlement |
-     |                   InferenceMarket offers, credits, requester settlement   |
-     |                   JobMarket and Verification task escrow and disputes     |
-     |                   ProviderRegistry stake, attestation, reputation         |
-     |                   SmeshToken payments, stake, rewards                     |
-                         +-------------------------------------------------------+
-     |                                   ^                          ^
-     +-- signed inference request --> Orchestrator --route------> Provider Agents
-                                    (Postgres projection,        (lease serving,
-                                     gateway, split/stitch)       inference,
-                                                                   Docker jobs)
-                                          IPFS (inputs, outputs, manifests)
-```
+The orchestrator and provider agents hold no requester funds and cannot force contract settlement.
 
-Full diagrams (block, state machine, sequence, roadmap) live in the proposal doc.
+## Current Capabilities
 
-## Monorepo layout
+- Pending rental requests bound to content-addressed workload manifests.
+- Explicit provider acceptance before the lease clock and provider bond begin.
+- Non-retroactive heartbeat evidence for each payable rental interval.
+- Prepaid inference credits with EIP-191 request authorization and replay protection.
+- OpenAI-compatible inference routing to the provider selected by the credited offer.
+- Provider registration, staking, attestation records, listings, earnings, and availability controls.
+- Deterministic jobs with IPFS inputs and outputs, constrained execution, commitments, disputes, and settlement.
+- Rebuildable Postgres projections with exact event cursors and bounded RPC log queries.
+- Windows NVIDIA discovery, Ollama support, Docker GPU passthrough, and isolated task I/O.
+- Responsive requester, provider, model, lease, and explorer interfaces.
+- Local, provider-only, and Sepolia operator Compose topologies.
 
-| Path | What | Stack |
-|------|------|-------|
-| `contracts/` | Smart contracts + tests + deploy scripts | Solidity 0.8.x, Hardhat, OpenZeppelin |
-| `agent/` | Provider node agent: rental serving, LLM inference, Docker jobs, heartbeats | Python 3.11+, web3.py, Docker SDK |
-| `orchestrator/` | Durable event projection, inference gateway, job split/stitch, API | Node 20, TypeScript, ethers, Postgres |
-| `web/` | Requester + provider dashboard, on-chain explorer | Next.js, viem, Tailwind |
-| `simulator/` | N-provider simulation + attacker strategies | Python |
-| `docs/` | Proposal, architecture, review materials | Markdown |
+## Repository Layout
 
-## Contracts
+| Path | Purpose | Primary stack |
+|------|---------|---------------|
+| [`contracts/`](contracts/) | Protocol contracts, deployment, bootstrap, gas report, tests | Solidity 0.8.24, Hardhat, OpenZeppelin |
+| [`agent/`](agent/) | Provider service, inference adapter, rental runtime, task worker | Python 3.11, web3.py, Docker SDK |
+| [`orchestrator/`](orchestrator/) | Durable event index, API, inference gateway, split/stitch | Node 20, TypeScript, ethers, Postgres |
+| [`web/`](web/) | Requester/provider dashboard and explorer | Next.js 16, React 19, viem, Tailwind |
+| [`simulator/`](simulator/) | Verification and rental economics | Python standard library |
+| [`jobs/`](jobs/) | Deterministic and accepted lease workloads | Python, Docker |
+| [`docs/`](docs/) | Requirements, Review 1 material, demo guide, diagrams | Markdown, DOCX, PNG |
 
-| Contract | Responsibility | Status |
-|----------|----------------|--------|
-| `SmeshToken` | ERC-20 utility token: payments, staking, rewards (+ testnet faucet). | built |
-| `ProviderRegistry` | Registration, staking, capabilities, reputation (EMA), slashing. | built |
-| `JobMarket` | Verifiable-task market: escrow, tasks, claiming, settlement. | built |
-| `Verification` | Eligible-provider result-hash voting, disputes, reward/slash. | built |
-| `RentalMarket` | Rental market: lease lifecycle, streamed escrow, heartbeats, SLA slashing. | built |
-| Attestation (in `ProviderRegistry`) | Attester-managed hardware records and listing eligibility. | built |
-| `InferenceMarket` | Provider offers and prepaid, requester-metered inference credits. | built |
+## Quick Start
 
-## Quick start (dev)
+### Prerequisites
 
-Prerequisites: Node 20+, npm, Python 3.11+, Docker with Compose v2.
+- Docker Desktop or Docker Engine with Compose v2
+- Node.js 20 or newer
+- Python 3.11 or newer
+- A browser wallet for interactive transactions
 
-```powershell
-# 1. Contracts: install, compile, test, run a local chain
-cd contracts
-npm install
-npx hardhat compile
-npx hardhat test
-npx hardhat node          # local devnet on http://127.0.0.1:8545
+NVIDIA workloads additionally require a compatible NVIDIA driver and Docker GPU support.
 
-# 2. Provider agent
-cd ../agent
-python -m venv .venv; .\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-
-# 3. Orchestrator / Web: see each folder's README
-```
-
-### Full stack with Docker Compose
-
-Brings up the chain, deploys contracts, and starts IPFS, Postgres, the
-orchestrator, one provider, the seed service, and the dashboard. Boot order is handled via healthchecks; the
-`deployer` publishes contract addresses to a shared `deployments` volume.
+### Start the local stack
 
 ```powershell
 Copy-Item .env.example .env
-docker compose up --build -d
-docker compose ps --all
+docker compose up --build -d --wait
+docker compose ps
 ```
 
-This deploys all six contracts, seeds three listings and an accepted lease, starts a
-constrained container for that lease, publishes inference offers, and serves the dashboard
-at `http://localhost:3000`. Postgres persists the indexed projection and exact event cursor;
-the indexer restores the snapshot and replays later chain events after a restart.
+The command starts a Hardhat chain, deploys all contracts, seeds listings and an accepted lease, launches a constrained workload, starts IPFS and Postgres, indexes chain events, serves inference, and builds the dashboard.
 
-Endpoints: dashboard `:3000`, orchestrator API `:4000`, chain `:8545`,
-inference provider `:8100`, IPFS `:5001` / `:8080`, Postgres `:5432`.
+| Service | URL |
+|---------|-----|
+| Dashboard | `http://localhost:3000` |
+| Orchestrator API | `http://localhost:4000` |
+| Hardhat RPC | `http://localhost:8545` |
+| Provider inference | `http://localhost:8100` |
+| IPFS API / gateway | `http://localhost:5001` / `http://localhost:8080` |
+| PostgreSQL | `localhost:5432` |
 
-### Provider-only Windows node
-
-Run hardware discovery on the Windows host. It reports OS, CPU, RAM, NVIDIA GPU and
-driver data, Docker availability, and Ollama availability without reading secrets.
+Useful checks:
 
 ```powershell
-python .\agent\discover_hardware.py
-Copy-Item .\agent\.env.example .\agent\.env
-# Set the dedicated test wallet, Sepolia RPC URL, public provider endpoint,
-# discovered capabilities, model list, prices, and approved manifest.
-docker compose --env-file .\agent\.env -f .\docker-compose.provider.yml config --quiet
-docker compose --env-file .\agent\.env -f .\docker-compose.provider.yml up --build -d
-docker compose -f .\docker-compose.provider.yml logs -f provider
+Invoke-RestMethod http://localhost:4000/health
+docker compose exec -T orchestrator npm run smoke:inference
+cd web; npm run test:e2e
 ```
 
-The provider process can claim faucet SMESH, register, stake, and wait for operator
-attestation. After attestation it maintains one current rental listing and one correctly
-priced inference offer per configured model. See [`agent/README.md`](agent/README.md) for
-Docker Desktop, Ollama, GPU passthrough, and workload-isolation settings.
+Stop the local stack with `docker compose down`. Add `-v` only when intentionally discarding local chain, IPFS, and Postgres data.
 
-### Sepolia operator
-
-Use dedicated test wallets and test ETH only. Do not put a private key in a
-tracked file, a Compose file, a command line, or a browser-facing build argument.
-
-Operator setup:
+## Component Development
 
 ```powershell
-Copy-Item .\contracts\.env.example .\contracts\.env
-# Set contracts/.env SEPOLIA_RPC_URL and PRIVATE_KEY in the untracked file.
-cd .\contracts
+# Contracts
+cd contracts
 npm ci
 npm run compile
-npm run deploy:sepolia
-cd ..
+npm test
+npm run gas
 
-Copy-Item .\.env.example .\.env
-# Set the database password, private operator RPC URL, browser-safe public RPC
-# URL, public orchestrator URL, and exact provider hostname allowlist.
-docker compose -f .\docker-compose.sepolia.yml config
-docker compose -f .\docker-compose.sepolia.yml up --build -d
-docker compose -f .\docker-compose.sepolia.yml ps
+# Provider agent
+cd ..\agent
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements-dev.txt
+python -m pytest
+
+# Orchestrator
+cd ..\orchestrator
+npm ci
+npm test
+npm run typecheck
+
+# Dashboard
+cd ..\web
+npm ci
+npm run lint
+npm run typecheck
+npm run build
+
+# Economics simulator
+cd ..\simulator
+python -m unittest discover -v
+python verification_game_sim.py
 ```
 
-The deployment command creates the ignored `contracts/deployments/sepolia.json`.
-Distribute that public descriptor to each provider without distributing
-`contracts/.env`. Give each provider wallet enough Sepolia ETH for transactions.
+## Sepolia Deployment
 
-After all provider logs show their registered address, configure the operator's
-untracked `contracts/.env` with validated records and run the idempotent bootstrap:
+The live contracts use Sepolia chain ID `11155111` and are source-verified on Etherscan.
 
-```dotenv
-BOOTSTRAP_PROVIDERS_JSON=[{"address":"0x0000000000000000000000000000000000000000","gpuModel":"NVIDIA GPU MODEL","vramGB":24,"benchmarkScore":"1000","fundSmesh":"100"}]
-BOOTSTRAP_REQUESTER_JSON={"address":"0x0000000000000000000000000000000000000000","fundSmesh":"1000"}
-```
-
-```powershell
-cd .\contracts
-npm run bootstrap:sepolia
-```
-
-`fundSmesh` is a target wallet balance, so rerunning bootstrap does not repeatedly
-mint the full value. Matching fresh attestations are also skipped. Provider
-processes poll for attestation and then create missing listings and inference
-offers without creating duplicate active records.
-
-#### Live Sepolia deployment
-
-The contracts are deployed on Sepolia (chain ID `11155111`):
-
-| Contract | Address |
-|----------|---------|
+| Contract | Verified address |
+|----------|------------------|
 | `SmeshToken` | [`0x917d…f215`](https://sepolia.etherscan.io/address/0x917d2f8699b96F64BA701d380CC396992e9Ff215#code) |
 | `ProviderRegistry` | [`0x4626…068C`](https://sepolia.etherscan.io/address/0x4626B2218a7663c6c8C9D9ff7552455FAa29068C#code) |
 | `JobMarket` | [`0x22c3…d77e`](https://sepolia.etherscan.io/address/0x22c301cb18345687d94bD9A6Bb30344667f5d77e#code) |
@@ -198,59 +144,73 @@ The contracts are deployed on Sepolia (chain ID `11155111`):
 | `RentalMarket` | [`0x345F…b244`](https://sepolia.etherscan.io/address/0x345F848bdAd8FE8E84DB3B13248Bb217a5BFb244#code) |
 | `InferenceMarket` | [`0xebdB…08a0`](https://sepolia.etherscan.io/address/0xebdB79a6566e64747a245a7B98E02E0eA28808a0#code) |
 
-Provider `0xfd4e4A034601991A3070bD2B9B0F6a473a5bfc76` is registered,
-staked, and attested for an RTX 4070 Laptop GPU with 8 GB VRAM. It published
-rental listing `#2` with 60-second intervals and inference offer `#1` for
-`qwen3:0.6b`. Requester `0x7e6a268D9aa458f0deCE6280A7Eb9B86888565d8`
-was funded with 1,000 test SMESH.
+Validated public flows:
 
-Live validation completed both market paths. A prepaid inference request served
-36 tokens and paid `72000000000000` SMESH base units. Rental lease `#1` launched
-a GPU-enabled container, recorded two heartbeats, settled one interval, and ended
-normally. All Sepolia operator and provider containers reported healthy. The
-Alchemy-backed indexer queried logs in 10-block chunks to stay within provider
-limits.
+- RTX 4070 Laptop GPU provider registered, staked, attested, and listed.
+- Real `qwen3:0.6b` inference routed through a prepaid credit and settled on chain.
+- A manifest-bound GPU lease launched an immutable CUDA workload, produced heartbeats, settled an interval, and ended normally.
+- Two deterministic render jobs executed in isolated sibling containers, settled, and stitched to IPFS.
 
-The retained verifiable-task path also completed on Sepolia. Two deterministic
-render tasks executed in isolated sibling containers, settled on chain, and stitched
-to `ipfs://QmbnP5U3DCUap7RPWGueix32GmBCA62xnP9YYhJRUtPqAz`.
+Operator deployment is specified in [`docs/ShaderMesh-SRS.md`](docs/ShaderMesh-SRS.md), and provider setup is documented in [`agent/README.md`](agent/README.md). Use only dedicated test wallets and test ETH.
 
-All six deployed contracts are source-verified on Sepolia Etherscan. Each address
-in the table above links to the same verified bytecode and ABI through the
-Etherscan address page.
+### Additional provider laptop
+
+```powershell
+python .\agent\discover_hardware.py
+Copy-Item .\agent\.env.example .\agent\.env
+# Fill the untracked agent/.env with the provider wallet, RPC, hardware, endpoint, and model.
+docker compose --env-file .\agent\.env -f .\docker-compose.provider.yml up --build -d --wait
+```
+
+Each provider requires a unique wallet, Sepolia ETH, the public `sepolia.json` deployment descriptor, Docker Desktop, and an endpoint reachable by the operator.
 
 ## Verification
 
-Current automated inventory:
+| Suite | Result |
+|-------|--------|
+| Contracts | 35 passing tests plus gas report |
+| Provider agent | 44 passing tests |
+| Orchestrator | 48 passing tests with Postgres |
+| Simulator | 15 passing tests |
+| Dashboard | Lint, typecheck, production build, and 16 Playwright checks |
+| Full stack | Local Compose, Sepolia inference, GPU rental, deterministic jobs, Postgres restart recovery |
 
-| Suite | Current count | Command |
-|-------|--------------:|---------|
-| Contracts | 35 passing | `cd contracts; npm test` |
-| Provider agent | 44 passing | `cd agent; python -m pytest` |
-| Orchestrator | 48 passing with Postgres | `cd orchestrator; npm test` with `TEST_DATABASE_URL` |
-| Simulator | 15 passing | `cd simulator; python -m unittest discover -v` |
-| Web browser checks | 16 passing across desktop and mobile | `cd web; npm run test:e2e` against the running stack |
+GitHub Actions repeats the component suites and starts a fresh full stack for smoke and browser checks.
 
-`.github/workflows/ci.yml` runs contract compile, tests, and gas reporting; agent tests;
-orchestrator tests with Postgres and type checking; web lint, type checking, and build;
-simulator tests and evaluation; then a fresh Compose stack, the signed prepaid-inference
-smoke flow, and Playwright checks.
+## Security
 
-For the review narrative, live walkthrough, expected values, wallet setup, and
-reviewer questions, use [`docs/ShaderMesh-Demo-Presentation.md`](docs/ShaderMesh-Demo-Presentation.md).
+- Private keys and RPC credentials belong only in gitignored `.env` files.
+- Browser-exposed `NEXT_PUBLIC_*` values must be safe for public disclosure.
+- Provider endpoints are restricted by an explicit orchestrator hostname allowlist.
+- Inference requests require a short-lived requester signature and a unique request identifier.
+- Task and lease containers run without networking by default, use read-only roots and non-root users, drop capabilities, and enforce CPU, memory, PID, and temporary-storage limits.
+- The provider agent controls Docker and should run on a dedicated worker host without unrelated workloads.
+- Ordinary Docker isolation is not appropriate for highly confidential requester data.
 
-## Status
+See the detailed threat model and requirement traceability in the SRS.
 
-Built and tested: pending manifest-bound lease requests and provider acceptance, strict
-per-interval heartbeats, rental escrow and SLA enforcement, prepaid inference credits and
-signed gateway authorization, durable Postgres indexing, hardened task and lease workers,
-the provider console and explorer, both simulator modes, and a live Sepolia deployment. The
-local stack uses real contract transactions and containers with seeded identities. Sepolia
-validation used an RTX 4070 Laptop GPU and inference offer `#1` for `qwen3:0.6b`. Real
-benchmark verification, arbitrary requester-defined GPU workloads, commit-reveal, random
-reputation-weighted challenger selection, and SSIM verification remain planned. See
-[`docs/ShaderMesh-SRS.md`](docs/ShaderMesh-SRS.md).
+## Known Limitations
+
+- Hardware attestation is currently operator-managed rather than independently verified.
+- Availability is based on provider heartbeats; independent probes remain planned.
+- Inference usage is requester-metered and cannot independently prevent under-reporting.
+- Challenger selection is not yet randomized or reputation weighted.
+- Verification uses exact hashes; commit-reveal and perceptual comparison remain planned.
+- The public deployment currently has one physical provider. Multi-provider Compose support is ready for additional laptops.
+- The dashboard is functional but scheduled for a separate product-design and wallet-UX refactor.
+
+## Documentation
+
+| Document | Purpose |
+|----------|---------|
+| [`docs/ShaderMesh-SRS.md`](docs/ShaderMesh-SRS.md) | Authoritative requirements, trust model, phase status, and traceability |
+| [`docs/ShaderMesh-Review1-Proposal.md`](docs/ShaderMesh-Review1-Proposal.md) | Review 1 proposal and architecture narrative |
+| [`docs/ShaderMesh-Review1-Report.docx`](docs/ShaderMesh-Review1-Report.docx) | Historical Review 1 submission snapshot in editable DOCX format; use the SRS for current status |
+| [`docs/ShaderMesh-Demo-Presentation.md`](docs/ShaderMesh-Demo-Presentation.md) | Demo sequence, operating commands, expected state, and reviewer questions |
+| [`docs/_image/`](docs/_image/) | Maintained architecture and trust-boundary figures |
+| [`docs/_archive/`](docs/_archive/) | Archived source rubric material |
+| [`docs/_scripts/`](docs/_scripts/) | Figure-generation tooling |
 
 ## License
 
-MIT (intended). Academic project.
+No open-source license is currently declared. Contact the maintainers before reuse or redistribution.

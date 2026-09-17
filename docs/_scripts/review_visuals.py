@@ -8,10 +8,11 @@ from PIL import Image, ImageDraw, ImageFont
 
 
 HERE = Path(__file__).resolve().parent
-SYSTEM_CONTEXT_OUTPUT = HERE / "ShaderMesh-Review1-System-Context.png"
-ARCHITECTURE_OUTPUT = HERE / "ShaderMesh-Review1-Architecture.png"
-RENTAL_SEQUENCE_OUTPUT = HERE / "ShaderMesh-Review1-Rental-Sequence.png"
-TRUST_BOUNDARY_OUTPUT = HERE / "ShaderMesh-Review1-Trust-Boundary.png"
+IMAGE_DIR = HERE.parent / "_image"
+SYSTEM_CONTEXT_OUTPUT = IMAGE_DIR / "ShaderMesh-Review1-System-Context.png"
+ARCHITECTURE_OUTPUT = IMAGE_DIR / "ShaderMesh-Review1-Architecture.png"
+RENTAL_SEQUENCE_OUTPUT = IMAGE_DIR / "ShaderMesh-Review1-Rental-Sequence.png"
+TRUST_BOUNDARY_OUTPUT = IMAGE_DIR / "ShaderMesh-Review1-Trust-Boundary.png"
 
 FONT = r"C:\Windows\Fonts\arial.ttf"
 FONT_BOLD = r"C:\Windows\Fonts\arialbd.ttf"
@@ -271,31 +272,33 @@ def build_rental_sequence() -> None:
     _participant(draw, xs[2], "Provider Agent", "Python / web3.py")
     _participant(draw, xs[3], "Lease Container", "Docker / optional GPU")
 
-    _message(draw, 1, 300, xs[0], xs[1], "approve() and openLease()", "signed transaction", amber=True)
-    _message(draw, 2, 375, xs[1], xs[2], "LeaseOpened event", "event log", dashed=True, amber=True)
-    _message(draw, 3, 450, xs[2], xs[3], "start accepted workload", "Docker Engine API")
-    _message(draw, 4, 525, xs[3], xs[2], "health status", "container inspection", dashed=True)
+    _message(draw, 1, 285, xs[0], xs[1], "approve() and requestLease()", "manifest-bound transaction", amber=True)
+    _message(draw, 2, 345, xs[1], xs[2], "LeaseRequested event", "event log", dashed=True, amber=True)
+    _message(draw, 3, 405, xs[2], xs[1], "acceptLease()", "provider-signed transaction", amber=True)
+    _message(draw, 4, 465, xs[1], xs[0], "LeaseAccepted event", "clock and bond start", dashed=True, amber=True)
+    _message(draw, 5, 525, xs[2], xs[3], "start allowlisted workload", "Docker Engine API")
+    _message(draw, 6, 580, xs[3], xs[2], "health status", "container inspection", dashed=True)
 
-    draw.rectangle((570, 575, 1690, 740), outline=MUTED_LINE, width=2)
-    draw.rectangle((570, 575, 760, 613), fill=BLUE_GRAY, outline=MUTED_LINE, width=2)
-    _text(draw, (588, 594), "loop: each interval", 16, bold=True, anchor="lm")
-    _message(draw, 5, 660, xs[2], xs[1], "heartbeat(leaseId)", "provider-signed transaction", amber=True)
-    _message(draw, 6, 720, xs[0], xs[1], "settle(leaseId)", "permissionless transaction", amber=True)
+    draw.rectangle((570, 620, 1690, 765), outline=MUTED_LINE, width=2)
+    draw.rectangle((570, 620, 760, 658), fill=BLUE_GRAY, outline=MUTED_LINE, width=2)
+    _text(draw, (588, 639), "loop: each interval", 16, bold=True, anchor="lm")
+    _message(draw, 7, 700, xs[2], xs[1], "heartbeat(leaseId)", "current interval only", amber=True)
+    _message(draw, 8, 755, xs[0], xs[1], "settle(leaseId)", "completed heartbeated prefix", amber=True)
 
     draw.rectangle((110, 780, 1690, 1010), outline=MUTED_LINE, width=2)
     draw.rectangle((110, 780, 315, 818), fill=BLUE_GRAY, outline=MUTED_LINE, width=2)
     _text(draw, (128, 799), "alt: lease outcome", 16, bold=True, anchor="lm")
     draw.line((110, 895, 1690, 895), fill=MUTED_LINE, width=2)
     _text(draw, (950, 830), "[requester ends normally]", 15, mono=True, fill=SECONDARY, anchor="mm")
-    _message(draw, 7, 880, xs[0], xs[1], "endLease() -> pay served intervals + refund remainder", "signed transaction", amber=True)
+    _message(draw, 9, 880, xs[0], xs[1], "endLease() -> pay served intervals + refund remainder", "signed transaction", amber=True)
     _text(draw, (950, 920), "[heartbeat deadline + grace period exceeded]", 15, mono=True, fill=SECONDARY, anchor="mm")
-    _message(draw, 8, 985, xs[0], xs[1], "terminate() -> refund unused escrow + slash bond", "permissionless transaction", amber=True)
+    _message(draw, 10, 985, xs[0], xs[1], "terminate() -> refund unused escrow + slash bond", "permissionless transaction", amber=True)
 
     _text(draw, (80, 1073), "Notation:", 15, bold=True)
     _text(draw, (170, 1073), "solid = call/transaction", 15)
     _text(draw, (390, 1073), "dashed = event/response", 15)
     _text(draw, (640, 1073), "amber = on-chain trust transition", 15, fill=AMBER)
-    _text(draw, (1015, 1073), "v0: late heartbeat coverage still requires hardening", 15, bold=True, fill=SECONDARY)
+    _text(draw, (1015, 1073), "missed intervals cannot be covered retroactively", 15, bold=True, fill=SECONDARY)
     image.save(RENTAL_SEQUENCE_OUTPUT, quality=95)
 
 
@@ -368,7 +371,12 @@ def build_trust_boundary() -> None:
 
 
 def build_all() -> None:
+    IMAGE_DIR.mkdir(parents=True, exist_ok=True)
     build_system_context()
     build_architecture()
     build_rental_sequence()
     build_trust_boundary()
+
+
+if __name__ == "__main__":
+    build_all()

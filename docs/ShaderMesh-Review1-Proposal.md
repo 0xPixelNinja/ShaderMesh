@@ -5,9 +5,10 @@
 **Course:** Blockchain / Cryptocurrency
 **Review:** Review 1 (Proposal and Design), 09-09-26 to 16-09-26
 
-> Implementation update: the local dual-market prototype, CI, and Sepolia operator
-> tooling are implemented. Sepolia is prepared but has not been deployed. The
-> authoritative status and requirement traceability live in `docs/ShaderMesh-SRS.md`.
+> Implementation update (17 September 2026): the dual-market prototype, CI, and
+> Sepolia deployment are operational. Rental, managed inference, and deterministic-task
+> flows were validated on an RTX 4070 Laptop provider. The authoritative current status
+> and requirement traceability live in `docs/ShaderMesh-SRS.md`.
 
 ---
 
@@ -156,7 +157,7 @@ weighting, SSIM, and distributed GPU rendering remain planned.
 
 ## 9. Blockchain Concepts Used
 
-- **Blockchain type:** **Public** (Ethereum, with a local Hardhat devnet for development and Sepolia prepared for the public demo). The contracts are portable to an EVM L2 as future work.
+- **Blockchain type:** **Public** (Ethereum, with a local Hardhat devnet for development and a source-verified Sepolia deployment). The contracts are portable to an EVM L2 as future work.
 - **Consensus mechanism:** We **inherit Ethereum's Proof-of-Stake** for ledger security and do not build a base-layer consensus. Our contribution is application-layer mechanism design: an availability-based rental agreement (streamed escrow, heartbeats, attestation, SLA slashing) and an optimistic re-execution game for deterministic tasks.
 - **Smart contracts (Solidity):**
   - `SmeshToken`: ERC-20 utility token for payments, staking, and rewards.
@@ -210,7 +211,7 @@ flowchart TB
     REG --> JM
 ```
 
-The diagram reflects the current local implementation. Postgres stores a rebuildable
+The diagram reflects the current local and Sepolia implementation. Postgres stores a rebuildable
 projection snapshot and exact event cursor, plus durable inference replay keys. It does
 not replace the chain as the source of truth.
 
@@ -241,18 +242,18 @@ the orchestrator misbehaves, the worst case is degraded liveness, not loss of fu
 
 | Layer | Choice | Why |
 |-------|--------|-----|
-| **Blockchain platform** | Ethereum, Hardhat local devnet, Sepolia prepared | EVM settlement with a reproducible local target. |
+| **Blockchain platform** | Ethereum, Hardhat local devnet, Sepolia deployed | EVM settlement with a reproducible local target and public testnet validation. |
 | **Smart-contract language** | Solidity 0.8.x + OpenZeppelin | Standard primitives including ERC-20, Ownable, SafeERC20, and ReentrancyGuard. |
 | **Contract tooling / tests** | Hardhat, TypeScript, Chai | Compile, deploy, unit and lifecycle tests, and gas reporting. |
 | **Provider agent** | Python 3.11, `web3.py`, Docker SDK | Chain transactions, lease and task workers, heartbeats, and hardware discovery. |
-| **LLM inference runtime** | Deterministic echo backend; Ollama adapter available | Keeps local tests reproducible. Real Ollama or vLLM validation remains planned. |
+| **LLM inference runtime** | Deterministic echo backend and Ollama | Reproducible local testing plus validated `qwen3:0.6b` serving on Sepolia. |
 | **Orchestrator / gateway** | Node.js + TypeScript, `ethers`, IPFS client | Event indexing, split and stitch, OpenAI-compatible gateway with metering. |
 | **Frontend** | Next.js + React + TypeScript + `viem` + Tailwind | EIP-1193 wallet writes and indexed reads. |
 | **Storage** | IPFS Kubo and local test storage | Content-addressed inputs and outputs; on chain stores only CIDs. |
 | **Compute runtime** | Docker with optional NVIDIA Container Toolkit | Constrained lease and task execution. Blender remains planned. |
 | **Attestation** | Trusted attester record plus direct provider heartbeat transactions | Current prototype gate. Real benchmark verification and relayed heartbeats remain planned. |
 | **Datastore / indexer** | PostgreSQL with `pg` | Durable projection snapshots, exact event cursors, and inference replay keys. |
-| **Dev infra** | Docker Compose and GitHub Actions | Local stack, provider-only Windows node, prepared Sepolia operator stack, and CI. |
+| **Dev infra** | Docker Compose and GitHub Actions | Local stack, provider-only Windows node, deployed Sepolia operator stack, and CI. |
 | **Optional (Rust/Go)** | A high-performance provider agent variant | Leverages team Rust/Go skill; stretch goal. |
 
 ---
@@ -331,7 +332,7 @@ Agile and iterative, contract first:
 3. Provider agent against a local devnet: accepted rental serving with strict heartbeats, inference offers, task worker and challenger, hardware discovery, and bounded retry.
 4. Integrate the orchestrator (signed gateway, Postgres projection and replay) plus IPFS and the dashboard.
 5. Adversarial testing via the simulator (downtime and SLA breaches for rentals; lazy, false-result, and collusion for tasks).
-6. Prepare Sepolia operator and provider deployment, then deploy and record the public demo.
+6. Deploy the operator and provider stacks to Sepolia, then record rental, inference, and task validation.
 
 ### The verifiability nuance (design depth)
 
@@ -347,8 +348,8 @@ This nuance is a first-class part of the "verification policy" attached to each 
 
 This is a compute marketplace rather than an ML dataset project, but we standardize a small suite for reproducible demos and evaluation:
 
-- **LLM inference inputs:** the local demo uses deterministic echo responses through the OpenAI-compatible endpoint. The Ollama adapter exists, but live open-weights model validation remains planned.
-- **Rental workloads:** the local demo uses a provider-approved CPU placeholder container to demonstrate heartbeats and streamed settlement. Real GPU workloads remain planned.
+- **LLM inference inputs:** the local demo uses deterministic echo responses. Sepolia validation used the OpenAI-compatible gateway with a real `qwen3:0.6b` Ollama provider.
+- **Rental workloads:** the local demo uses a provider-approved CPU placeholder. Sepolia validation used an immutable NVIDIA CUDA image on an RTX 4070 Laptop GPU.
 - **Rendering inputs (verifiable task):** the current fixture is a deterministic Mandelbrot tile job. Blender scenes and perceptual verification remain planned.
 - **Adversarial inputs (simulator):** scripted provider behaviors: for rentals, downtime and false hardware claims; for tasks, lazy, false-result, and colluding behavior.
 
@@ -360,7 +361,7 @@ inference, accounting, and heartbeat state.
 
 ## 15. Current Outcomes and Remaining Scope
 
-Implemented locally:
+Implemented and validated:
 
 1. Six-contract suite: token, registry, rental, inference, job, and verification.
 2. Pending manifest-bound lease requests with provider acceptance, strict interval
@@ -373,16 +374,15 @@ Implemented locally:
    provider console, explorer, and a seeded one-command Compose stack.
 6. An expanded simulator for heterogeneous task verification and rental uptime,
    false-heartbeat detection, payments, refunds, slashing, and escrow conservation.
+7. A source-verified Sepolia deployment with an attested RTX 4070 provider, real
+   Ollama inference, a GPU lease, and two settled deterministic jobs.
 
 Still planned:
 
-1. Sepolia deployment. Operator and provider Compose files, deploy scripts, hardware
-   discovery, and bootstrap flow are prepared, but no Sepolia deployment exists yet.
-2. Real benchmark verification and failure slashing, real GPU passthrough validation,
-   and active Ollama or vLLM serving.
-3. Provider-signed inference usage or a dispute mechanism for requester under-reporting.
-4. Commit-reveal, reputation-weighted random challenger selection, and SSIM verification.
-5. Verifiable-job submission and live tile assembly in the dashboard, wallet-write browser
+1. Independent benchmark verification and failed-attestation slashing across multiple providers.
+2. Provider-signed inference usage or a dispute mechanism for requester under-reporting.
+3. Commit-reveal, reputation-weighted random challenger selection, and SSIM verification.
+4. Verifiable-job submission and live tile assembly in the dashboard, wallet-write browser
    automation, final evaluation, and recorded delivery materials.
 
 ---
@@ -401,7 +401,7 @@ The authoritative roadmap and per-requirement status are in
 | Rental, inference, provider, and explorer web surfaces | done; verifiable-job submission remains planned |
 | Verification and rental simulator | done; final evaluation remains planned |
 | CI and local full-stack checks | done for current suites |
-| Sepolia operator and Windows provider tooling | prepared; not deployed |
+| Sepolia operator and Windows provider tooling | deployed and validated on one provider |
 | Commit-reveal, random selection, SSIM, and real benchmark | planned |
 
 ### Current verification
@@ -486,8 +486,8 @@ Providers self-register before the operator sets `BOOTSTRAP_PROVIDERS_JSON` and 
 - [x] **Technology stack** (section 12)
 - [x] **Project report and documentation** (this document and `docs/ShaderMesh-SRS.md`)
 - [x] **Current prototype** (six contracts, agent, durable orchestrator, dashboard, simulator, Compose, and CI)
-- [x] **Presentation assets** exist; generated DOCX, PPTX, PNG, report Markdown, and generator scripts are maintained separately from this update
+- [x] **Presentation assets** exist; the editable DOCX, presentation guide, PNG figures, and figure generator are retained. Superseded generated outputs were removed.
 
 > Current direction: compute rental with an LLM focus and a retained verifiable-task mode.
-> Sepolia is prepared but not deployed. The authoritative roadmap and requirement status are
-> `docs/ShaderMesh-SRS.md` sections 11 and 12.
+> Sepolia is deployed and validated on one physical provider. The authoritative roadmap and
+> requirement status are `docs/ShaderMesh-SRS.md` sections 11 and 12.

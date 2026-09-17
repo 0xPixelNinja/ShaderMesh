@@ -2,7 +2,10 @@
 
 Version: 1.3
 Status: Implementation-aligned baseline; Sepolia deployed and live paths validated
-Related documents: `docs/ShaderMesh-Review1-Proposal.md`, root `AGENTS.md`
+Related documents: [Review 1 proposal](ShaderMesh-Review1-Proposal.md),
+[demo and presentation guide](ShaderMesh-Demo-Presentation.md),
+[Review 1 report](ShaderMesh-Review1-Report.docx), and the repository
+[contributor guide](../AGENTS.md).
 
 This document specifies what ShaderMesh must do, how the pieces fit together, how we
 will test it, and the phased plan to build it. It is the single source of truth for
@@ -22,7 +25,7 @@ phase by phase roadmap for ShaderMesh.
 
 ShaderMesh is a decentralized marketplace for renting compute, coordinated by Ethereum
 smart contracts. Providers stake and rent out GPU and CPU capacity; requesters lease it
-to run any containerized workload. The headline use case is AI and LLM compute: rent a
+to run provider-approved containerized workloads. The headline use case is AI and LLM compute: rent a
 GPU to run or fine-tune a model, or call a managed, provider-served, OpenAI-compatible
 inference endpoint. The blockchain is the trust, coordination, and payment layer.
 
@@ -45,7 +48,8 @@ In scope:
 - A provider node agent that serves leases, serves LLM inference, and runs Docker jobs.
 - An orchestrator that indexes the market, routes inference through an OpenAI-compatible
   gateway with metering, and splits and stitches verifiable jobs.
-- A web dashboard for renting GPUs, using models, running jobs, and an on chain explorer.
+- A web dashboard for renting GPUs, using models, provider operations, and an on-chain
+  explorer. Verifiable-job submission and live assembly remain planned.
 - An economic simulator for evaluation.
 - Local deployment via Docker Compose and a public testnet deployment on Sepolia.
 
@@ -633,7 +637,7 @@ listing `#2` with 60-second intervals and inference offer `#1` for `qwen3:0.6b`.
 Requester `0x7e6a268D9aa458f0deCE6280A7Eb9B86888565d8` received 1,000 test
 SMESH.
 
-Live prepaid inference served 36 tokens and settled `72000000000000` SMESH base
+During validation on 17 September 2026, prepaid inference served 36 tokens and settled `72000000000000` SMESH base
 units to the provider. Rental lease `#1` launched a GPU-enabled container, recorded
 two heartbeats, settled one interval, and ended normally. All Sepolia operator and
 provider containers reported healthy. The Alchemy-backed indexer used 10-block log

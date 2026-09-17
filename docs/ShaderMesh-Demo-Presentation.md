@@ -232,7 +232,7 @@ contract as the payment authority.
 - Rental listing `#2`, 60-second intervals
 - Inference offer `#1`, `qwen3:0.6b`
 - Requester funded with 1,000 test SMESH
-- All operator and provider containers healthy
+- All operator and provider containers healthy during validation on 17 September 2026
 
 **Say**
 
