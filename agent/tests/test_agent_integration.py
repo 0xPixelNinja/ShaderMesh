@@ -17,7 +17,7 @@ from chain import ChainClient
 from executor import LocalExecutor
 from provider import Agent
 from storage import LocalDirStorage
-from conftest import RPC, KEYS
+from conftest import RPC
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 RENDER = os.path.join(REPO, "jobs", "deterministic", "render.py")
@@ -50,8 +50,13 @@ def test_happy_path_pays_provider(deployment, tmp_path):
     store = LocalDirStorage(os.path.join(str(tmp_path), "store"))
     executor = LocalExecutor(RENDER)
 
-    requester = ChainClient(RPC, deployment, KEYS[0])
-    provider = Agent(ChainClient(RPC, deployment, KEYS[1]), store, executor, stake_amount=_wei(100))
+    requester = ChainClient.from_unlocked_account(RPC, deployment, 0)
+    provider = Agent(
+        ChainClient.from_unlocked_account(RPC, deployment, 1),
+        store,
+        executor,
+        stake_amount=_wei(100),
+    )
 
     requester.tx(requester.token.functions.transfer(provider.chain.address, _wei(200)))
     provider.ensure_ready()
@@ -74,9 +79,19 @@ def test_cheating_provider_is_slashed(deployment, tmp_path):
     store = LocalDirStorage(os.path.join(str(tmp_path), "store"))
     executor = LocalExecutor(RENDER)
 
-    requester = ChainClient(RPC, deployment, KEYS[0])
-    cheater = Agent(ChainClient(RPC, deployment, KEYS[2]), store, executor, stake_amount=_wei(100))
-    challenger = Agent(ChainClient(RPC, deployment, KEYS[3]), store, executor, stake_amount=_wei(100))
+    requester = ChainClient.from_unlocked_account(RPC, deployment, 0)
+    cheater = Agent(
+        ChainClient.from_unlocked_account(RPC, deployment, 2),
+        store,
+        executor,
+        stake_amount=_wei(100),
+    )
+    challenger = Agent(
+        ChainClient.from_unlocked_account(RPC, deployment, 3),
+        store,
+        executor,
+        stake_amount=_wei(100),
+    )
 
     requester.tx(requester.token.functions.transfer(cheater.chain.address, _wei(200)))
     requester.tx(requester.token.functions.transfer(challenger.chain.address, _wei(200)))

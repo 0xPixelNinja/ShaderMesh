@@ -5,6 +5,8 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 
+from retry import RetryPolicy
+
 # 100 SMESH, expressed in wei-like base units, without importing web3 here.
 _DEFAULT_STAKE = 100 * 10**18
 
@@ -28,8 +30,23 @@ class Config:
     job_image: str
     capabilities: str
     stake_amount: int
+    auto_faucet: bool
     poll_interval: float
     challenger: bool
+    challenger_sample_rate: float
+    job_memory_limit: str
+    job_cpu_count: float
+    job_pids_limit: int
+    job_container_user: str
+    job_tmpfs_size: str
+    job_helper_image: str
+    retry_policy: RetryPolicy
+
+    def __post_init__(self) -> None:
+        if not 0 <= self.challenger_sample_rate <= 1:
+            raise ValueError("CHALLENGER_SAMPLE_RATE must be between 0 and 1")
+        if self.job_cpu_count <= 0 or self.job_pids_limit <= 0:
+            raise ValueError("task container CPU and PID limits must be positive")
 
     @staticmethod
     def from_env() -> "Config":
@@ -47,6 +64,18 @@ class Config:
             job_image=os.environ.get("JOB_IMAGE", "shadermesh/job-deterministic"),
             capabilities=os.environ.get("CAPABILITIES", '{"cpu":"generic"}'),
             stake_amount=int(os.environ.get("STAKE_AMOUNT", str(_DEFAULT_STAKE))),
+            auto_faucet=os.environ.get("AUTO_FAUCET", "true").lower()
+            in ("1", "true", "yes"),
             poll_interval=float(os.environ.get("POLL_INTERVAL", "5")),
             challenger=os.environ.get("CHALLENGER", "false").lower() == "true",
+            challenger_sample_rate=float(
+                os.environ.get("CHALLENGER_SAMPLE_RATE", "0.1")
+            ),
+            job_memory_limit=os.environ.get("JOB_MEMORY_LIMIT", "512m"),
+            job_cpu_count=float(os.environ.get("JOB_CPU_COUNT", "1")),
+            job_pids_limit=int(os.environ.get("JOB_PIDS_LIMIT", "128")),
+            job_container_user=os.environ.get("JOB_CONTAINER_USER", "65532:65532"),
+            job_tmpfs_size=os.environ.get("JOB_TMPFS_SIZE", "64m"),
+            job_helper_image=os.environ.get("JOB_HELPER_IMAGE", "shadermesh/agent"),
+            retry_policy=RetryPolicy.from_env(),
         )

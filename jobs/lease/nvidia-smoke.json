@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "name": "nvidia-smoke",
+  "image": "nvidia/cuda@sha256:c87e78933f4c16e3272123bf2f75537306596d0fbaa395a29696a22786e5ee0e",
+  "command": [
+    "bash",
+    "-lc",
+    "nvidia-smi --query-gpu=name,memory.total --format=csv,noheader && sleep 86400"
+  ],
+  "environment": {},
+  "resources": {
+    "cpuCount": 1,
+    "memory": "4g",
+    "pids": 256,
+    "tmpfs": "64m"
+  },
+  "gpu": true
+}
