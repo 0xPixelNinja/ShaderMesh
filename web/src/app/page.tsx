@@ -10,7 +10,7 @@ import type { Lease, Listing, Provider } from "@/lib/types";
 
 export default function OverviewPage() {
   const { address } = useWallet();
-  const listings = useApi<Listing[]>("/listings").data ?? [];
+  const listings = useApi<Listing[]>("/listings?all=true").data ?? [];
   const leases = useApi<Lease[]>("/leases").data ?? [];
   const providers = useApi<Provider[]>("/providers").data ?? [];
 
@@ -24,7 +24,7 @@ export default function OverviewPage() {
   }, 0);
 
   const stats = [
-    { k: "GPUs available", v: String(listings.filter((l) => l.active).length), c: `${providers.length} providers` },
+    { k: "GPUs available", v: String(listings.filter((l) => l.available).length), c: `${providers.length} providers` },
     { k: "Active leases", v: String(active.length), c: address ? `${mine.length} yours` : "network wide" },
     { k: "Streaming now", v: `$${streamingPerHour.toFixed(2)}`, c: "per hour, from escrow" },
     { k: "Providers", v: String(providers.length), c: `${providers.filter((p) => p.attested).length} attested` },
@@ -48,41 +48,45 @@ export default function OverviewPage() {
           {mine.length === 0 ? (
             <Empty title="No active leases" hint="Rent a GPU to get started" />
           ) : (
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="text-left text-[11px] uppercase tracking-wide text-faint">
-                  <th className="border-b border-line px-4 py-2.5 font-medium">GPU</th>
-                  <th className="border-b border-line px-4 py-2.5 font-medium">Provider</th>
-                  <th className="border-b border-line px-4 py-2.5 font-medium">Uptime</th>
-                  <th className="border-b border-line px-4 py-2.5 font-medium">Streamed</th>
-                  <th className="border-b border-line px-4 py-2.5 font-medium">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {mine.map((l) => {
-                  const gpu = listingById.get(l.listingId)?.gpu || "GPU";
-                  const models = listingById.get(l.listingId)?.models ?? [];
-                  const streamed = (BigInt(l.pricePerInterval) * BigInt(l.settledIntervals)).toString();
-                  return (
-                    <tr key={l.id} className="text-[13px] hover:bg-hover">
-                      <td className="border-b border-line px-4 py-3">
-                        <div className="flex items-center gap-2.5">
-                          <GpuChip />
-                          <div>
-                            <b className="font-medium">{gpu}</b>
-                            <small className="mono block text-[11px] text-faint">{models[0] ?? "container"}</small>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[680px] border-collapse">
+                <thead>
+                  <tr className="text-left text-[11px] uppercase tracking-wide text-faint">
+                    <th className="border-b border-line px-4 py-2.5 font-medium">GPU</th>
+                    <th className="border-b border-line px-4 py-2.5 font-medium">Provider</th>
+                    <th className="border-b border-line px-4 py-2.5 font-medium">Uptime</th>
+                    <th className="border-b border-line px-4 py-2.5 font-medium">Streamed</th>
+                    <th className="border-b border-line px-4 py-2.5 font-medium">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {mine.map((l) => {
+                    const gpu = listingById.get(l.listingId)?.gpu || "GPU";
+                    const models = listingById.get(l.listingId)?.models ?? [];
+                    const streamed = (BigInt(l.pricePerInterval) * BigInt(l.settledIntervals)).toString();
+                    return (
+                      <tr key={l.id} className="text-[13px] hover:bg-hover">
+                        <td className="border-b border-line px-4 py-3">
+                          <div className="flex items-center gap-2.5">
+                            <GpuChip />
+                            <div>
+                              <b className="font-medium">{gpu}</b>
+                              <small className="mono block text-[11px] text-faint">{models[0] ?? "container"}</small>
+                            </div>
                           </div>
-                        </div>
-                      </td>
-                      <td className="mono border-b border-line px-4 py-3 text-xs text-muted">{shortAddr(l.provider)}</td>
-                      <td className="border-b border-line px-4 py-3"><Heartbeats up={8} /></td>
-                      <td className="mono border-b border-line px-4 py-3">{fmtUsd(streamed)}</td>
-                      <td className="border-b border-line px-4 py-3"><StatusTag status={l.status} /></td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                        </td>
+                        <td className="mono border-b border-line px-4 py-3 text-xs text-muted">{shortAddr(l.provider)}</td>
+                        <td className="border-b border-line px-4 py-3">
+                          <Heartbeats up={Math.min(l.heartbeatedIntervals, 8)} total={Math.min(Math.max(l.fundedIntervals, 1), 8)} />
+                        </td>
+                        <td className="mono border-b border-line px-4 py-3">{fmtUsd(streamed)}</td>
+                        <td className="border-b border-line px-4 py-3"><StatusTag status={l.status} /></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           )}
         </Card>
 

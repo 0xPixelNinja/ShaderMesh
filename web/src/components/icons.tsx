@@ -1,6 +1,6 @@
-import type { SVGProps } from "react";
+import type { ReactElement, SVGProps } from "react";
 
-type IconName =
+export type IconName =
   | "dashboard"
   | "gpu"
   | "model"
@@ -15,7 +15,7 @@ type IconName =
   | "bolt"
   | "arrow";
 
-const PATHS: Record<IconName, JSX.Element> = {
+const PATHS: Record<IconName, ReactElement> = {
   dashboard: (
     <>
       <rect x="3" y="3" width="7" height="7" rx="1" />

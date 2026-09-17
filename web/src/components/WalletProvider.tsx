@@ -1,9 +1,10 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { createPublicClient, http, getAddress } from "viem";
 import { ORCHESTRATOR_URL, RPC_URL } from "@/lib/config";
 import { erc20Abi } from "@/lib/erc20";
+import { getEthereumProvider } from "@/lib/ethereum";
 import type { Deployment } from "@/lib/types";
 
 interface WalletState {
@@ -22,13 +23,26 @@ const WalletContext = createContext<WalletState>({
 
 export const useWallet = () => useContext(WalletContext);
 
+const publicClient = createPublicClient({ transport: http(RPC_URL) });
+
+async function readBalance(address: string, token: string): Promise<bigint> {
+  try {
+    return await publicClient.readContract({
+      address: getAddress(token),
+      abi: erc20Abi,
+      functionName: "balanceOf",
+      args: [getAddress(address)],
+    });
+  } catch {
+    return 0n;
+  }
+}
+
 export function WalletProvider({ children }: { children: ReactNode }) {
   const [address, setAddress] = useState<string | null>(null);
   const [balanceWei, setBalanceWei] = useState<bigint>(0n);
   const [connecting, setConnecting] = useState(false);
   const [tokenAddr, setTokenAddr] = useState<string | null>(null);
-
-  const publicClient = useMemo(() => createPublicClient({ transport: http(RPC_URL) }), []);
 
   useEffect(() => {
     (async () => {
@@ -42,22 +56,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     })();
   }, []);
 
-  async function refreshBalance(addr: string, token: string) {
-    try {
-      const bal = await publicClient.readContract({
-        address: getAddress(token),
-        abi: erc20Abi,
-        functionName: "balanceOf",
-        args: [getAddress(addr)],
-      });
-      setBalanceWei(bal as bigint);
-    } catch {
-      setBalanceWei(0n);
-    }
-  }
-
   async function connect() {
-    const eth = (globalThis as unknown as { ethereum?: { request: (a: unknown) => Promise<string[]> } }).ethereum;
+    const eth = getEthereumProvider();
     if (!eth) {
       alert("No wallet found. Install a browser wallet such as MetaMask.");
       return;
@@ -67,7 +67,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       const accounts = await eth.request({ method: "eth_requestAccounts" });
       const a = accounts?.[0] ?? null;
       setAddress(a);
-      if (a && tokenAddr) await refreshBalance(a, tokenAddr);
+      if (a && tokenAddr) setBalanceWei(await readBalance(a, tokenAddr));
     } finally {
       setConnecting(false);
     }
@@ -75,10 +75,17 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!address || !tokenAddr) return;
-    refreshBalance(address, tokenAddr);
-    const id = setInterval(() => refreshBalance(address, tokenAddr), 8000);
-    return () => clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    let cancelled = false;
+    const refresh = async () => {
+      const balance = await readBalance(address, tokenAddr);
+      if (!cancelled) setBalanceWei(balance);
+    };
+    void refresh();
+    const id = setInterval(refresh, 8000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
   }, [address, tokenAddr]);
 
   return (

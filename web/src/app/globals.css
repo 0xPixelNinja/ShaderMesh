@@ -12,14 +12,14 @@
   --ink: #f4f4f5;
   --ink2: #d4d4d8;
   --muted: #a1a1aa;
-  --faint: #71717a;
+  --faint: #8b8b94;
   --accent: #f59e0b;
   --accent-hover: #fbbf24;
   --accent-weak: #2a2011;
   --success: #22c55e;
   --danger: #f87171;
-  --font-sans: "Inter", system-ui, "Segoe UI", sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+  --font-sans: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", "Cascadia Code", "SFMono-Regular", Consolas, monospace;
 }
 
 @layer base {
@@ -30,11 +30,18 @@
   }
   html,
   body {
+    width: 100%;
+    max-width: 100%;
     background: var(--bg);
     color: var(--ink);
+    overflow-x: hidden;
   }
   body {
     font-family: var(--font-sans);
+  }
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
   }
 }
 
@@ -45,16 +52,13 @@
   }
 }
 
-/* Thin dark scrollbars to match the console aesthetic. */
-* {
-  scrollbar-width: thin;
-  scrollbar-color: var(--border-strong) transparent;
-}
-*::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
-*::-webkit-scrollbar-thumb {
-  background: var(--border-strong);
-  border-radius: 999px;
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

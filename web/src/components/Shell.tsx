@@ -3,11 +3,17 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
-import { Icon, Logo } from "./icons";
+import { Icon, Logo, type IconName } from "./icons";
 import { useWallet } from "./WalletProvider";
 import { fmtUsd, shortAddr } from "@/lib/format";
+import { CHAIN_ID } from "@/lib/config";
 
-const NAV: { group: string; items: { href: string; label: string; icon: any; disabled?: boolean }[] }[] = [
+interface NavigationGroup {
+  group: string;
+  items: { href: string; label: string; icon: IconName; disabled?: boolean }[];
+}
+
+const NAV: NavigationGroup[] = [
   {
     group: "Compute",
     items: [
@@ -20,17 +26,19 @@ const NAV: { group: string; items: { href: string; label: string; icon: any; dis
   {
     group: "Network",
     items: [
-      { href: "/providers", label: "Providers", icon: "providers", disabled: true },
-      { href: "/explorer", label: "Explorer", icon: "explorer", disabled: true },
+      { href: "/providers", label: "Providers", icon: "providers" },
+      { href: "/explorer", label: "Explorer", icon: "explorer" },
     ],
   },
 ];
 
 const TITLES: Record<string, { title: string; sub: string }> = {
   "/": { title: "Overview", sub: "Your rentals and network health" },
-  "/rent": { title: "Rent GPUs", sub: "Lease compute from staked providers" },
-  "/leases": { title: "My leases", sub: "Active and past rentals" },
+  "/rent": { title: "Rent GPUs", sub: "Request compute from staked providers" },
+  "/leases": { title: "My leases", sub: "Pending, active, and past rental requests" },
   "/models": { title: "Models", sub: "Call open models served by providers" },
+  "/providers": { title: "Provider console", sub: "Manage collateral, capacity, and inference offers" },
+  "/explorer": { title: "Explorer", sub: "Inspect indexed protocol state and on-chain activity" },
 };
 
 export function Shell({ children }: { children: ReactNode }) {
@@ -39,8 +47,8 @@ export function Shell({ children }: { children: ReactNode }) {
   const head = TITLES[pathname] ?? { title: "ShaderMesh", sub: "" };
 
   return (
-    <div className="grid h-screen grid-cols-[240px_1fr]">
-      <aside className="flex flex-col border-r border-line bg-surface p-3">
+    <div className="flex min-h-screen flex-col md:grid md:h-screen md:grid-cols-[240px_1fr]">
+      <aside className="hidden flex-col border-r border-line bg-surface p-3 md:flex">
         <div className="flex items-center gap-2.5 px-2 pb-4 pt-1.5">
           <Logo />
           <b className="text-[15px] font-semibold tracking-tight">ShaderMesh</b>
@@ -84,23 +92,23 @@ export function Shell({ children }: { children: ReactNode }) {
         </div>
       </aside>
 
-      <div className="flex min-w-0 flex-col">
-        <header className="flex items-center gap-4 border-b border-line px-6 py-3.5">
-          <div>
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <header className="flex flex-wrap items-center gap-3 border-b border-line px-3 py-3.5 sm:gap-4 sm:px-6">
+          <Link href="/" className="grid shrink-0 md:hidden" aria-label="ShaderMesh overview"><Logo /></Link>
+          <div className="min-w-0 [flex:1_0_calc(100%-2.5rem)] sm:flex-1">
             <h1 className="text-base font-semibold tracking-tight">{head.title}</h1>
             <p className="mt-0.5 text-xs text-muted">{head.sub}</p>
           </div>
-          <div className="flex-1" />
-          <span className="inline-flex items-center gap-2 rounded-full border border-line bg-surface px-2.5 py-1.5 text-xs text-ink2">
+          <span className="hidden items-center gap-2 rounded-full border border-line bg-surface px-2.5 py-1.5 text-xs text-ink2 lg:inline-flex">
             <span className="h-1.5 w-1.5 rounded-full bg-success" />
-            Local devnet
+            {CHAIN_ID === 11155111 ? "Sepolia" : "Local devnet"}
           </span>
           <span className="mono rounded-md border border-line bg-surface px-2.5 py-1.5 text-xs text-ink2">
             <b className="font-medium text-accent">{fmtUsd(balanceWei)}</b>
             <span className="ml-1 text-faint">SMESH</span>
           </span>
           {address ? (
-            <span className="mono rounded-md border border-line bg-surface px-2.5 py-1.5 text-xs text-ink2">{shortAddr(address)}</span>
+            <span className="mono hidden rounded-md border border-line bg-surface px-2.5 py-1.5 text-xs text-ink2 sm:inline">{shortAddr(address)}</span>
           ) : (
             <button
               onClick={connect}
@@ -112,12 +120,26 @@ export function Shell({ children }: { children: ReactNode }) {
           )}
           <Link
             href="/rent"
-            className="rounded-md border border-line bg-surface px-3.5 py-2 text-[13px] font-medium text-ink2 hover:bg-hover hover:text-ink"
+            className="hidden rounded-md border border-line bg-surface px-3.5 py-2 text-[13px] font-medium text-ink2 hover:bg-hover hover:text-ink sm:inline-flex"
           >
             Rent a GPU
           </Link>
         </header>
-        <main className="overflow-auto p-6">{children}</main>
+        <nav aria-label="Mobile navigation" className="grid grid-cols-3 gap-1 border-b border-line bg-surface px-3 py-2 md:hidden">
+          {NAV.flatMap((group) => group.items).filter((item) => !item.disabled).map((item) => {
+            const active = pathname === item.href;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`rounded-md px-2 py-2 text-center text-xs font-medium ${active ? "bg-hover text-accent" : "text-ink2 hover:bg-hover hover:text-ink"}`}
+              >
+                {item.label}
+              </Link>
+            );
+          })}
+        </nav>
+        <main className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto p-3 sm:p-6">{children}</main>
       </div>
     </div>
   );

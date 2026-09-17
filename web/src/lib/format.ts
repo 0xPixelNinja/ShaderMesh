@@ -35,6 +35,11 @@ export function shortAddr(a?: string | null): string {
   return a.length > 12 ? `${a.slice(0, 6)}…${a.slice(-4)}` : a;
 }
 
+export function shortHash(value?: string | null): string {
+  if (!value) return "";
+  return value.length > 18 ? `${value.slice(0, 10)}…${value.slice(-6)}` : value;
+}
+
 /** Reputation is stored 0..10000; show it as 0..100. */
 export function repScore(r: number): number {
   return Math.round(r / 100);
