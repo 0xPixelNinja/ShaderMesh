@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { ProjectionStore } from "./store";
+import { EVENT_HISTORY_CAPACITY, ProjectionStore } from "./store";
 
 describe("ProjectionStore", () => {
   it("tracks a job through its lifecycle", () => {
@@ -29,5 +29,23 @@ describe("ProjectionStore", () => {
 
     s.onJobCompleted(1);
     expect(s.getJob(1)!.completed).toBe(true);
+  });
+
+  it("bounds event history while retaining chronological order", () => {
+    const store = new ProjectionStore();
+    for (let blockNumber = EVENT_HISTORY_CAPACITY + 1; blockNumber >= 0; blockNumber--) {
+      store.recordEvent({
+        name: "TestEvent",
+        blockNumber,
+        logIndex: 0,
+        transactionHash: `0x${blockNumber}`,
+        payload: {},
+      });
+    }
+
+    const history = store.listEventHistory();
+    expect(history).toHaveLength(EVENT_HISTORY_CAPACITY);
+    expect(history[0].blockNumber).toBe(2);
+    expect(history.at(-1)!.blockNumber).toBe(EVENT_HISTORY_CAPACITY + 1);
   });
 });

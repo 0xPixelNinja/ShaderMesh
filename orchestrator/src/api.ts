@@ -1,19 +1,106 @@
 import { createServer, IncomingMessage, ServerResponse } from "node:http";
 import type { EventEmitter } from "node:events";
-import { ProjectionStore } from "./store";
+import { getAddress, verifyMessage } from "ethers";
+import { EVENT_HISTORY_CAPACITY, ProjectionStore } from "./store";
 import { JobService } from "./jobservice";
+import { canonicalRequestAuthorization, type RequestAuthorization } from "./authorization";
+import { InMemoryReplayStore, type ReplayStore } from "./persistence";
+import type { ServiceHealth } from "./health";
+
+export interface ApiOptions {
+  requestBodyLimitBytes?: number;
+  providerFetchTimeoutMs?: number;
+  providerHostAllowlist?: string[];
+  now?: () => number;
+  replayStore?: ReplayStore;
+  health?: ServiceHealth;
+}
+
+class HttpError extends Error {
+  constructor(readonly status: number, message: string) {
+    super(message);
+  }
+}
 
 function sendJson(res: ServerResponse, status: number, body: unknown): void {
-  const data = JSON.stringify(body);
+  const data = JSON.stringify(body, (_key, value) => typeof value === "bigint" ? value.toString() : value);
   res.writeHead(status, { "content-type": "application/json", "access-control-allow-origin": "*" });
   res.end(data);
 }
 
-async function readBody(req: IncomingMessage): Promise<any> {
+async function readBody(req: IncomingMessage, limit: number): Promise<any> {
+  const declaredLength = Number(req.headers["content-length"] ?? 0);
+  if (Number.isFinite(declaredLength) && declaredLength > limit) {
+    throw new HttpError(413, "request body too large");
+  }
   const chunks: Buffer[] = [];
-  for await (const c of req) chunks.push(c as Buffer);
+  let size = 0;
+  for await (const chunk of req) {
+    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+    size += buffer.length;
+    if (size > limit) throw new HttpError(413, "request body too large");
+    chunks.push(buffer);
+  }
   if (chunks.length === 0) return {};
-  return JSON.parse(Buffer.concat(chunks).toString());
+  try {
+    return JSON.parse(Buffer.concat(chunks).toString());
+  } catch {
+    throw new HttpError(400, "invalid JSON body");
+  }
+}
+
+function parseAuthorization(body: any): RequestAuthorization & { signature: string } {
+  const input = body?.authorization;
+  if (!input || typeof input !== "object") throw new HttpError(400, "authorization required");
+  if (typeof input.credit_id !== "string" || !/^[1-9]\d*$/.test(input.credit_id)) {
+    throw new HttpError(400, "authorization.credit_id must be a positive decimal string");
+  }
+  if (typeof input.request_id !== "string" || !/^[A-Za-z0-9._:-]{1,128}$/.test(input.request_id)) {
+    throw new HttpError(400, "authorization.request_id is invalid");
+  }
+  if (!Number.isSafeInteger(input.expiry) || input.expiry <= 0) {
+    throw new HttpError(400, "authorization.expiry must be a Unix timestamp");
+  }
+  if (typeof input.signature !== "string") throw new HttpError(400, "authorization.signature required");
+  if (typeof body.model !== "string" || body.model.length === 0) throw new HttpError(400, "model required");
+  if (!Array.isArray(body.messages)) throw new HttpError(400, "messages must be an array");
+
+  try {
+    return {
+      creditId: BigInt(input.credit_id).toString(),
+      requestId: input.request_id,
+      requester: getAddress(input.requester),
+      provider: getAddress(input.provider),
+      model: body.model,
+      expiry: input.expiry,
+      signature: input.signature,
+    };
+  } catch {
+    throw new HttpError(400, "authorization addresses are invalid");
+  }
+}
+
+function normalizeHost(host: string): string {
+  return host.trim().toLowerCase().replace(/^\[|\]$/g, "").replace(/\.$/, "");
+}
+
+function providerUrl(endpoint: string, allowedHosts: Set<string>): URL {
+  let url: URL;
+  try {
+    url = new URL(endpoint);
+  } catch {
+    throw new HttpError(502, "provider endpoint is invalid");
+  }
+  if ((url.protocol !== "http:" && url.protocol !== "https:") || url.username || url.password) {
+    throw new HttpError(502, "provider endpoint protocol or credentials are not allowed");
+  }
+  if (!allowedHosts.has(normalizeHost(url.hostname))) {
+    throw new HttpError(502, "provider endpoint host is not allowed");
+  }
+  url.pathname = `${url.pathname.replace(/\/+$/, "")}/v1/chat/completions`;
+  url.search = "";
+  url.hash = "";
+  return url;
 }
 
 /**
@@ -24,8 +111,17 @@ export function createApi(
   store: ProjectionStore,
   jobService: JobService,
   emitter?: EventEmitter,
-  deployment?: { chainId: number; contracts: Record<string, string> }
+  deployment?: { chainId: number; contracts: Record<string, string> },
+  options: ApiOptions = {}
 ) {
+  const bodyLimit = options.requestBodyLimitBytes ?? 1_048_576;
+  const providerTimeout = options.providerFetchTimeoutMs ?? 30_000;
+  const allowedHosts = new Set(
+    (options.providerHostAllowlist ?? ["provider"]).map(normalizeHost)
+  );
+  const now = options.now ?? (() => Math.floor(Date.now() / 1000));
+  const replayStore = options.replayStore ?? new InMemoryReplayStore();
+
   return createServer(async (req, res) => {
     try {
       const url = new URL(req.url ?? "/", "http://localhost");
@@ -42,7 +138,14 @@ export function createApi(
       }
 
       if (path === "/health") {
-        return sendJson(res, 200, { service: "orchestrator", status: "ok", jobs: store.jobs.size });
+        const health = options.health?.report() ?? { status: "ok" as const };
+        return sendJson(res, health.status === "ok" ? 200 : 503, {
+          service: "orchestrator",
+          ...health,
+          jobs: store.jobs.size,
+          offers: store.offers.size,
+          credits: store.credits.size,
+        });
       }
 
       if (path === "/deployment" && method === "GET") {
@@ -51,6 +154,14 @@ export function createApi(
 
       if (path === "/jobs" && method === "GET") {
         return sendJson(res, 200, store.listJobs());
+      }
+
+      if (path === "/tasks" && method === "GET") {
+        return sendJson(res, 200, store.listTasks());
+      }
+
+      if (path === "/disputes" && method === "GET") {
+        return sendJson(res, 200, store.listDisputes());
       }
 
       const jobMatch = path.match(/^\/jobs\/(\d+)$/);
@@ -70,7 +181,7 @@ export function createApi(
       }
 
       if (path === "/jobs/prepare" && method === "POST") {
-        const body = await readBody(req);
+        const body = await readBody(req, bodyLimit);
         if (!body.spec || !body.tilesX || !body.tilesY) {
           return sendJson(res, 400, { error: "spec, tilesX, tilesY required" });
         }
@@ -80,7 +191,7 @@ export function createApi(
 
       // --- rental market ---
       if (path === "/listings" && method === "GET") {
-        return sendJson(res, 200, store.listListings());
+        return sendJson(res, 200, store.listListings(url.searchParams.get("all") !== "true"));
       }
       if (path === "/leases" && method === "GET") {
         return sendJson(res, 200, store.listLeases());
@@ -98,26 +209,124 @@ export function createApi(
         return sendJson(res, 200, store.listModels());
       }
 
-      // --- inference gateway: route a metered request to a serving provider ---
-      if (path === "/v1/chat/completions" && method === "POST") {
-        const body = await readBody(req);
-        if (!body.model) return sendJson(res, 400, { error: "model required" });
-        const route = store.findEndpointForModel(body.model);
-        if (!route || !route.listing.endpoint) {
-          return sendJson(res, 503, { error: "no provider currently serving this model" });
+      // --- inference market ---
+      if (path === "/offers" && method === "GET") {
+        return sendJson(res, 200, store.listOffers());
+      }
+      const offerMatch = path.match(/^\/offers\/(\d+)$/);
+      if (offerMatch && method === "GET") {
+        const offer = store.getOffer(offerMatch[1]);
+        if (!offer) return sendJson(res, 404, { error: "offer not found" });
+        return sendJson(res, 200, offer);
+      }
+      if (path === "/credits" && method === "GET") {
+        const requester = url.searchParams.get("requester") ?? undefined;
+        if (requester) {
+          try {
+            getAddress(requester);
+          } catch {
+            return sendJson(res, 400, { error: "invalid requester address" });
+          }
         }
+        return sendJson(res, 200, store.listCredits(requester));
+      }
+      const creditMatch = path.match(/^\/credits\/(\d+)$/);
+      if (creditMatch && method === "GET") {
+        const credit = store.getCredit(creditMatch[1]);
+        if (!credit) return sendJson(res, 404, { error: "credit not found" });
+        return sendJson(res, 200, credit);
+      }
+
+      // --- inference gateway: authorize prepaid use and pin routing to its provider ---
+      if (path === "/v1/chat/completions" && method === "POST") {
+        const body = await readBody(req, bodyLimit);
+        const authorization = parseAuthorization(body);
+        const timestamp = now();
+        if (authorization.expiry <= timestamp) throw new HttpError(401, "request authorization expired");
+
+        const credit = store.getCredit(authorization.creditId);
+        const offer = credit ? store.getOffer(credit.offerId) : null;
+        if (!credit || !credit.active || BigInt(credit.escrow) === 0n) {
+          throw new HttpError(403, "active prepaid credit required");
+        }
+        if (
+          !offer
+          || credit.requester.toLowerCase() !== authorization.requester.toLowerCase()
+          || credit.provider.toLowerCase() !== authorization.provider.toLowerCase()
+          || offer.provider.toLowerCase() !== authorization.provider.toLowerCase()
+          || offer.modelIdentifier !== authorization.model
+        ) {
+          throw new HttpError(403, "credit does not match requester, provider, and model");
+        }
+
+        let signer: string;
         try {
-          const upstream = await fetch(`${route.listing.endpoint}/v1/chat/completions`, {
+          signer = verifyMessage(canonicalRequestAuthorization(authorization, body.messages), authorization.signature);
+        } catch {
+          throw new HttpError(401, "invalid request signature");
+        }
+        if (signer.toLowerCase() !== authorization.requester.toLowerCase()) {
+          throw new HttpError(401, "invalid request signature");
+        }
+
+        const replayKey = `${authorization.requester.toLowerCase()}:${authorization.requestId}`;
+
+        const route = store.findEndpointForProviderModel(authorization.provider, authorization.model);
+        if (!route || !route.listing.endpoint) {
+          throw new HttpError(503, "credited provider is not serving this model");
+        }
+        const upstreamUrl = providerUrl(route.listing.endpoint, allowedHosts);
+        let consumed: boolean;
+        try {
+          consumed = await replayStore.consume(replayKey, authorization.expiry, timestamp);
+          options.health?.recover("persistence");
+        } catch (error) {
+          options.health?.fail("persistence", error);
+          throw error;
+        }
+        if (!consumed) throw new HttpError(409, "request_id already used");
+
+        const { authorization: _authorization, ...providerBody } = body;
+        try {
+          const upstream = await fetch(upstreamUrl, {
             method: "POST",
             headers: { "content-type": "application/json" },
-            body: JSON.stringify(body),
+            body: JSON.stringify(providerBody),
+            signal: AbortSignal.timeout(providerTimeout),
+            redirect: "error",
           });
           const json: any = await upstream.json();
-          json.routedTo = route.listing.provider;
-          return sendJson(res, upstream.status, json);
+          if (!json || typeof json !== "object" || Array.isArray(json)) {
+            throw new Error("provider returned a non-object JSON response");
+          }
+          return sendJson(res, upstream.status, {
+            ...json,
+            usage: json.usage ?? null,
+            credit: {
+              id: credit.id,
+              offerId: credit.offerId,
+              requester: credit.requester,
+              provider: credit.provider,
+              model: offer.modelIdentifier,
+              pricePerToken: credit.pricePerToken,
+              remainingEscrow: credit.escrow,
+              requestId: authorization.requestId,
+            },
+          });
         } catch (err) {
-          return sendJson(res, 502, { error: "provider unreachable", detail: String(err) });
+          const timedOut = err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError");
+          throw new HttpError(timedOut ? 504 : 502, timedOut ? "provider request timed out" : "provider unreachable");
         }
+      }
+
+      if (path === "/events/history" && method === "GET") {
+        const rawLimit = url.searchParams.get("limit");
+        if (rawLimit !== null && !/^[1-9]\d*$/.test(rawLimit)) {
+          return sendJson(res, 400, { error: "limit must be a positive integer" });
+        }
+        const limit = Math.min(rawLimit === null ? 100 : Number(rawLimit), EVENT_HISTORY_CAPACITY);
+        const type = url.searchParams.get("type") || undefined;
+        return sendJson(res, 200, store.listEventHistory(type, limit));
       }
 
       if (path === "/events" && method === "GET") {
@@ -136,6 +345,7 @@ export function createApi(
 
       return sendJson(res, 404, { error: "not found" });
     } catch (err) {
+      if (err instanceof HttpError) return sendJson(res, err.status, { error: err.message });
       return sendJson(res, 500, { error: String(err) });
     }
   });

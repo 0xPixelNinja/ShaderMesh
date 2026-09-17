@@ -13,12 +13,16 @@ import { loadConfig } from "./config";
 import { ProjectionStore } from "./store";
 import { makeStorage } from "./storage";
 import { JobService } from "./jobservice";
-import { Indexer } from "./indexer";
+import { Indexer, withRpcRetry } from "./indexer";
 import { createApi } from "./api";
+import { ServiceHealth } from "./health";
+import { PostgresPersistence, type DeploymentIdentity } from "./persistence";
 
 async function main() {
   const cfg = loadConfig();
   const store = new ProjectionStore();
+  const health = new ServiceHealth();
+  health.fail("indexing", "indexer has not started");
   const storage = makeStorage(cfg.storageBackend, {
     root: cfg.storageRoot,
     ipfsApiUrl: cfg.ipfsApiUrl,
@@ -26,34 +30,74 @@ async function main() {
   const jobService = new JobService(storage, store);
   const emitter = new EventEmitter();
 
-  let deploymentInfo: { chainId: number; contracts: Record<string, string> } | undefined;
+  const dep = JSON.parse(readFileSync(cfg.deploymentsFile, "utf-8"));
+  const deploymentInfo = { chainId: Number(dep.chainId), contracts: dep.contracts as Record<string, string> };
+  const identity: DeploymentIdentity = {
+    chainId: BigInt(dep.chainId).toString(),
+    contracts: dep.contracts,
+    deploymentId: String(dep.timestamp ?? ""),
+  };
+  const persistence = new PostgresPersistence(cfg.databaseUrl, identity);
   try {
-    const dep = JSON.parse(readFileSync(cfg.deploymentsFile, "utf-8"));
-    deploymentInfo = { chainId: dep.chainId, contracts: dep.contracts };
-  } catch {
-    deploymentInfo = undefined;
+    await persistence.initialize();
+    health.recover("persistence");
+  } catch (error) {
+    health.fail("persistence", error);
+    console.error("[orchestrator] database initialization failed:", error);
   }
 
-  const server = createApi(store, jobService, emitter, deploymentInfo);
+  const server = createApi(store, jobService, emitter, deploymentInfo, {
+    requestBodyLimitBytes: cfg.requestBodyLimitBytes,
+    providerFetchTimeoutMs: cfg.providerFetchTimeoutMs,
+    providerHostAllowlist: cfg.providerHostAllowlist,
+    replayStore: persistence,
+    health,
+  });
   server.listen(cfg.port, () => console.log(`[orchestrator] API on :${cfg.port}`));
 
   try {
-    const dep = JSON.parse(readFileSync(cfg.deploymentsFile, "utf-8"));
     const provider = new ethers.JsonRpcProvider(cfg.rpcUrl);
-    await provider.getNetwork();
+    const network = await withRpcRetry(
+      () => provider.getNetwork(),
+      cfg.indexerRpcRetryAttempts,
+      cfg.indexerRpcRetryIntervalMs,
+    );
+    if (network.chainId !== BigInt(dep.chainId)) {
+      throw new Error(`deployment chain ${dep.chainId} does not match RPC chain ${network.chainId}`);
+    }
 
     const market = new ethers.Contract(dep.contracts.JobMarket, dep.abis.JobMarket, provider);
     const verification = new ethers.Contract(dep.contracts.Verification, dep.abis.Verification, provider);
     const rental = new ethers.Contract(dep.contracts.RentalMarket, dep.abis.RentalMarket, provider);
     const registry = new ethers.Contract(dep.contracts.ProviderRegistry, dep.abis.ProviderRegistry, provider);
+    const inference = new ethers.Contract(dep.contracts.InferenceMarket, dep.abis.InferenceMarket, provider);
 
-    const indexer = new Indexer(market, verification, rental, registry, store, emitter);
+    const indexer = new Indexer(
+      market,
+      verification,
+      rental,
+      registry,
+      inference,
+      store,
+      emitter,
+      {
+        persistence,
+        identity,
+        health,
+        getBlockNumber: () => provider.getBlockNumber(),
+        maxBlockRange: cfg.indexerBlockRange,
+        pollIntervalMs: cfg.indexerPollIntervalMs,
+        rpcRetryAttempts: cfg.indexerRpcRetryAttempts,
+        rpcRetryIntervalMs: cfg.indexerRpcRetryIntervalMs,
+      }
+    );
 
     // Stitch automatically once a job's tasks all settle.
     emitter.on("update", async (u: { name: string; payload: any }) => {
       if (u.name === "JobCompleted") {
         try {
           const cid = await jobService.stitchJob(Number(u.payload.jobId));
+          await indexer.persistCurrentSnapshot();
           console.log(`[orchestrator] stitched job ${u.payload.jobId} -> ${cid}`);
         } catch (err) {
           console.error(`[orchestrator] stitch failed:`, err);
@@ -61,10 +105,12 @@ async function main() {
       }
     });
 
-    await indexer.start();
+    await indexer.start(Number(dep.deploymentBlock ?? 0));
     console.log(`[orchestrator] indexing JobMarket at ${await market.getAddress()}`);
+    console.log(`[orchestrator] indexing InferenceMarket at ${await inference.getAddress()}`);
   } catch (err) {
-    console.error("[orchestrator] chain connection failed; serving API only:", err);
+    health.fail("indexing", err);
+    console.error("[orchestrator] chain/indexing failed; serving degraded API:", err);
   }
 }
 

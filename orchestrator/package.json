@@ -8,16 +8,21 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",
+    "smoke:inference": "tsx scripts/smoke-inference.ts",
+    "smoke:rental": "tsx scripts/smoke-rental.ts",
+    "smoke:task": "tsx scripts/smoke-task.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
   "dependencies": {
     "dotenv": "^16.4.5",
     "ethers": "^6.13.2",
+    "pg": "^8.13.1",
     "pngjs": "^7.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.7.4",
+    "@types/pg": "^8.11.10",
     "@types/pngjs": "^6.0.5",
     "tsx": "^4.19.1",
     "typescript": "^5.6.2",
