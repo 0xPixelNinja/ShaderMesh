@@ -60,4 +60,7 @@ Thumbs.db
 .playwright-mcp/
 /shadermesh-option-*.png
 /live-*.png
+/demo-*.png
 /d?.png
+playwright-report/
+test-results/

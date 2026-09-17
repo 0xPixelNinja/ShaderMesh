@@ -1,7 +1,6 @@
 # ShaderMesh local stack.
 #
-#   docker compose up --build                 # full stack
-#   docker compose up --build --scale agent=3 # 3 provider nodes
+#   docker compose up --build                 # full seeded stack
 #
 # Boot order is enforced with healthchecks + depends_on:
 #   chain (hardhat node) -> deployer (deploys + writes addresses) -> services
@@ -43,7 +42,7 @@ services:
 
   # --- Content-addressed storage for inputs/outputs -------------------------
   ipfs:
-    image: ipfs/kubo:latest
+    image: ipfs/kubo@sha256:63f5502f7a01b82a675e45bae81b2f5dfa90248ec4a86cd0a58c218347e1f2d2
     ports:
       - "5001:5001" # API
       - "8080:8080" # gateway
@@ -89,26 +88,57 @@ services:
       DATABASE_URL: postgres://${POSTGRES_USER:-shadermesh}:${POSTGRES_PASSWORD:-shadermesh}@postgres:5432/${POSTGRES_DB:-shadermesh}
       DEPLOYMENTS_FILE: /app/deployments/docker.json
       PORT: "4000"
+      PROVIDER_HOST_ALLOWLIST: provider
     volumes:
       - deployments:/app/deployments:ro
     ports:
       - "4000:4000"
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:4000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
 
-  # --- Provider node: serves the OpenAI-compatible inference endpoint --------
+  # --- Provider node: inference plus lease-bound sandboxed workloads ---------
   provider:
     build:
       context: ./agent
     image: shadermesh/agent
-    command: python inference.py
+    depends_on:
+      seed:
+        condition: service_completed_successfully
+    command: python serve_provider.py
     environment:
-      INFERENCE_HOST: 0.0.0.0
+      RPC_URL: http://chain:8545
+      DEPLOYMENTS_FILE: /app/deployments/docker.json
+      # Hardhat account #1. Test-only and safe only for this local demo.
+      PROVIDER_PRIVATE_KEY: "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d"
       INFERENCE_PORT: "8100"
       INFERENCE_BACKEND: echo
       MODELS: llama-3.1-8b,mistral-7b,qwen2.5-14b
+      INFERENCE_PRICE_SMESH_PER_1K_TOKENS: "0.002"
+      RENTAL_SPEC: '{"gpu":"CPU demo","vram":0,"region":"local","models":["llama-3.1-8b","mistral-7b","qwen2.5-14b"],"endpoint":"http://provider:8100"}'
+      POLL_SECS: "30"
+      # A provider-approved local workload. Production images require a sha256 digest.
+      LEASE_ALLOWED_MANIFEST: ${DEMO_LEASE_MANIFEST:-ipfs://bafybeigdyrzt5sfp7udm7hu76uh7y26nf3ayu5ol5qi2ngv3a6h4q}
+      LEASE_WORKLOAD_IMAGE: shadermesh/agent
+      LEASE_WORKLOAD_COMMAND: '["python","-c","import time; time.sleep(86400)"]'
+      LEASE_ALLOW_MUTABLE_IMAGE: "true"
+      LEASE_MEMORY_LIMIT: 512m
+      LEASE_CPU_COUNT: "0.5"
+      LEASE_PIDS_LIMIT: "64"
+    volumes:
+      - deployments:/app/deployments:ro
+      - /var/run/docker.sock:/var/run/docker.sock
     ports:
       - "8100:8100"
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8100/v1/models', timeout=2)"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
 
   # --- One-shot: seed real listings and a lease so the dashboard is populated -
   seed:
@@ -118,12 +148,12 @@ services:
         condition: service_healthy
       deployer:
         condition: service_completed_successfully
-      provider:
-        condition: service_started
     environment:
       RPC_URL: http://chain:8545
       DEPLOYMENTS_FILE: /app/deployments/docker.json
       INFERENCE_ENDPOINT: http://provider:8100
+      DEMO_LEASE_INTERVALS: "144"
+      DEMO_LEASE_MANIFEST: ${DEMO_LEASE_MANIFEST:-ipfs://bafybeigdyrzt5sfp7udm7hu76uh7y26nf3ayu5ol5qi2ngv3a6h4q}
     command: python seed_demo.py
     volumes:
       - deployments:/app/deployments:ro
@@ -133,13 +163,20 @@ services:
   web:
     build:
       context: ./web
+      args:
+        NEXT_PUBLIC_DEFAULT_LEASE_MANIFEST: ${DEMO_LEASE_MANIFEST:-ipfs://bafybeigdyrzt5sfp7udm7hu76uh7y26nf3ayu5ol5qi2ngv3a6h4q}
     image: shadermesh/web
     depends_on:
       orchestrator:
-        condition: service_started
+        condition: service_healthy
     ports:
       - "3000:3000"
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
 
 volumes:
   deployments:

@@ -1,0 +1,51 @@
+name: shadermesh-provider
+
+services:
+  provider:
+    build:
+      context: ./agent
+    image: shadermesh/agent
+    command: python serve_provider.py
+    env_file:
+      - path: ./agent/.env
+        required: false
+    environment:
+      DEPLOYMENTS_FILE: /app/deployments/sepolia.json
+      INFERENCE_PORT: ${INFERENCE_PORT:-8100}
+      OLLAMA_URL: ${OLLAMA_URL:-http://host.docker.internal:11434}
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    volumes:
+      - ${SEPOLIA_DEPLOYMENT_FILE:-./contracts/deployments/sepolia.json}:/app/deployments/sepolia.json:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - ${INFERENCE_PORT:-8100}:${INFERENCE_PORT:-8100}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os, urllib.request; urllib.request.urlopen('http://localhost:' + os.environ.get('INFERENCE_PORT', '8100') + '/health', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+
+  task-worker:
+    profiles: ["tasks"]
+    build:
+      context: ./agent
+    image: shadermesh/agent
+    command: python agent.py
+    env_file:
+      - path: ./agent/.env
+        required: false
+    environment:
+      DEPLOYMENTS_FILE: /app/deployments/sepolia.json
+      STORAGE_BACKEND: ipfs
+      EXECUTOR_BACKEND: docker
+      JOB_IMAGE: shadermesh/job-deterministic
+      CHALLENGER: "false"
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    volumes:
+      - ${SEPOLIA_DEPLOYMENT_FILE:-./contracts/deployments/sepolia.json}:/app/deployments/sepolia.json:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped

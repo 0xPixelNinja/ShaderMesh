@@ -1,0 +1,83 @@
+name: shadermesh-sepolia
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-shadermesh}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in the untracked root .env}
+      POSTGRES_DB: ${POSTGRES_DB:-shadermesh}
+    volumes:
+      - sepolia_pg_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-shadermesh}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  ipfs:
+    image: ipfs/kubo@sha256:63f5502f7a01b82a675e45bae81b2f5dfa90248ec4a86cd0a58c218347e1f2d2
+    ports:
+      - ${IPFS_API_BIND:-127.0.0.1}:${IPFS_API_PORT:-5001}:5001
+      - ${IPFS_GATEWAY_BIND:-0.0.0.0}:${IPFS_GATEWAY_PORT:-8080}:8080
+    volumes:
+      - sepolia_ipfs_data:/data/ipfs
+    restart: unless-stopped
+
+  orchestrator:
+    build:
+      context: ./orchestrator
+    image: shadermesh/orchestrator
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ipfs:
+        condition: service_started
+    environment:
+      RPC_URL: ${SEPOLIA_RPC_URL:?set SEPOLIA_RPC_URL in the untracked root .env}
+      IPFS_API_URL: http://ipfs:5001
+      DATABASE_URL: postgres://${POSTGRES_USER:-shadermesh}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-shadermesh}
+      DEPLOYMENTS_FILE: /app/deployments/sepolia.json
+      PORT: "4000"
+      PROVIDER_HOST_ALLOWLIST: ${PROVIDER_HOST_ALLOWLIST:?set PROVIDER_HOST_ALLOWLIST to exact provider hostnames}
+      PROVIDER_FETCH_TIMEOUT_MS: ${PROVIDER_FETCH_TIMEOUT_MS:-120000}
+      REQUEST_BODY_LIMIT_BYTES: ${REQUEST_BODY_LIMIT_BYTES:-1048576}
+      INDEXER_BLOCK_RANGE: ${INDEXER_BLOCK_RANGE:-10}
+    volumes:
+      - ${SEPOLIA_DEPLOYMENT_FILE:-./contracts/deployments/sepolia.json}:/app/deployments/sepolia.json:ro
+    ports:
+      - ${ORCHESTRATOR_BIND:-0.0.0.0}:${ORCHESTRATOR_PORT:-4000}:4000
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:4000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  web:
+    build:
+      context: ./web
+      args:
+        NEXT_PUBLIC_ORCHESTRATOR_URL: ${ORCHESTRATOR_PUBLIC_URL:?set ORCHESTRATOR_PUBLIC_URL}
+        NEXT_PUBLIC_RPC_URL: ${PUBLIC_SEPOLIA_RPC_URL:?set a browser-safe PUBLIC_SEPOLIA_RPC_URL}
+        NEXT_PUBLIC_CHAIN_ID: ${NEXT_PUBLIC_CHAIN_ID:-11155111}
+        NEXT_PUBLIC_INFERENCE_AUTH_TTL_SECONDS: ${NEXT_PUBLIC_INFERENCE_AUTH_TTL_SECONDS:-120}
+        NEXT_PUBLIC_DEFAULT_INFERENCE_CREDIT_SMESH: ${NEXT_PUBLIC_DEFAULT_INFERENCE_CREDIT_SMESH:-10}
+        NEXT_PUBLIC_DEFAULT_LEASE_MANIFEST: ${NEXT_PUBLIC_DEFAULT_LEASE_MANIFEST:-}
+    image: shadermesh/web
+    depends_on:
+      orchestrator:
+        condition: service_healthy
+    ports:
+      - ${WEB_BIND:-0.0.0.0}:${WEB_PORT:-3000}:3000
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  sepolia_ipfs_data:
+  sepolia_pg_data:
