@@ -76,18 +76,20 @@ export default function LeasesPage() {
 
   if (!address) {
     return (
-      <Card>
-        <Empty
-          icon="wallet"
-          title="Connect your wallet to see your leases"
-          hint="A lease belongs to the account that funded its escrow, so the dashboard needs to know which account is yours."
-          action={
-            <Button variant="primary" icon="wallet" onClick={connect} loading={connecting}>
-              Connect wallet
-            </Button>
-          }
-        />
-      </Card>
+      <div className="mx-auto max-w-lg">
+        <Card>
+          <Empty
+            icon="wallet"
+            title="Connect your wallet to see your leases"
+            hint="A lease belongs to the account that funded its escrow, so the dashboard needs to know which account is yours."
+            action={
+              <Button variant="primary" icon="wallet" onClick={connect} loading={connecting}>
+                Connect wallet
+              </Button>
+            }
+          />
+        </Card>
+      </div>
     );
   }
 
