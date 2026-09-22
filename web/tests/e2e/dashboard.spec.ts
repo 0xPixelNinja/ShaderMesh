@@ -108,8 +108,6 @@ test("explorer tabs expose indexed read-only sections", async ({ page }) => {
 
   const sections = [
     { tab: "Leases", headings: ["Rental leases"], loading: ["Loading leases"] },
-    { tab: "Jobs and tasks", headings: ["Verifiable jobs", "Tasks"], loading: ["Loading jobs", "Loading tasks"] },
-    { tab: "Disputes", headings: ["Verification disputes"], loading: ["Loading disputes"] },
     { tab: "Events and slashes", headings: ["Chronological activity"], loading: ["Loading event history"] },
   ];
 

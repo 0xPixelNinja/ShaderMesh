@@ -4,14 +4,12 @@ import { useState } from "react";
 import { useApi } from "@/lib/api";
 import { Card, CardHead, CopyValue, Empty, StatusTag } from "@/components/ui";
 import { fmtSmesh, shortHash } from "@/lib/format";
-import type { ChainEvent, Dispute, Job, JsonValue, Lease, Task } from "@/lib/types";
+import type { ChainEvent, JsonValue, Lease } from "@/lib/types";
 
-type Tab = "leases" | "jobs" | "disputes" | "activity";
+type Tab = "leases" | "activity";
 
 const tabs: { id: Tab; label: string }[] = [
   { id: "leases", label: "Leases" },
-  { id: "jobs", label: "Jobs and tasks" },
-  { id: "disputes", label: "Disputes" },
   { id: "activity", label: "Events and slashes" },
 ];
 
@@ -36,19 +34,13 @@ export default function ExplorerPage() {
   const [tab, setTab] = useState<Tab>("leases");
   const [activityFilter, setActivityFilter] = useState<"all" | "slashes">("all");
   const leasesState = useApi<Lease[]>("/leases", 4000);
-  const jobsState = useApi<Job[]>("/jobs", 5000);
-  const tasksState = useApi<Task[]>("/tasks", 5000);
-  const disputesState = useApi<Dispute[]>("/disputes", 4000);
   const eventsState = useApi<ChainEvent[]>("/events/history?limit=250", 3000);
   const leases = [...(leasesState.data ?? [])].sort((a, b) => b.id - a.id);
-  const jobs = [...(jobsState.data ?? [])].sort((a, b) => b.id - a.id);
-  const tasks = [...(tasksState.data ?? [])].sort((a, b) => b.jobId - a.jobId || a.index - b.index);
-  const disputes = [...(disputesState.data ?? [])].sort((a, b) => b.jobId - a.jobId || a.index - b.index);
   const events = [...(eventsState.data ?? [])].reverse();
   const visibleEvents = activityFilter === "slashes"
     ? events.filter((event) => /slash/i.test(event.name) || "slashed" in event.payload)
     : events;
-  const error = leasesState.error ?? jobsState.error ?? tasksState.error ?? disputesState.error ?? eventsState.error;
+  const error = leasesState.error ?? eventsState.error;
 
   return (
     <div className="space-y-4">
@@ -82,30 +74,6 @@ export default function ExplorerPage() {
           <CardHead title="Rental leases" sub={`${leases.length} indexed`} />
           {leasesState.loading ? <Skeleton label="Loading leases" /> : leasesState.error ? <Empty title="Leases could not be loaded" hint="Check the orchestrator connection" /> : leases.length === 0 ? <Empty title="No leases recorded" hint="Lease requests and lifecycle state will appear here" /> : (
             <div className="overflow-x-auto"><table className="w-full min-w-[1080px] border-collapse"><thead><tr className="text-left text-[11px] uppercase tracking-wide text-faint"><th className="border-b border-line px-4 py-2.5 font-medium">Lease</th><th className="border-b border-line px-4 py-2.5 font-medium">Status</th><th className="border-b border-line px-4 py-2.5 font-medium">Requester</th><th className="border-b border-line px-4 py-2.5 font-medium">Provider</th><th className="border-b border-line px-4 py-2.5 font-medium">Service</th><th className="border-b border-line px-4 py-2.5 font-medium">Escrow / bond</th><th className="border-b border-line px-4 py-2.5 font-medium">Manifest</th></tr></thead><tbody>{leases.map((lease) => <tr key={lease.id} className="text-[13px] hover:bg-hover"><td className="mono border-b border-line px-4 py-3">#{lease.id}<small className="block text-faint">listing #{lease.listingId}</small></td><td className="border-b border-line px-4 py-3"><StatusTag status={lease.status} /></td><td className="border-b border-line px-4 py-3"><CopyValue value={lease.requester} label="requester address" /></td><td className="border-b border-line px-4 py-3"><CopyValue value={lease.provider} label="provider address" /></td><td className="mono border-b border-line px-4 py-3 text-xs text-muted">{lease.settledIntervals} settled · {lease.heartbeatedIntervals} heartbeats<small className="mt-1 block text-faint">{lease.fundedIntervals} funded</small></td><td className="mono border-b border-line px-4 py-3 text-xs">{fmtSmesh(lease.escrow)}<small className="mt-1 block text-faint">{fmtSmesh(lease.bond)} bond</small></td><td className="border-b border-line px-4 py-3"><ProtocolValue value={lease.manifest} label="manifest" /></td></tr>)}</tbody></table></div>
-          )}
-        </Card>
-      </div>
-
-      <div id="panel-jobs" role="tabpanel" aria-labelledby="tab-jobs" hidden={tab !== "jobs"} className="space-y-4">
-        <Card>
-          <CardHead title="Verifiable jobs" sub={`${jobs.length} indexed`} />
-          {jobsState.loading ? <Skeleton label="Loading jobs" /> : jobsState.error ? <Empty title="Jobs could not be loaded" hint="Check the orchestrator connection" /> : jobs.length === 0 ? <Empty title="No verifiable jobs" hint="Posted jobs and completion progress will appear here" /> : (
-            <div className="overflow-x-auto"><table className="w-full min-w-[840px] border-collapse"><thead><tr className="text-left text-[11px] uppercase tracking-wide text-faint"><th className="border-b border-line px-4 py-2.5 font-medium">Job</th><th className="border-b border-line px-4 py-2.5 font-medium">Requester</th><th className="border-b border-line px-4 py-2.5 font-medium">Progress</th><th className="border-b border-line px-4 py-2.5 font-medium">Reward / task</th><th className="border-b border-line px-4 py-2.5 font-medium">Input</th><th className="border-b border-line px-4 py-2.5 font-medium">Result</th></tr></thead><tbody>{jobs.map((job) => <tr key={job.id} className="text-[13px] hover:bg-hover"><td className="mono border-b border-line px-4 py-3">#{job.id}<small className={`block ${job.completed ? "text-success" : "text-accent"}`}>{job.completed ? "Completed" : "Running"}</small></td><td className="border-b border-line px-4 py-3"><CopyValue value={job.requester} label="requester address" /></td><td className="mono border-b border-line px-4 py-3 text-xs">{job.completedTasks} / {job.taskCount}</td><td className="mono border-b border-line px-4 py-3 text-xs">{fmtSmesh(job.rewardPerTask)}</td><td className="border-b border-line px-4 py-3"><ProtocolValue value={job.inputCID} label="input CID" /></td><td className="border-b border-line px-4 py-3"><ProtocolValue value={job.resultCID} label="result CID" /></td></tr>)}</tbody></table></div>
-          )}
-        </Card>
-        <Card>
-          <CardHead title="Tasks" sub={`${tasks.length} indexed`} />
-          {tasksState.loading ? <Skeleton label="Loading tasks" /> : tasksState.error ? <Empty title="Tasks could not be loaded" hint="Check the orchestrator connection" /> : tasks.length === 0 ? <Empty title="No tasks recorded" hint="Tasks are created when a verifiable job is posted" /> : (
-            <div className="overflow-x-auto"><table className="w-full min-w-[760px] border-collapse"><thead><tr className="text-left text-[11px] uppercase tracking-wide text-faint"><th className="border-b border-line px-4 py-2.5 font-medium">Task</th><th className="border-b border-line px-4 py-2.5 font-medium">Status</th><th className="border-b border-line px-4 py-2.5 font-medium">Provider</th><th className="border-b border-line px-4 py-2.5 font-medium">Result hash</th><th className="border-b border-line px-4 py-2.5 font-medium">Output</th></tr></thead><tbody>{tasks.map((task) => <tr key={`${task.jobId}-${task.index}`} className="text-[13px] hover:bg-hover"><td className="mono border-b border-line px-4 py-3">#{task.jobId}:{task.index}</td><td className="border-b border-line px-4 py-3"><StatusTag status={task.status} /></td><td className="border-b border-line px-4 py-3">{task.provider ? <CopyValue value={task.provider} label="provider address" /> : <span className="text-faint">Unclaimed</span>}</td><td className="border-b border-line px-4 py-3"><ProtocolValue value={task.resultHash} label="result hash" /></td><td className="border-b border-line px-4 py-3"><ProtocolValue value={task.outputCID} label="output CID" /></td></tr>)}</tbody></table></div>
-          )}
-        </Card>
-      </div>
-
-      <div id="panel-disputes" role="tabpanel" aria-labelledby="tab-disputes" hidden={tab !== "disputes"}>
-        <Card>
-          <CardHead title="Verification disputes" sub={`${disputes.length} indexed`} />
-          {disputesState.loading ? <Skeleton label="Loading disputes" /> : disputesState.error ? <Empty title="Disputes could not be loaded" hint="Check the orchestrator connection" /> : disputes.length === 0 ? <Empty title="No disputes recorded" hint="Challenges and their voting outcomes will appear here" /> : (
-            <div className="overflow-x-auto"><table className="w-full min-w-[900px] border-collapse"><thead><tr className="text-left text-[11px] uppercase tracking-wide text-faint"><th className="border-b border-line px-4 py-2.5 font-medium">Task</th><th className="border-b border-line px-4 py-2.5 font-medium">Status</th><th className="border-b border-line px-4 py-2.5 font-medium">Provider</th><th className="border-b border-line px-4 py-2.5 font-medium">Provider hash</th><th className="border-b border-line px-4 py-2.5 font-medium">Votes</th><th className="border-b border-line px-4 py-2.5 font-medium">Outcome</th></tr></thead><tbody>{disputes.map((dispute) => <tr key={`${dispute.jobId}-${dispute.index}`} className="text-[13px] hover:bg-hover"><td className="mono border-b border-line px-4 py-3">#{dispute.jobId}:{dispute.index}</td><td className="border-b border-line px-4 py-3"><StatusTag status={dispute.status} /></td><td className="border-b border-line px-4 py-3"><CopyValue value={dispute.provider} label="provider address" /></td><td className="border-b border-line px-4 py-3"><ProtocolValue value={dispute.providerHash} label="provider result hash" /></td><td className="mono border-b border-line px-4 py-3 text-xs"><span className="text-success">{dispute.agreeVotes} uphold</span><span className="mx-1.5 text-faint">/</span><span className="text-danger">{dispute.disagreeVotes} reject</span><small className="mt-1 block text-faint">{dispute.votes.length} total</small></td><td className="border-b border-line px-4 py-3 text-xs text-ink2">{dispute.cheatingUpheld === null ? "Pending resolution" : dispute.cheatingUpheld ? "Cheating upheld" : "Challenge rejected"}</td></tr>)}</tbody></table></div>
           )}
         </Card>
       </div>
