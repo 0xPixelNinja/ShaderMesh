@@ -56,6 +56,38 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     })();
   }, []);
 
+  // Restore an already-authorized account on load. eth_accounts does not prompt,
+  // so a page refresh keeps the session instead of forcing a reconnect.
+  useEffect(() => {
+    const eth = getEthereumProvider();
+    if (!eth) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const accounts = await eth.request({ method: "eth_accounts" });
+        if (!cancelled && accounts?.[0]) setAddress(accounts[0]);
+      } catch {
+        // no authorized account; the user connects explicitly
+      }
+    })();
+
+    const onAccountsChanged = (accounts: string[]) => {
+      setAddress(accounts?.[0] ?? null);
+      if (!accounts?.[0]) setBalanceWei(0n);
+    };
+    // A network switch invalidates balances read from the previous chain.
+    const onChainChanged = () => window.location.reload();
+
+    eth.on?.("accountsChanged", onAccountsChanged);
+    eth.on?.("chainChanged", onChainChanged);
+    return () => {
+      cancelled = true;
+      eth.removeListener?.("accountsChanged", onAccountsChanged);
+      eth.removeListener?.("chainChanged", onChainChanged);
+    };
+  }, []);
+
   async function connect() {
     const eth = getEthereumProvider();
     if (!eth) {
