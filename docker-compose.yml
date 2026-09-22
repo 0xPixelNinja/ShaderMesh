@@ -161,6 +161,8 @@ services:
       RPC_URL: http://chain:8545
       DEPLOYMENTS_FILE: /app/deployments/docker.json
       DEMO_LEASE_INTERVALS: "144"
+      # Optional: fund a browser wallet on the fresh local chain. Devnet only.
+      DEMO_FUND_ADDRESS: ${DEMO_FUND_ADDRESS:-}
       DEMO_LEASE_MANIFEST: ${DEMO_LEASE_MANIFEST:-ipfs://bafybeigdyrzt5sfp7udm7hu76uh7y26nf3ayu5ol5qi2ngv3a6h4q}
     command: python seed_demo.py
     volumes:

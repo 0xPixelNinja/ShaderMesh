@@ -52,6 +52,12 @@ LEASE_INTERVALS = int(os.environ.get("DEMO_LEASE_INTERVALS", "144"))
 # Block cadence for the local demo chain, so chain time tracks the wall clock.
 MINING_INTERVAL_MS = int(os.environ.get("DEMO_MINING_INTERVAL_MS", "1000"))
 
+# Optional browser-wallet address to fund, so a browser account can drive the
+# demo immediately after the chain is reset. Local devnet only.
+FUND_ADDRESS = os.environ.get("DEMO_FUND_ADDRESS", "").strip()
+FUND_ETH = float(os.environ.get("DEMO_FUND_ETH", "100"))
+FUND_SMESH = float(os.environ.get("DEMO_FUND_SMESH", "5000"))
+
 
 def wei(n: float) -> int:
     return Web3.to_wei(n, "ether")
@@ -91,6 +97,15 @@ def main() -> None:
         listing_id = p.create_listing()
         listings.append((p, listing_id))
         print(f"listed {gpu} as listing #{listing_id}")
+
+    if FUND_ADDRESS:
+        target = Web3.to_checksum_address(FUND_ADDRESS)
+        receipt = owner.w3.eth.send_transaction(
+            {"from": owner.address, "to": target, "value": wei(FUND_ETH)}
+        )
+        owner.w3.eth.wait_for_transaction_receipt(receipt)
+        owner.tx(owner.token.functions.transfer(target, wei(FUND_SMESH)))
+        print(f"funded browser wallet {target} with {FUND_ETH} ETH and {FUND_SMESH} SMESH")
 
     renter = RentalRenter(ChainClient.from_unlocked_account(RPC, dep, 4))
     owner.tx(owner.token.functions.transfer(renter.chain.address, wei(1000)))
