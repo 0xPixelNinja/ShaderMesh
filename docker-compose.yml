@@ -115,11 +115,18 @@ services:
       # Hardhat account #1. Test-only and safe only for this local demo.
       PROVIDER_PRIVATE_KEY: "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d"
       INFERENCE_PORT: "8100"
-      INFERENCE_BACKEND: echo
-      MODELS: llama-3.1-8b,mistral-7b,qwen2.5-14b
+      # Serve real models from the host GPU via Ollama.
+      INFERENCE_BACKEND: ${INFERENCE_BACKEND:-ollama}
+      OLLAMA_URL: ${OLLAMA_URL:-http://host.docker.internal:11434}
+      MODELS: ${MODELS:-gemma3:4b,qwen3:0.6b}
       INFERENCE_PRICE_SMESH_PER_1K_TOKENS: "0.002"
-      RENTAL_SPEC: '{"gpu":"CPU demo","vram":0,"region":"local","models":["llama-3.1-8b","mistral-7b","qwen2.5-14b"],"endpoint":"http://provider:8100"}'
-      POLL_SECS: "30"
+      CAPABILITIES: '{"gpu":"NVIDIA GeForce RTX 4070 Laptop GPU","vram":8,"cpu":"host","region":"local"}'
+      RENTAL_SPEC: '{"gpu":"RTX 4070 Laptop GPU","vram":8,"region":"local","models":["gemma3:4b","qwen3:0.6b"],"endpoint":"http://provider:8100"}'
+      # Short interval and fast polling so settlement is visible during a live demo.
+      # Price is per interval: 0.02 per 60s interval reads as $1.20/hr in the UI.
+      RENTAL_INTERVAL_SECS: ${RENTAL_INTERVAL_SECS:-60}
+      RENTAL_PRICE_USD: ${RENTAL_PRICE_USD:-0.02}
+      POLL_SECS: ${POLL_SECS:-10}
       # A provider-approved local workload. Production images require a sha256 digest.
       LEASE_ALLOWED_MANIFEST: ${DEMO_LEASE_MANIFEST:-ipfs://bafybeigdyrzt5sfp7udm7hu76uh7y26nf3ayu5ol5qi2ngv3a6h4q}
       LEASE_WORKLOAD_IMAGE: shadermesh/agent
@@ -128,6 +135,8 @@ services:
       LEASE_MEMORY_LIMIT: 512m
       LEASE_CPU_COUNT: "0.5"
       LEASE_PIDS_LIMIT: "64"
+    extra_hosts:
+      - host.docker.internal:host-gateway
     volumes:
       - deployments:/app/deployments:ro
       - /var/run/docker.sock:/var/run/docker.sock
@@ -151,7 +160,6 @@ services:
     environment:
       RPC_URL: http://chain:8545
       DEPLOYMENTS_FILE: /app/deployments/docker.json
-      INFERENCE_ENDPOINT: http://provider:8100
       DEMO_LEASE_INTERVALS: "144"
       DEMO_LEASE_MANIFEST: ${DEMO_LEASE_MANIFEST:-ipfs://bafybeigdyrzt5sfp7udm7hu76uh7y26nf3ayu5ol5qi2ngv3a6h4q}
     command: python seed_demo.py
