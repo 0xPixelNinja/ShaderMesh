@@ -139,7 +139,7 @@ export function Shell({ children }: { children: ReactNode }) {
         </header>
 
         <nav
-          aria-label="Primary"
+          aria-label="Mobile navigation"
           className="flex gap-1 overflow-x-auto border-b border-line bg-chrome px-3 py-2 md:hidden"
         >
           {ALL_ITEMS.map((item) => {

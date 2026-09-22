@@ -5,7 +5,7 @@ const routes = [
   { path: "/rent", title: "Rent GPUs", navLabel: "Rent GPUs" },
   { path: "/leases", title: "My leases", navLabel: "My leases" },
   { path: "/models", title: "Models", navLabel: "Models" },
-  { path: "/providers", title: "Provider console", navLabel: "Providers" },
+  { path: "/providers", title: "Provider console", navLabel: "Provider console" },
   { path: "/explorer", title: "Explorer", navLabel: "Explorer" },
 ] as const;
 
