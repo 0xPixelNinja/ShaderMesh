@@ -13,7 +13,17 @@ export type IconName =
   | "chevron"
   | "check"
   | "bolt"
-  | "arrow";
+  | "arrow"
+  | "copy"
+  | "wallet"
+  | "shield"
+  | "clock"
+  | "alert"
+  | "plus"
+  | "close"
+  | "pulse"
+  | "send"
+  | "inbox";
 
 const PATHS: Record<IconName, ReactElement> = {
   dashboard: (
@@ -56,6 +66,41 @@ const PATHS: Record<IconName, ReactElement> = {
   check: <path d="M20 6L9 17l-5-5" />,
   bolt: <path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z" />,
   arrow: <path d="M5 12h14M13 6l6 6-6 6" />,
+  copy: (
+    <>
+      <rect x="9" y="9" width="12" height="12" rx="2" />
+      <path d="M5 15V5a2 2 0 012-2h10" />
+    </>
+  ),
+  wallet: (
+    <>
+      <path d="M3 7a2 2 0 012-2h12a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+      <path d="M16 12h5M19 12h.01" />
+    </>
+  ),
+  shield: <path d="M12 3l7 3v6c0 4-3 7-7 9-4-2-7-5-7-9V6l7-3z" />,
+  clock: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3 2" />
+    </>
+  ),
+  alert: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 8v5M12 16h.01" />
+    </>
+  ),
+  plus: <path d="M12 5v14M5 12h14" />,
+  close: <path d="M6 6l12 12M18 6L6 18" />,
+  pulse: <path d="M3 12h4l2-6 4 12 2-6h6" />,
+  send: <path d="M4 12l16-8-6 16-2-6-8-2z" />,
+  inbox: (
+    <>
+      <path d="M3 13h5l1 3h6l1-3h5" />
+      <path d="M5 5h14l2 8v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5z" />
+    </>
+  ),
 };
 
 export function Icon({ name, ...props }: { name: IconName } & SVGProps<SVGSVGElement>) {
