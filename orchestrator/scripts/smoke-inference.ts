@@ -10,7 +10,7 @@ const rpcUrl = process.env.RPC_URL ?? smokeEnv.SEPOLIA_RPC_URL ?? "http://127.0.
 const gatewayUrl = process.env.ORCHESTRATOR_URL ?? "http://127.0.0.1:4000";
 const deploymentsFile = process.env.DEPLOYMENTS_FILE ?? "../contracts/deployments/localhost.json";
 const accountIndex = Number(process.env.SMOKE_ACCOUNT_INDEX ?? 4);
-const model = process.env.SMOKE_MODEL ?? "llama-3.1-8b";
+const model = process.env.SMOKE_MODEL ?? "gemma3:4b";
 const privateKey = process.env.SMOKE_PRIVATE_KEY ?? smokeEnv.PRIVATE_KEY;
 
 async function waitForJson<T>(path: string, accept: (value: T) => boolean): Promise<T> {

@@ -111,6 +111,10 @@ jobs:
   full-stack:
     runs-on: ubuntu-latest
     needs: [contracts, agent, orchestrator, web, simulator]
+    # CI runners have no GPU or Ollama, so the provider serves the deterministic
+    # echo backend. It answers for any advertised model identifier.
+    env:
+      INFERENCE_BACKEND: echo
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
