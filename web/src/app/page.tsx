@@ -3,129 +3,296 @@
 import Link from "next/link";
 import { useApi } from "@/lib/api";
 import { useWallet } from "@/components/WalletProvider";
-import { Card, CardHead, GpuChip, StatusTag, Heartbeats, Empty, RepBar } from "@/components/ui";
+import {
+  Button,
+  Card,
+  CardHead,
+  Empty,
+  GpuChip,
+  Heartbeats,
+  RepBar,
+  Skeleton,
+  Stat,
+  StatusTag,
+  Td,
+  Th,
+  Tr,
+} from "@/components/ui";
 import { Icon } from "@/components/icons";
-import { fmtUsd, shortAddr, repScore } from "@/lib/format";
+import { fmtInterval, fmtUsd, repScore, shortAddr, usd } from "@/lib/format";
 import type { Lease, Listing, Provider } from "@/lib/types";
 
+function perHour(pricePerInterval: string, intervalSecs: number): number {
+  if (!intervalSecs) return 0;
+  return usd(pricePerInterval) * (3600 / intervalSecs);
+}
+
 export default function OverviewPage() {
-  const { address } = useWallet();
-  const listings = useApi<Listing[]>("/listings?all=true").data ?? [];
-  const leases = useApi<Lease[]>("/leases").data ?? [];
-  const providers = useApi<Provider[]>("/providers").data ?? [];
+  const { address, connect, connecting } = useWallet();
+  const listingsState = useApi<Listing[]>("/listings?all=true", 5000);
+  const leasesState = useApi<Lease[]>("/leases", 4000);
+  const providersState = useApi<Provider[]>("/providers", 8000);
+
+  const listings = listingsState.data ?? [];
+  const leases = leasesState.data ?? [];
+  const providers = providersState.data ?? [];
 
   const listingById = new Map(listings.map((l) => [l.id, l]));
   const active = leases.filter((l) => l.status === "Active");
-  const mine = address ? active.filter((l) => l.requester.toLowerCase() === address.toLowerCase()) : active;
+  const available = listings.filter((l) => l.available);
 
-  const streamingPerHour = active.reduce((sum, l) => {
-    const perHour = (Number(l.pricePerInterval) / 1e18) * (l.intervalSecs ? 3600 / l.intervalSecs : 0);
-    return sum + perHour;
-  }, 0);
+  // Only ever attribute leases to a connected account. Without a wallet there is
+  // no "yours", so the panel prompts to connect instead of showing the network.
+  const mine = address
+    ? active.filter((l) => l.requester.toLowerCase() === address.toLowerCase())
+    : [];
 
-  const stats = [
-    { k: "GPUs available", v: String(listings.filter((l) => l.available).length), c: `${providers.length} providers` },
-    { k: "Active leases", v: String(active.length), c: address ? `${mine.length} yours` : "network wide" },
-    { k: "Streaming now", v: `$${streamingPerHour.toFixed(2)}`, c: "per hour, from escrow" },
-    { k: "Providers", v: String(providers.length), c: `${providers.filter((p) => p.attested).length} attested` },
-  ];
+  const streamingPerHour = active.reduce(
+    (sum, l) => sum + perHour(l.pricePerInterval, l.intervalSecs),
+    0,
+  );
+  const attested = providers.filter((p) => p.attested).length;
 
   return (
-    <div>
-      <section className="mb-5 grid grid-cols-4 rounded-lg border border-line bg-surface">
-        {stats.map((s, i) => (
-          <div key={s.k} className={`px-[18px] py-4 ${i < 3 ? "border-r border-line" : ""}`}>
-            <div className="text-xs font-medium text-muted">{s.k}</div>
-            <div className="mono mt-2 text-2xl font-semibold tracking-tight">{s.v}</div>
-            <div className="mt-1 text-xs text-faint">{s.c}</div>
-          </div>
-        ))}
+    <div className="space-y-5">
+      <section className="grid grid-cols-2 divide-line rounded-lg border border-line bg-surface sm:grid-cols-4 sm:divide-x">
+        <div className="border-b border-line sm:border-b-0">
+          <Stat
+            label="GPUs available"
+            value={available.length}
+            sub={`${listings.length} listed in total`}
+          />
+        </div>
+        <div className="border-b border-l border-line sm:border-b-0 sm:border-l-0">
+          <Stat
+            label="Active leases"
+            value={active.length}
+            sub={address ? `${mine.length} yours` : "connect to see yours"}
+          />
+        </div>
+        <div className="border-line">
+          <Stat
+            label="Streaming now"
+            value={`$${streamingPerHour.toFixed(2)}`}
+            sub="per hour, from escrow"
+            tone="accent"
+          />
+        </div>
+        <div className="border-l border-line sm:border-l-0">
+          <Stat label="Providers" value={providers.length} sub={`${attested} attested`} />
+        </div>
       </section>
 
-      <div className="grid grid-cols-[1.6fr_1fr] items-start gap-5">
-        <Card>
-          <CardHead title="Your active leases" action={<Link href="/leases" className="text-xs font-medium text-accent">Manage all</Link>} />
-          {mine.length === 0 ? (
-            <Empty title="No active leases" hint="Rent a GPU to get started" />
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[680px] border-collapse">
-                <thead>
-                  <tr className="text-left text-[11px] uppercase tracking-wide text-faint">
-                    <th className="border-b border-line px-4 py-2.5 font-medium">GPU</th>
-                    <th className="border-b border-line px-4 py-2.5 font-medium">Provider</th>
-                    <th className="border-b border-line px-4 py-2.5 font-medium">Uptime</th>
-                    <th className="border-b border-line px-4 py-2.5 font-medium">Streamed</th>
-                    <th className="border-b border-line px-4 py-2.5 font-medium">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {mine.map((l) => {
-                    const gpu = listingById.get(l.listingId)?.gpu || "GPU";
-                    const models = listingById.get(l.listingId)?.models ?? [];
-                    const streamed = (BigInt(l.pricePerInterval) * BigInt(l.settledIntervals)).toString();
-                    return (
-                      <tr key={l.id} className="text-[13px] hover:bg-hover">
-                        <td className="border-b border-line px-4 py-3">
-                          <div className="flex items-center gap-2.5">
-                            <GpuChip />
-                            <div>
-                              <b className="font-medium">{gpu}</b>
-                              <small className="mono block text-[11px] text-faint">{models[0] ?? "container"}</small>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="mono border-b border-line px-4 py-3 text-xs text-muted">{shortAddr(l.provider)}</td>
-                        <td className="border-b border-line px-4 py-3">
-                          <Heartbeats up={Math.min(l.heartbeatedIntervals, 8)} total={Math.min(Math.max(l.fundedIntervals, 1), 8)} />
-                        </td>
-                        <td className="mono border-b border-line px-4 py-3">{fmtUsd(streamed)}</td>
-                        <td className="border-b border-line px-4 py-3"><StatusTag status={l.status} /></td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </Card>
-
-        <div className="flex flex-col gap-5">
+      <div className="grid items-start gap-5 xl:grid-cols-[1.55fr_1fr]">
+        <div className="flex min-w-0 flex-col gap-5">
           <Card>
-            <CardHead title="Top providers" action={<Link href="/rent" className="text-xs font-medium text-accent">Browse</Link>} />
-            {providers.length === 0 ? (
-              <Empty title="No providers yet" />
+            <CardHead
+              title="Your active leases"
+              sub="Compute you are currently paying for"
+              action={
+                <Link
+                  href="/leases"
+                  className="rounded-md px-1 text-[13px] font-medium text-accent hover:text-accent-hover"
+                >
+                  Manage all
+                </Link>
+              }
+            />
+            {!address ? (
+              <Empty
+                icon="wallet"
+                title="Connect a wallet to see your leases"
+                hint="Leases are held by the account that funded the escrow, so the dashboard needs to know which account is yours."
+                action={
+                  <Button variant="primary" icon="wallet" onClick={connect} loading={connecting}>
+                    Connect wallet
+                  </Button>
+                }
+              />
+            ) : leasesState.loading ? (
+              <Skeleton label="Loading your leases" rows={2} />
+            ) : mine.length === 0 ? (
+              <Empty
+                icon="gpu"
+                title="No active leases"
+                hint="Rent a GPU from a staked provider. Escrow is deposited up front and streams to the provider only for intervals they prove they served."
+                action={
+                  <Link href="/rent">
+                    <Button variant="primary" icon="gpu">
+                      Browse GPUs
+                    </Button>
+                  </Link>
+                }
+              />
             ) : (
-              <div className="px-2 py-1">
-                {providers.slice(0, 4).map((p, i) => (
-                  <div key={p.address} className="flex items-center gap-3 px-2 py-2.5">
-                    <span className="mono w-4 text-right text-xs text-faint">{i + 1}</span>
-                    <div className="min-w-0">
-                      <div className="mono text-xs">{shortAddr(p.address)}</div>
-                      <div className="text-[11px] text-faint">{p.gpu || "compute"}{p.attested ? " · attested" : ""}</div>
-                    </div>
-                    <span className="ml-auto"><RepBar score={repScore(p.reputation)} /></span>
-                  </div>
-                ))}
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[720px] border-collapse">
+                  <thead>
+                    <tr>
+                      <Th>GPU</Th>
+                      <Th>Provider</Th>
+                      <Th>Uptime</Th>
+                      <Th align="right">Streamed</Th>
+                      <Th>Status</Th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {mine.map((l) => {
+                      const listing = listingById.get(l.listingId);
+                      const streamed = (
+                        BigInt(l.pricePerInterval) * BigInt(l.settledIntervals)
+                      ).toString();
+                      return (
+                        <Tr key={l.id}>
+                          <Td>
+                            <div className="flex items-center gap-3">
+                              <GpuChip live />
+                              <div className="min-w-0">
+                                <div className="font-medium text-ink">{listing?.gpu || "GPU"}</div>
+                                <div className="mono truncate text-[12px] text-faint">
+                                  {listing?.models[0] ?? "container workload"}
+                                </div>
+                              </div>
+                            </div>
+                          </Td>
+                          <Td className="mono text-muted">{shortAddr(l.provider)}</Td>
+                          <Td>
+                            <Heartbeats
+                              up={l.heartbeatedIntervals}
+                              total={Math.min(Math.max(l.fundedIntervals, 1), 10)}
+                              live={l.status === "Active"}
+                            />
+                          </Td>
+                          <Td align="right" className="mono font-medium">
+                            {fmtUsd(streamed)}
+                          </Td>
+                          <Td>
+                            <StatusTag status={l.status} />
+                          </Td>
+                        </Tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             )}
           </Card>
 
           <Card>
-            <CardHead title="Run a model" />
-            <div className="p-4">
-              <div className="mb-3 flex items-center gap-2.5">
-                <span className="grid h-[34px] w-[34px] place-items-center rounded-lg border border-line bg-panel text-accent">
-                  <Icon name="model" className="h-[17px] w-[17px]" />
+            <CardHead
+              title="Available capacity"
+              sub="Staked providers ready to accept a lease"
+              action={
+                <Link
+                  href="/rent"
+                  className="rounded-md px-1 text-[13px] font-medium text-accent hover:text-accent-hover"
+                >
+                  Rent a GPU
+                </Link>
+              }
+            />
+            {listingsState.loading ? (
+              <Skeleton label="Loading capacity" rows={3} />
+            ) : available.length === 0 ? (
+              <Empty
+                icon="gpu"
+                title="No capacity listed"
+                hint="Providers publish capacity from the provider console once they have staked and passed attestation."
+              />
+            ) : (
+              <ul className="rule">
+                {available.slice(0, 4).map((l) => (
+                  <li key={l.id} className="flex items-center gap-3 px-5 py-3.5">
+                    <GpuChip />
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate font-medium text-ink">{l.gpu || "Compute"}</div>
+                      <div className="truncate text-[13px] text-muted">
+                        {l.vramGB ? `${l.vramGB} GB` : "CPU"}
+                        {l.region ? ` · ${l.region}` : ""}
+                        {l.models.length ? ` · ${l.models.length} model${l.models.length > 1 ? "s" : ""}` : ""}
+                      </div>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <div className="mono font-medium text-ink">
+                        ${perHour(l.pricePerInterval, l.intervalSecs).toFixed(2)}
+                        <span className="text-[13px] font-normal text-faint">/hr</span>
+                      </div>
+                      <div className="text-[12px] text-faint">
+                        {fmtInterval(l.intervalSecs)} intervals
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+        </div>
+
+        <div className="flex min-w-0 flex-col gap-5">
+          <Card>
+            <CardHead
+              title="Top providers"
+              sub="Ranked by reputation"
+              action={
+                <Link
+                  href="/providers"
+                  className="rounded-md px-1 text-[13px] font-medium text-accent hover:text-accent-hover"
+                >
+                  Console
+                </Link>
+              }
+            />
+            {providersState.loading ? (
+              <Skeleton label="Loading providers" rows={3} />
+            ) : providers.length === 0 ? (
+              <Empty
+                icon="providers"
+                title="No providers registered"
+                hint="Providers appear here after they register and stake collateral."
+              />
+            ) : (
+              <ul className="rule">
+                {[...providers]
+                  .sort((a, b) => b.reputation - a.reputation)
+                  .slice(0, 4)
+                  .map((p, i) => (
+                    <li key={p.address} className="flex items-center gap-3 px-5 py-3">
+                      <span className="mono w-4 shrink-0 text-right text-[13px] text-faint">
+                        {i + 1}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="mono truncate text-[13px] text-ink2">
+                          {shortAddr(p.address)}
+                        </div>
+                        <div className="truncate text-[12px] text-faint">
+                          {p.gpu || "compute"}
+                          {p.attested ? " · attested" : ""}
+                        </div>
+                      </div>
+                      <RepBar score={repScore(p.reputation)} />
+                    </li>
+                  ))}
+              </ul>
+            )}
+          </Card>
+
+          <Card>
+            <CardHead title="Run a model" sub="Managed inference" />
+            <div className="p-5">
+              <div className="flex items-start gap-3">
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-md border border-accent/40 bg-accent-weak text-accent">
+                  <Icon name="model" className="h-[18px] w-[18px]" aria-hidden />
                 </span>
-                <div>
-                  <b className="font-semibold">Managed inference</b>
-                  <small className="block text-xs text-faint">OpenAI-compatible endpoint</small>
-                </div>
+                <p className="text-[13px] leading-relaxed text-muted">
+                  Call open models on an OpenAI-compatible endpoint. Requests are signed by your
+                  wallet, routed to the provider holding your prepaid credit, and metered per token
+                  on chain.
+                </p>
               </div>
-              <p className="mb-3 text-[13px] text-muted">Call open models served by providers, billed per token from prepaid credits.</p>
-              <Link href="/models" className="block w-full rounded-md border border-line py-2.5 text-center text-[13px] font-medium text-ink2 hover:bg-hover hover:text-ink">
-                Open playground
+              <Link href="/models" className="mt-4 block">
+                <Button variant="secondary" icon="send" className="w-full">
+                  Open playground
+                </Button>
               </Link>
             </div>
           </Card>

@@ -3,10 +3,22 @@
 import { useState } from "react";
 import { useApi } from "@/lib/api";
 import { useWallet } from "@/components/WalletProvider";
-import { Card, CardHead, GpuChip, StatusTag, Empty } from "@/components/ui";
+import {
+  Button,
+  Card,
+  CardHead,
+  Empty,
+  ErrorNote,
+  GpuChip,
+  Heartbeats,
+  Skeleton,
+  StatusTag,
+  Td,
+  Th,
+  Tr,
+} from "@/components/ui";
 import { fmtUsd, shortAddr } from "@/lib/format";
 import { cancelLease, endLease, settleLease } from "@/lib/actions";
-import { isContentAddressedManifest } from "@/lib/config";
 import type { Deployment, Lease, Listing } from "@/lib/types";
 
 function fmtTimestamp(timestamp: number): string {
@@ -14,28 +26,40 @@ function fmtTimestamp(timestamp: number): string {
   return new Date(timestamp * 1000).toLocaleString();
 }
 
+/** Share of funded intervals already settled, as a percentage. */
+function settledPct(lease: Lease): number {
+  if (!lease.fundedIntervals) return 0;
+  return Math.min(100, (lease.settledIntervals / lease.fundedIntervals) * 100);
+}
+
 export default function LeasesPage() {
-  const { address, connect } = useWallet();
-  const leasesState = useApi<Lease[]>("/leases");
+  const { address, connect, connecting } = useWallet();
+  const leasesState = useApi<Lease[]>("/leases", 4000);
   const listingsState = useApi<Listing[]>("/listings?all=true", 30000);
   const deploymentState = useApi<Deployment>("/deployment", 30000);
   const leases = leasesState.data ?? [];
   const listings = listingsState.data ?? [];
   const deployment = deploymentState.data;
   const [msg, setMsg] = useState<string | null>(null);
+  const [failure, setFailure] = useState<string | null>(null);
   const [pending, setPending] = useState<string | null>(null);
 
   const listingById = new Map(listings.map((listing) => [listing.id, listing]));
-  const mine = address ? leases.filter((lease) => lease.requester.toLowerCase() === address.toLowerCase()) : [];
+  const mine = address
+    ? [...leases]
+        .filter((lease) => lease.requester.toLowerCase() === address.toLowerCase())
+        .sort((a, b) => b.id - a.id)
+    : [];
 
   async function act(kind: "cancel" | "settle" | "end", lease: Lease) {
     if (!address) return;
     if (!deployment?.contracts?.RentalMarket) {
-      setMsg("Deployment not available yet.");
+      setFailure("Deployment is not available yet. Check the orchestrator connection.");
       return;
     }
 
     setMsg(null);
+    setFailure(null);
     setPending(`${kind}-${lease.id}`);
     try {
       if (kind === "cancel") await cancelLease(address, deployment.contracts.RentalMarket, lease.id);
@@ -44,7 +68,7 @@ export default function LeasesPage() {
       const verb = kind === "cancel" ? "Cancellation" : kind === "settle" ? "Settlement" : "End";
       setMsg(`${verb} transaction submitted for lease #${lease.id}.`);
     } catch (error) {
-      setMsg("Action failed: " + (error instanceof Error ? error.message : String(error)));
+      setFailure("Action failed: " + (error instanceof Error ? error.message : String(error)));
     } finally {
       setPending(null);
     }
@@ -53,12 +77,16 @@ export default function LeasesPage() {
   if (!address) {
     return (
       <Card>
-        <Empty title="Connect your wallet to see your leases" />
-        <div className="px-4 pb-6 text-center">
-          <button onClick={connect} className="rounded-md border border-accent bg-accent px-4 py-2 text-sm font-semibold text-[#1A1205] hover:bg-accent-hover">
-            Connect wallet
-          </button>
-        </div>
+        <Empty
+          icon="wallet"
+          title="Connect your wallet to see your leases"
+          hint="A lease belongs to the account that funded its escrow, so the dashboard needs to know which account is yours."
+          action={
+            <Button variant="primary" icon="wallet" onClick={connect} loading={connecting}>
+              Connect wallet
+            </Button>
+          }
+        />
       </Card>
     );
   }
@@ -66,120 +94,156 @@ export default function LeasesPage() {
   const apiError = leasesState.error ?? listingsState.error ?? deploymentState.error;
 
   return (
-    <div>
+    <div className="space-y-4">
       {msg && (
-        <div role="status" className="mb-4 rounded-md border border-line bg-panel px-4 py-2.5 text-sm text-ink2">
+        <div
+          role="status"
+          className="rounded-lg border border-success/30 bg-success-weak px-4 py-3 text-[13px] text-success"
+        >
           {msg}
         </div>
       )}
-      {apiError && (
-        <div role="alert" className="mb-4 rounded-md border border-danger/40 bg-panel px-4 py-2.5 text-sm text-danger">
-          Some lease data could not be loaded. {apiError}
-        </div>
-      )}
+      {failure && <ErrorNote>{failure}</ErrorNote>}
+      {apiError && <ErrorNote>Some lease data could not be loaded. {apiError}</ErrorNote>}
+
       <Card>
-        <CardHead title="My leases" sub={`${mine.length} total`} />
+        <CardHead
+          title="My leases"
+          sub={`${mine.length} request${mine.length === 1 ? "" : "s"}, newest first`}
+        />
         {leasesState.loading ? (
-          <div role="status" className="space-y-3 px-4 py-5" aria-label="Loading leases">
-            {[0, 1, 2].map((row) => <div key={row} className="h-10 animate-pulse rounded-md bg-panel" />)}
-          </div>
+          <Skeleton label="Loading leases" rows={3} />
         ) : leasesState.error ? (
-          <Empty title="Leases could not be loaded" hint="Check the orchestrator connection and try again" />
+          <Empty
+            icon="alert"
+            title="Leases could not be loaded"
+            hint="Check the orchestrator connection and try again."
+          />
         ) : mine.length === 0 ? (
-          <Empty title="No lease requests yet" hint="Request a GPU to start a lease" />
+          <Empty
+            icon="gpu"
+            title="No lease requests yet"
+            hint="Request a GPU from the marketplace. Your escrow is deposited immediately, but the lease clock only starts when the provider accepts."
+          />
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1160px] border-collapse">
+            <table className="w-full min-w-[900px] border-collapse">
               <thead>
-                <tr className="text-left text-[11px] uppercase tracking-wide text-faint">
-                  <th className="border-b border-line px-4 py-2.5 font-medium">GPU</th>
-                  <th className="border-b border-line px-4 py-2.5 font-medium">Provider</th>
-                  <th className="border-b border-line px-4 py-2.5 font-medium">Service</th>
-                  <th className="border-b border-line px-4 py-2.5 font-medium">Funds</th>
-                  <th className="border-b border-line px-4 py-2.5 font-medium">Started</th>
-                  <th className="border-b border-line px-4 py-2.5 font-medium">Status</th>
-                  <th className="border-b border-line px-4 py-2.5 font-medium">Manifest</th>
-                  <th className="border-b border-line px-4 py-2.5 font-medium" />
+                <tr>
+                  <Th>GPU</Th>
+                  <Th>Provider</Th>
+                  <Th>Uptime</Th>
+                  <Th align="right">Streamed</Th>
+                  <Th>Status</Th>
+                  <Th align="right">Actions</Th>
                 </tr>
               </thead>
               <tbody>
                 {mine.map((lease) => {
-                  const gpu = listingById.get(lease.listingId)?.gpu || `Listing #${lease.listingId}`;
+                  const listing = listingById.get(lease.listingId);
+                  const gpu = listing?.gpu || `Listing #${lease.listingId}`;
                   const isPending = lease.status === "Pending";
                   const isActive = lease.status === "Active";
-                  const manifestIsLink = isContentAddressedManifest(lease.manifest);
+                  const streamed = (
+                    BigInt(lease.pricePerInterval) * BigInt(lease.settledIntervals)
+                  ).toString();
+                  const busy = pending !== null;
+
                   return (
-                    <tr key={lease.id} className="text-[13px] hover:bg-hover">
-                      <td className="border-b border-line px-4 py-3">
-                        <div className="flex items-center gap-2.5">
-                          <GpuChip />
-                          <div>
-                            <b className="font-medium">{gpu}</b>
-                            <small className="mono block text-[11px] text-faint">lease #{lease.id}</small>
+                    <Tr key={lease.id}>
+                      <Td>
+                        <div className="flex items-center gap-3">
+                          <GpuChip live={isActive} />
+                          <div className="min-w-0">
+                            <div className="font-medium text-ink">{gpu}</div>
+                            <div className="mono truncate text-[12px] text-faint">
+                              lease #{lease.id} · {fmtTimestamp(lease.start)}
+                            </div>
                           </div>
                         </div>
-                      </td>
-                      <td className="mono border-b border-line px-4 py-3 text-xs text-muted">{shortAddr(lease.provider)}</td>
-                      <td className="border-b border-line px-4 py-3">
+                      </Td>
+
+                      <Td className="mono text-muted">{shortAddr(lease.provider)}</Td>
+
+                      <Td>
                         {isPending ? (
-                          <span className="mono text-xs text-muted">{lease.fundedIntervals} requested · {lease.maxIntervals} max</span>
-                        ) : (
-                          <>
-                            <span className="mono text-xs text-ink2">{lease.settledIntervals} settled · {lease.heartbeatedIntervals} heartbeats · {lease.fundedIntervals} funded</span>
-                            <small className="mono mt-1 block text-[11px] text-faint">
-                              {lease.lastHeartbeatInterval === null ? "No heartbeat recorded" : `Last #${lease.lastHeartbeatInterval + 1} · ${fmtTimestamp(lease.lastHeartbeat)}`}
-                            </small>
-                          </>
-                        )}
-                      </td>
-                      <td className="border-b border-line px-4 py-3">
-                        <span className="mono block text-xs">{fmtUsd(lease.escrow)} escrow</span>
-                        <small className="mono mt-1 block text-[11px] text-faint">
-                          {lease.bond === "0" && isPending ? "Bond starts on acceptance" : `${fmtUsd(lease.bond)} bond`}
-                        </small>
-                      </td>
-                      <td className="mono border-b border-line px-4 py-3 text-xs text-muted">{fmtTimestamp(lease.start)}</td>
-                      <td className="border-b border-line px-4 py-3"><StatusTag status={lease.status} /></td>
-                      <td className="border-b border-line px-4 py-3">
-                        {manifestIsLink ? (
-                          <a href={lease.manifest} className="mono text-xs text-accent hover:text-accent-hover hover:underline" title={lease.manifest}>
-                            {lease.manifest.length > 28 ? `${lease.manifest.slice(0, 25)}…` : lease.manifest}
-                          </a>
-                        ) : (
-                          <span className="mono text-xs text-faint" title={lease.manifest}>{lease.manifest || "Not provided"}</span>
-                        )}
-                      </td>
-                      <td className="border-b border-line px-4 py-3 text-right">
-                        {isPending ? (
-                          <button
-                            onClick={() => act("cancel", lease)}
-                            disabled={pending !== null}
-                            className="rounded-md border border-line bg-surface px-3 py-1.5 text-xs font-medium text-ink2 hover:bg-hover hover:text-ink disabled:cursor-not-allowed disabled:opacity-60"
-                          >
-                            {pending === `cancel-${lease.id}` ? "Cancelling…" : "Cancel request"}
-                          </button>
-                        ) : isActive ? (
-                          <span className="inline-flex gap-2">
-                            <button
-                              onClick={() => act("settle", lease)}
-                              disabled={pending !== null}
-                              className="rounded-md border border-line bg-surface px-3 py-1.5 text-xs font-medium text-ink2 hover:bg-hover hover:text-ink disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                              {pending === `settle-${lease.id}` ? "Settling…" : "Settle"}
-                            </button>
-                            <button
-                              onClick={() => act("end", lease)}
-                              disabled={pending !== null}
-                              className="rounded-md border border-accent bg-accent px-3 py-1.5 text-xs font-semibold text-[#1A1205] hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                              {pending === `end-${lease.id}` ? "Ending…" : "End"}
-                            </button>
+                          <span className="text-[13px] text-muted">
+                            Awaiting provider acceptance
                           </span>
                         ) : (
-                          <span className="mono text-xs text-faint">No actions</span>
+                          <div className="space-y-1.5">
+                            <Heartbeats
+                              up={lease.heartbeatedIntervals}
+                              total={Math.min(Math.max(lease.fundedIntervals, 1), 10)}
+                              live={isActive}
+                            />
+                            <div className="mono text-[12px] text-faint">
+                              {lease.settledIntervals} settled · {lease.heartbeatedIntervals}/
+                              {lease.fundedIntervals} beats
+                            </div>
+                          </div>
                         )}
-                      </td>
-                    </tr>
+                      </Td>
+
+                      <Td align="right">
+                        <div className="mono font-medium text-ink">{fmtUsd(streamed)}</div>
+                        <div className="mono text-[12px] text-faint">
+                          {fmtUsd(lease.escrow)} left
+                        </div>
+                        {!isPending && (
+                          <span className="mt-1.5 block h-1 w-full overflow-hidden rounded-full bg-panel">
+                            <span
+                              className="block h-full rounded-full bg-accent"
+                              style={{ width: `${settledPct(lease)}%` }}
+                            />
+                          </span>
+                        )}
+                      </Td>
+
+                      <Td>
+                        <StatusTag status={lease.status} />
+                        {isPending && lease.bond === "0" && (
+                          <div className="mt-1 text-[12px] text-faint">No bond locked yet</div>
+                        )}
+                      </Td>
+
+                      <Td align="right">
+                        {isPending ? (
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => act("cancel", lease)}
+                            loading={pending === `cancel-${lease.id}`}
+                            disabled={busy}
+                          >
+                            Cancel
+                          </Button>
+                        ) : isActive ? (
+                          <span className="inline-flex justify-end gap-2">
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              onClick={() => act("settle", lease)}
+                              loading={pending === `settle-${lease.id}`}
+                              disabled={busy}
+                            >
+                              Settle
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="primary"
+                              onClick={() => act("end", lease)}
+                              loading={pending === `end-${lease.id}`}
+                              disabled={busy}
+                            >
+                              End
+                            </Button>
+                          </span>
+                        ) : (
+                          <span className="text-[13px] text-faint">No actions</span>
+                        )}
+                      </Td>
+                    </Tr>
                   );
                 })}
               </tbody>

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { parseUnits } from "viem";
 import { useApi, api } from "@/lib/api";
 import { useWallet } from "@/components/WalletProvider";
-import { Card, CardHead, Empty } from "@/components/ui";
+import { Button, Card, CardHead, Empty, ErrorNote, Input, Skeleton } from "@/components/ui";
 import {
   approveInferenceCredit,
   closeInferenceCredit,
@@ -427,11 +427,13 @@ export default function ModelsPage() {
       <Card className="order-1 overflow-hidden">
         <CardHead title="Inference offers" sub={`${activeOffers.length} active`} />
         {offersState.loading ? (
-          <div role="status" aria-label="Loading inference offers" className="space-y-2 p-3">
-            {[0, 1, 2].map((row) => <div key={row} className="h-16 animate-pulse rounded-md bg-panel" />)}
-          </div>
+          <Skeleton label="Loading inference offers" rows={3} />
         ) : activeOffers.length === 0 ? (
-          <Empty title="No active inference offers" hint="A provider must publish an attested model offer" />
+          <Empty
+            icon="model"
+            title="No active inference offers"
+            hint="A provider must stake, pass attestation, and publish a model offer before it appears here."
+          />
         ) : (
           <div className="max-h-[420px] space-y-1 overflow-auto p-2 xl:max-h-[calc(100vh-13rem)]">
             {activeOffers.map((offer) => {
@@ -443,13 +445,13 @@ export default function ModelsPage() {
                   onClick={() => selectOffer(offer)}
                   disabled={locked}
                   aria-pressed={selected}
-                  className={`block w-full rounded-md border px-3 py-2.5 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
-                    selected ? "border-accent bg-accent-weak" : "border-transparent hover:bg-hover"
+                  className={`block w-full rounded-md border px-3 py-2.5 text-left transition-colors duration-fast ease-out disabled:cursor-not-allowed disabled:opacity-50 ${
+                    selected ? "border-accent/50 bg-accent-weak" : "border-transparent hover:bg-hover"
                   }`}
                 >
-                  <span className="block truncate text-[13px] font-medium text-ink">{offer.modelIdentifier}</span>
-                  <span className="mono mt-1 block text-[11px] text-accent">{pricePerThousand(offer.pricePerToken)}</span>
-                  <span className="mono mt-1 block text-[11px] text-faint">
+                  <span className="block truncate text-[14px] font-medium text-ink">{offer.modelIdentifier}</span>
+                  <span className="mono mt-1 block text-[12px] text-accent">{pricePerThousand(offer.pricePerToken)}</span>
+                  <span className="mono mt-0.5 block text-[12px] text-faint">
                     #{offer.id} · {shortAddr(offer.provider)}
                   </span>
                 </button>
@@ -470,18 +472,21 @@ export default function ModelsPage() {
             </span>
           )}
         />
-        <div className="flex-1 space-y-4 overflow-auto p-4" aria-live="polite">
+        <div className="flex-1 space-y-4 overflow-auto p-5" aria-live="polite">
           {messages.length === 0 && (
             <Empty
+              icon={selectedCredit ? "send" : "wallet"}
               title={selectedCredit ? "Ask the model something" : "Fund or select a credit to begin"}
-              hint="Every request is signed, routed to the credited provider, and settled on chain"
+              hint="Each request is signed by your wallet, routed only to the provider holding your credit, and metered per token on chain."
             />
           )}
           {messages.map((message, index) => (
             <div key={index} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
               <div
-                className={`max-w-[88%] whitespace-pre-wrap rounded-lg border px-3 py-2.5 text-[13px] leading-relaxed sm:max-w-[78%] ${
-                  message.role === "user" ? "border-line-strong bg-panel" : "border-line bg-surface text-ink2"
+                className={`max-w-[88%] whitespace-pre-wrap rounded-lg border px-3.5 py-2.5 text-[14px] leading-relaxed sm:max-w-[78%] ${
+                  message.role === "user"
+                    ? "border-accent/30 bg-accent-weak text-ink"
+                    : "border-line bg-panel text-ink2"
                 }`}
               >
                 {message.content}
@@ -489,32 +494,30 @@ export default function ModelsPage() {
             </div>
           ))}
           {operation === "requesting" && (
-            <div role="status" className="text-[13px] text-muted">Waiting for the credited provider...</div>
+            <div role="status" className="flex items-center gap-2.5 text-[13px] text-muted">
+              <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-muted border-r-transparent" aria-hidden />
+              Waiting for the credited provider
+            </div>
           )}
-          {err && <div role="alert" className="rounded-md border border-danger/40 bg-panel px-3 py-2.5 text-[13px] text-danger">{err}</div>}
+          {err && <ErrorNote>{err}</ErrorNote>}
         </div>
         <div className="border-t border-line p-3 sm:p-4">
           {(activePendingSettlement || activeBlockedReason) && (
-            <div className="mb-3 flex flex-col gap-2 rounded-md border border-accent/50 bg-accent-weak px-3 py-2.5 text-xs text-ink2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="mb-3 flex flex-col gap-2.5 rounded-lg border border-accent/40 bg-accent-weak px-4 py-3 text-[13px] leading-relaxed text-ink2 sm:flex-row sm:items-center sm:justify-between">
               <span>{activeBlockedReason ?? "Usage settlement must complete before another request."}</span>
               {activePendingSettlement && (
                 <span className="flex shrink-0 gap-2">
-                  <button
-                    type="button"
+                  <Button
+                    size="sm"
+                    variant="primary"
                     onClick={() => selectedCredit && submitSettlement(activePendingSettlement, selectedCredit)}
                     disabled={operation !== null || !selectedCredit}
-                    className="rounded-md border border-accent bg-accent px-2.5 py-1.5 font-semibold text-[#1A1205] hover:bg-accent-hover disabled:opacity-60"
                   >
                     Retry settlement
-                  </button>
-                  <button
-                    type="button"
-                    onClick={reconcileSettlement}
-                    disabled={operation !== null}
-                    className="rounded-md border border-line-strong bg-surface px-2.5 py-1.5 font-medium text-ink2 hover:bg-hover disabled:opacity-60"
-                  >
+                  </Button>
+                  <Button size="sm" variant="secondary" onClick={reconcileSettlement} disabled={operation !== null}>
                     Reconcile
-                  </button>
+                  </Button>
                 </span>
               )}
             </div>
@@ -534,16 +537,18 @@ export default function ModelsPage() {
               disabled={locked || !selectedCredit}
               rows={2}
               placeholder={selectedCredit ? "Ask anything, or paste a prompt" : "Select an active credit first"}
-              className="mono min-h-[44px] flex-1 resize-none rounded-md border border-line-strong bg-bg px-3 py-2.5 text-[13px] text-ink outline-none placeholder:text-muted focus:border-accent disabled:cursor-not-allowed disabled:opacity-60"
+              className="min-h-[46px] flex-1 resize-none rounded-md border border-line bg-bg px-3 py-2.5 text-[14px] leading-relaxed text-ink outline-none transition-colors duration-fast ease-out placeholder:text-faint hover:border-line-strong disabled:cursor-not-allowed disabled:opacity-50"
             />
-            <button
-              type="button"
+            <Button
+              variant="primary"
+              icon="send"
               onClick={send}
+              loading={operation === "requesting" || operation === "settling"}
               disabled={locked || !selectedCredit || !input.trim()}
-              className="rounded-md border border-accent bg-accent px-4 py-2.5 text-[13px] font-semibold text-[#1A1205] hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-60 sm:self-stretch"
+              className="sm:h-[46px]"
             >
-              {operation === "requesting" ? "Requesting..." : operation === "settling" ? "Settling..." : "Send"}
-            </button>
+              {operation === "requesting" ? "Requesting" : operation === "settling" ? "Settling" : "Send"}
+            </Button>
           </div>
         </div>
       </Card>
@@ -553,23 +558,21 @@ export default function ModelsPage() {
           <CardHead title="Prepaid credit" sub={selectedModel || "Choose an offer"} />
           <div className="space-y-4 p-4">
             {!address ? (
-              <button
-                type="button"
-                onClick={connect}
-                className="w-full rounded-md border border-accent bg-accent px-3.5 py-2 text-sm font-semibold text-[#1A1205] hover:bg-accent-hover"
-              >
+              <Button variant="primary" icon="wallet" className="w-full" onClick={connect}>
                 Connect wallet
-              </button>
+              </Button>
             ) : (
               <>
                 <div>
-                  <label htmlFor="active-credit" className="mb-1.5 block text-xs font-medium text-ink2">Active credit</label>
+                  <label htmlFor="active-credit" className="mb-1.5 block text-[13px] font-medium text-ink2">
+                    Active credit
+                  </label>
                   <select
                     id="active-credit"
                     value={selectedCredit?.id ?? ""}
                     onChange={(event) => setSelectedCreditId(event.target.value)}
                     disabled={locked || matchingCredits.length === 0}
-                    className="mono w-full rounded-md border border-line-strong bg-bg px-2.5 py-2 text-xs text-ink focus:border-accent disabled:opacity-60"
+                    className="mono h-9 w-full rounded-md border border-line bg-bg px-2.5 text-[13px] text-ink transition-colors duration-fast ease-out hover:border-line-strong disabled:opacity-50"
                   >
                     {matchingCredits.length === 0 && <option value="">No matching credit</option>}
                     {matchingCredits.map((credit) => (
@@ -581,64 +584,71 @@ export default function ModelsPage() {
                 </div>
 
                 {selectedCredit ? (
-                  <div className="grid grid-cols-2 gap-px overflow-hidden rounded-md border border-line bg-line">
+                  <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-line bg-line">
                     {[
                       ["Balance", fmtSmesh(selectedCredit.escrow, 4)],
                       ["Paid", fmtSmesh(selectedCredit.paid, 4)],
-                      ["Prompt", BigInt(selectedCredit.promptTokens).toLocaleString()],
-                      ["Completion", BigInt(selectedCredit.completionTokens).toLocaleString()],
+                      ["Prompt tokens", BigInt(selectedCredit.promptTokens).toLocaleString()],
+                      ["Completion tokens", BigInt(selectedCredit.completionTokens).toLocaleString()],
                     ].map(([label, value]) => (
                       <div key={label} className="bg-panel px-3 py-2.5">
-                        <span className="block text-[11px] text-faint">{label}</span>
-                        <b className="mono mt-0.5 block truncate text-xs font-medium text-ink" title={value}>{value}</b>
+                        <dt className="text-[12px] text-faint">{label}</dt>
+                        <dd className="mono mt-0.5 truncate text-[13px] font-medium text-ink" title={value}>
+                          {value}
+                        </dd>
                       </div>
                     ))}
-                  </div>
+                  </dl>
                 ) : (
-                  <p className="text-xs leading-relaxed text-muted">Open a credit against the selected offer, then select it after the indexer refreshes.</p>
+                  <p className="text-[13px] leading-relaxed text-muted">
+                    Open a credit against the selected offer, then select it once the indexer picks it up.
+                  </p>
                 )}
 
                 <div className="border-t border-line pt-4">
-                  <label htmlFor="credit-amount" className="mb-1.5 flex items-center justify-between text-xs font-medium text-ink2">
+                  <label htmlFor="credit-amount" className="mb-1.5 flex items-center justify-between text-[13px] font-medium text-ink2">
                     <span>New credit amount</span>
                     <span className="mono font-normal text-faint">Wallet {fmtSmesh(balanceWei, 2)}</span>
                   </label>
                   <div className="flex gap-2">
                     <div className="relative min-w-0 flex-1">
-                      <input
+                      <Input
                         id="credit-amount"
                         value={creditAmount}
-                        onChange={(event) => setCreditAmount(event.target.value)}
+                        onChange={(event) => setCreditAmount(event.currentTarget.value)}
                         disabled={locked || !selectedOffer}
                         inputMode="decimal"
-                        className="mono w-full rounded-md border border-line-strong bg-bg py-2 pl-2.5 pr-16 text-xs text-ink placeholder:text-muted focus:border-accent disabled:opacity-60"
+                        className="mono pr-16"
                       />
-                      <span className="pointer-events-none absolute right-2.5 top-2 text-[11px] text-faint">SMESH</span>
+                      <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[12px] text-faint">
+                        SMESH
+                      </span>
                     </div>
-                    <button
-                      type="button"
+                    <Button
+                      variant="primary"
                       onClick={handleOpenCredit}
+                      loading={operation === "opening"}
                       disabled={locked || !selectedOffer}
-                      className="rounded-md border border-accent bg-accent px-3 py-2 text-xs font-semibold text-[#1A1205] hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      {operation === "opening" ? "Opening..." : "Approve and open"}
-                    </button>
+                      {operation === "opening" ? "Opening" : "Open"}
+                    </Button>
                   </div>
                   {selectedOffer && (
-                    <p className="mono mt-2 text-[11px] text-faint">
+                    <p className="mono mt-2 text-[12px] text-faint">
                       Offer #{selectedOffer.id} · {pricePerThousand(selectedOffer.pricePerToken)}
                     </p>
                   )}
                 </div>
 
-                <button
-                  type="button"
+                <Button
+                  variant="secondary"
+                  className="w-full"
                   onClick={handleCloseCredit}
+                  loading={operation === "closing"}
                   disabled={locked || !selectedCredit}
-                  className="w-full rounded-md border border-line-strong bg-surface px-3 py-2 text-xs font-medium text-ink2 hover:bg-hover hover:text-ink disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {operation === "closing" ? "Closing..." : "Close credit and refund balance"}
-                </button>
+                  {operation === "closing" ? "Closing" : "Close credit and refund balance"}
+                </Button>
               </>
             )}
           </div>
@@ -646,21 +656,33 @@ export default function ModelsPage() {
 
         <Card>
           <CardHead title="Transaction state" sub="Requester signed" />
-          <div className="p-4">
+          <div className="p-5">
             {displayedTransaction ? (
               <div role="status" aria-live="polite">
-                <p className={`text-xs leading-relaxed ${displayedTransaction.tone === "error" ? "text-danger" : displayedTransaction.tone === "success" ? "text-success" : "text-ink2"}`}>
+                <p
+                  className={`text-[13px] leading-relaxed ${
+                    displayedTransaction.tone === "error"
+                      ? "text-danger"
+                      : displayedTransaction.tone === "success"
+                        ? "text-success"
+                        : "text-ink2"
+                  }`}
+                >
                   {displayedTransaction.label}
                 </p>
                 {displayedTransaction.hash && (
-                  <p className="mono mt-2 break-all text-[11px] text-faint" title={displayedTransaction.hash}>{displayedTransaction.hash}</p>
+                  <p className="mono mt-2 break-all text-[12px] text-faint" title={displayedTransaction.hash}>
+                    {displayedTransaction.hash}
+                  </p>
                 )}
               </div>
             ) : (
-              <p className="text-xs leading-relaxed text-muted">Approval, credit, request authorization, and settlement states appear here.</p>
+              <p className="text-[13px] leading-relaxed text-muted">
+                Approval, credit, request authorization, and settlement states appear here.
+              </p>
             )}
             {apiError && (
-              <p role="alert" className="mt-3 border-t border-line pt-3 text-xs leading-relaxed text-danger">
+              <p role="alert" className="mt-3 border-t border-line pt-3 text-[13px] leading-relaxed text-danger">
                 Marketplace data could not be refreshed. {apiError}
               </p>
             )}

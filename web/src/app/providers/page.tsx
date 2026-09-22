@@ -20,26 +20,26 @@ import {
   waitForTransaction,
 } from "@/lib/actions";
 import { fmtInterval, fmtSmesh, repScore } from "@/lib/format";
-import type { Deployment, InferenceCredit, InferenceOffer, Job, Lease, Listing, Provider, Task } from "@/lib/types";
+import type { Deployment, InferenceCredit, InferenceOffer, Lease, Listing, Provider } from "@/lib/types";
 
 const DEFAULT_CAPABILITIES = JSON.stringify({
-  gpuModel: "NVIDIA RTX 4090",
-  vramGB: 24,
-  cpu: "16 vCPU",
-  models: ["meta-llama/Llama-3.1-8B-Instruct"],
+  gpuModel: "NVIDIA GeForce RTX 4070 Laptop GPU",
+  vramGB: 8,
+  cpu: "host",
+  models: ["gemma3:4b", "qwen3:0.6b"],
 }, null, 2);
 
 const DEFAULT_SPEC = JSON.stringify({
-  gpu: "NVIDIA RTX 4090",
-  vram: 24,
+  gpu: "RTX 4070 Laptop GPU",
+  vram: 8,
   region: "local",
-  models: ["meta-llama/Llama-3.1-8B-Instruct"],
+  models: ["gemma3:4b", "qwen3:0.6b"],
   endpoint: "http://provider:8100",
 }, null, 2);
 
-const inputClass = "w-full rounded-md border border-line-strong bg-bg px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-accent disabled:cursor-not-allowed disabled:opacity-60";
-const primaryButton = "rounded-md border border-accent bg-accent px-3.5 py-2 text-sm font-semibold text-[#1A1205] hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-60";
-const secondaryButton = "rounded-md border border-line-strong bg-surface px-3.5 py-2 text-sm font-medium text-ink2 hover:bg-hover hover:text-ink disabled:cursor-not-allowed disabled:opacity-60";
+const inputClass = "w-full rounded-md border border-line bg-bg px-3 py-2 text-[13px] text-ink transition-colors duration-fast ease-out placeholder:text-faint hover:border-line-strong disabled:cursor-not-allowed disabled:opacity-50";
+const primaryButton = "inline-flex h-9 items-center justify-center rounded-md border border-accent bg-accent px-3.5 text-[13px] font-medium text-accent-ink transition-colors duration-fast ease-out hover:bg-accent-hover hover:border-accent-hover disabled:pointer-events-none disabled:opacity-45";
+const secondaryButton = "inline-flex h-9 items-center justify-center rounded-md border border-line bg-panel px-3.5 text-[13px] font-medium text-ink2 transition-colors duration-fast ease-out hover:bg-hover hover:text-ink hover:border-line-strong disabled:pointer-events-none disabled:opacity-45";
 
 function parseObject(value: string, label: string): Record<string, unknown> {
   let parsed: unknown;
@@ -80,9 +80,9 @@ function formatCapabilities(value: string): string {
 function Field({ label, htmlFor, hint, children }: { label: string; htmlFor: string; hint?: string; children: React.ReactNode }) {
   return (
     <div>
-      <label htmlFor={htmlFor} className="mb-1.5 block text-xs font-medium text-ink2">{label}</label>
+      <label htmlFor={htmlFor} className="mb-1.5 block text-[13px] font-medium text-ink2">{label}</label>
       {children}
-      {hint && <p className="mt-1.5 text-[11px] leading-relaxed text-faint">{hint}</p>}
+      {hint && <p className="mt-1.5 text-[13px] leading-relaxed text-faint">{hint}</p>}
     </div>
   );
 }
@@ -94,8 +94,6 @@ export default function ProvidersPage() {
   const offersState = useApi<InferenceOffer[]>("/offers", 3000);
   const leasesState = useApi<Lease[]>("/leases", 5000);
   const creditsState = useApi<InferenceCredit[]>("/credits", 5000);
-  const jobsState = useApi<Job[]>("/jobs", 10000);
-  const tasksState = useApi<Task[]>("/tasks", 10000);
   const deploymentState = useApi<Deployment>("/deployment", 30000);
 
   const providers = providersState.data ?? [];
@@ -252,11 +250,7 @@ export default function ProvidersPage() {
   const inferenceEarnings = (creditsState.data ?? [])
     .filter((credit) => credit.provider.toLowerCase() === addressKey)
     .reduce((total, credit) => total + asBigInt(credit.paid), 0n);
-  const jobById = new Map((jobsState.data ?? []).map((job) => [job.id, job]));
-  const taskEarnings = (tasksState.data ?? [])
-    .filter((task) => task.status === "Paid" && task.provider?.toLowerCase() === addressKey)
-    .reduce((total, task) => total + asBigInt(jobById.get(task.jobId)?.rewardPerTask ?? "0"), 0n);
-  const totalEarnings = leaseEarnings + inferenceEarnings + taskEarnings;
+  const totalEarnings = leaseEarnings + inferenceEarnings;
   const apiError = providersState.error ?? listingsState.error ?? offersState.error ?? deploymentState.error;
 
   return (
@@ -294,13 +288,13 @@ export default function ProvidersPage() {
                 ["Free stake", fmtSmesh(provider?.availableStake ?? "0")],
                 ["Reputation", `${repScore(provider?.reputation ?? 5000)} / 100`],
                 ["Indexed earnings", fmtSmesh(totalEarnings)],
-              ].map(([label, value]) => <div key={label} className="bg-surface px-4 py-3"><span className="block text-[11px] text-faint">{label}</span><b className="mono mt-1 block truncate text-sm font-medium" title={value}>{value}</b></div>)}
+              ].map(([label, value]) => <div key={label} className="bg-surface px-4 py-3"><span className="block text-[12px] text-faint">{label}</span><b className="mono mt-1 block truncate text-[14px] font-medium" title={value}>{value}</b></div>)}
             </div>
             {provider?.registered && (
               <div className="flex flex-wrap gap-x-6 gap-y-2 border-t border-line px-4 py-3 text-xs text-muted">
                 <span>Attestation: <b className={provider.attested ? "font-medium text-success" : "font-medium text-accent"}>{provider.attested ? `${provider.gpu || "Hardware"}, ${provider.vramGB} GB, score ${provider.benchmarkScore}` : "Required for market offers"}</b></span>
                 <span>Outcomes: <b className="font-medium text-ink2">{provider.completed} completed, {provider.failed} failed</b></span>
-                <span>Earnings: <b className="font-medium text-ink2">{fmtSmesh(leaseEarnings)} rental, {fmtSmesh(inferenceEarnings)} inference, {fmtSmesh(taskEarnings)} tasks</b></span>
+                <span>Earnings: <b className="font-medium text-ink2">{fmtSmesh(leaseEarnings)} rental, {fmtSmesh(inferenceEarnings)} inference</b></span>
               </div>
             )}
           </section>
