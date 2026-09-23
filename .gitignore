@@ -64,3 +64,6 @@ Thumbs.db
 /d?.png
 playwright-report/
 test-results/
+
+# Generated slide previews
+docs/_deck/preview/
