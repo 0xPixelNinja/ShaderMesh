@@ -1,16 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { useApi } from "@/lib/api";
+import { api, useApi } from "@/lib/api";
 import { useWallet } from "@/components/WalletProvider";
 import {
   Button,
   Card,
   CardHead,
+  CopyValue,
   Empty,
   ErrorNote,
   GpuChip,
   Heartbeats,
+  Note,
   Skeleton,
   StatusTag,
   Td,
@@ -19,7 +21,7 @@ import {
 } from "@/components/ui";
 import { fmtUsd, shortAddr } from "@/lib/format";
 import { cancelLease, endLease, settleLease } from "@/lib/actions";
-import type { Deployment, Lease, Listing } from "@/lib/types";
+import type { Deployment, Lease, LeaseAccess, Listing } from "@/lib/types";
 
 function fmtTimestamp(timestamp: number): string {
   if (!timestamp) return "Not started";
@@ -43,6 +45,25 @@ export default function LeasesPage() {
   const [msg, setMsg] = useState<string | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
   const [pending, setPending] = useState<string | null>(null);
+  const [access, setAccess] = useState<Record<number, LeaseAccess>>({});
+  const [accessError, setAccessError] = useState<Record<number, string>>({});
+
+  async function loadAccess(leaseId: number) {
+    setPending(`access-${leaseId}`);
+    setAccessError((current) => ({ ...current, [leaseId]: "" }));
+    try {
+      const details = await api.get<LeaseAccess>(`/leases/${leaseId}/access`);
+      setAccess((current) => ({ ...current, [leaseId]: details }));
+    } catch {
+      setAccessError((current) => ({
+        ...current,
+        [leaseId]:
+          "Connection details are not available yet. The provider publishes them once the workload is running.",
+      }));
+    } finally {
+      setPending(null);
+    }
+  }
 
   const listingById = new Map(listings.map((listing) => [listing.id, listing]));
   const mine = address
@@ -50,6 +71,7 @@ export default function LeasesPage() {
         .filter((lease) => lease.requester.toLowerCase() === address.toLowerCase())
         .sort((a, b) => b.id - a.id)
     : [];
+  const activeLeases = mine.filter((lease) => lease.status === "Active");
 
   async function act(kind: "cancel" | "settle" | "end", lease: Lease) {
     if (!address) return;
@@ -108,6 +130,13 @@ export default function LeasesPage() {
       {failure && <ErrorNote>{failure}</ErrorNote>}
       {apiError && <ErrorNote>Some lease data could not be loaded. {apiError}</ErrorNote>}
 
+      <Note>
+        A lease request is accepted by the provider&apos;s agent automatically, normally within seconds;
+        there is no manual approval. Once accepted the provider bonds stake, starts your workload in a
+        sandboxed container on its GPU, and must publish a signed heartbeat every interval. Escrow
+        settles only for intervals it proved it served.
+      </Note>
+
       <Card>
         <CardHead
           title="My leases"
@@ -133,7 +162,7 @@ export default function LeasesPage() {
               <thead>
                 <tr>
                   <Th>GPU</Th>
-                  <Th>Provider</Th>
+                  <Th>Hardware you leased</Th>
                   <Th>Uptime</Th>
                   <Th align="right">Streamed</Th>
                   <Th>Status</Th>
@@ -165,7 +194,23 @@ export default function LeasesPage() {
                         </div>
                       </Td>
 
-                      <Td className="mono text-muted">{shortAddr(lease.provider)}</Td>
+                      <Td>
+                        {listing ? (
+                          <>
+                            <div className="text-[13px] text-ink2">
+                              {listing.vramGB ? `${listing.vramGB} GB VRAM` : "CPU only"}
+                              {listing.region ? ` · ${listing.region}` : ""}
+                            </div>
+                            <div className="mono text-[12px] text-faint">
+                              {shortAddr(lease.provider)}
+                            </div>
+                          </>
+                        ) : (
+                          <span className="mono text-[13px] text-muted">
+                            {shortAddr(lease.provider)}
+                          </span>
+                        )}
+                      </Td>
 
                       <Td>
                         {isPending ? (
@@ -248,11 +293,100 @@ export default function LeasesPage() {
                     </Tr>
                   );
                 })}
-              </tbody>
-            </table>
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Card>
+
+      {activeLeases.length > 0 && (
+        <Card>
+          <CardHead
+            title="Connect to your GPU"
+            sub="Shell access to the container your escrow is paying for"
+          />
+          <div className="rule">
+            {activeLeases.map((lease) => {
+              const listing = listingById.get(lease.listingId);
+              const details = access[lease.id];
+              const error = accessError[lease.id];
+              return (
+                <div key={lease.id} className="p-5">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <GpuChip live />
+                      <div>
+                        <div className="font-medium text-ink">
+                          {listing?.gpu || `Listing #${lease.listingId}`}
+                        </div>
+                        <div className="mono text-[12px] text-faint">lease #{lease.id}</div>
+                      </div>
+                    </div>
+                    {!details && (
+                      <Button
+                        variant="primary"
+                        icon="shield"
+                        onClick={() => loadAccess(lease.id)}
+                        loading={pending === `access-${lease.id}`}
+                      >
+                        Get connection details
+                      </Button>
+                    )}
+                  </div>
+
+                  {error && (
+                    <div className="mt-3">
+                      <ErrorNote>{error}</ErrorNote>
+                    </div>
+                  )}
+
+                  {details && (
+                    <div className="mt-4 space-y-3">
+                      <div>
+                        <div className="mb-1.5 text-[13px] font-medium text-ink2">
+                          SSH command
+                        </div>
+                        <div className="flex items-center gap-2 rounded-md border border-line bg-bg px-3 py-2.5">
+                          <code className="mono min-w-0 flex-1 truncate text-[13px] text-ink">
+                            ssh {details.username}@{details.host} -p {details.port}
+                          </code>
+                          <CopyValue
+                            value={`ssh ${details.username}@${details.host} -p ${details.port}`}
+                            label="ssh command"
+                          />
+                        </div>
+                      </div>
+
+                      <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-line bg-line sm:grid-cols-4">
+                        {[
+                          ["Host", details.host],
+                          ["Port", String(details.port)],
+                          ["Username", details.username],
+                          ["Password", details.password],
+                        ].map(([label, value]) => (
+                          <div key={label} className="bg-panel px-3 py-2.5">
+                            <dt className="text-[12px] text-faint">{label}</dt>
+                            <dd className="mono mt-0.5 truncate text-[13px] text-ink" title={value}>
+                              {value}
+                            </dd>
+                          </div>
+                        ))}
+                      </dl>
+
+                      <Note tone="accent">
+                        Access lasts as long as the lease. When it ends or is terminated the provider
+                        stops the container and this credential stops working. On this devnet the
+                        provider returns the credential to any caller that can reach it; a public
+                        deployment must require a signature from the lease holder.
+                      </Note>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
-        )}
-      </Card>
+        </Card>
+      )}
     </div>
   );
 }

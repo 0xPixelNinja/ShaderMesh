@@ -100,12 +100,24 @@ services:
       timeout: 5s
       retries: 20
 
+  # --- One-shot: build the image leased GPU sandboxes run from ---------------
+  # The provider launches this image as a sibling container, so it must exist on
+  # the daemon before a lease is accepted. Running /bin/true only builds and tags it.
+  lease-image:
+    build:
+      context: ./jobs/lease-gpu
+    image: shadermesh/lease-gpu
+    entrypoint: ["/bin/true"]
+    restart: "no"
+
   # --- Provider node: inference plus lease-bound sandboxed workloads ---------
   provider:
     build:
       context: ./agent
     image: shadermesh/agent
     depends_on:
+      lease-image:
+        condition: service_completed_successfully
       seed:
         condition: service_completed_successfully
     command: python serve_provider.py
@@ -129,12 +141,22 @@ services:
       POLL_SECS: ${POLL_SECS:-10}
       # A provider-approved local workload. Production images require a sha256 digest.
       LEASE_ALLOWED_MANIFEST: ${DEMO_LEASE_MANIFEST:-ipfs://bafybeigdyrzt5sfp7udm7hu76uh7y26nf3ayu5ol5qi2ngv3a6h4q}
-      LEASE_WORKLOAD_IMAGE: shadermesh/agent
-      LEASE_WORKLOAD_COMMAND: '["python","-c","import time; time.sleep(86400)"]'
+      # Leasing hands the requester a real shell on the provider's GPU.
+      LEASE_WORKLOAD_IMAGE: shadermesh/lease-gpu
+      LEASE_WORKLOAD_COMMAND: "[]"
+      LEASE_GPU_ENABLED: ${LEASE_GPU_ENABLED:-true}
+      LEASE_WORKLOAD_GPU: ${LEASE_WORKLOAD_GPU:-true}
+      # Interactive leases publish an SSH port and relax the execution sandbox.
+      # The per-lease password is derived from LEASE_SSH_SECRET, so it survives an
+      # agent restart and cannot be derived from public chain data.
+      LEASE_WORKLOAD_INTERACTIVE: ${LEASE_WORKLOAD_INTERACTIVE:-true}
+      LEASE_SSH_SECRET: ${LEASE_SSH_SECRET:-local-devnet-lease-secret}
+      LEASE_SSH_HOST: ${LEASE_SSH_HOST:-localhost}
+      LEASE_SSH_PORT_BASE: "2200"
       LEASE_ALLOW_MUTABLE_IMAGE: "true"
-      LEASE_MEMORY_LIMIT: 512m
-      LEASE_CPU_COUNT: "0.5"
-      LEASE_PIDS_LIMIT: "64"
+      LEASE_MEMORY_LIMIT: 2g
+      LEASE_CPU_COUNT: "2"
+      LEASE_PIDS_LIMIT: "512"
     extra_hosts:
       - host.docker.internal:host-gateway
     volumes:

@@ -333,8 +333,9 @@ export default function RentPage() {
 
               <Note>
                 Escrow is deposited when you submit, but no provider bond is locked and no lease clock
-                starts until the provider accepts. Unused intervals are refundable and downtime is
-                slashed from the provider&apos;s stake.
+                starts until the provider accepts. Provider agents accept automatically, usually within
+                seconds, so there is nothing to approve by hand. Unused intervals are refundable and
+                downtime is slashed from the provider&apos;s stake.
               </Note>
             </div>
           )}

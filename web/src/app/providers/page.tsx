@@ -4,7 +4,19 @@ import { useState } from "react";
 import { parseUnits, type Hash } from "viem";
 import { useApi } from "@/lib/api";
 import { useWallet } from "@/components/WalletProvider";
-import { Card, CardHead, CopyValue, Empty, RepBar, StatusTag } from "@/components/ui";
+import {
+  Card,
+  CardHead,
+  CopyValue,
+  Empty,
+  Heartbeats,
+  RepBar,
+  Skeleton,
+  StatusTag,
+  Td,
+  Th,
+  Tr,
+} from "@/components/ui";
 import {
   approveProviderStake,
   claimFaucet,
@@ -251,6 +263,15 @@ export default function ProvidersPage() {
     .filter((credit) => credit.provider.toLowerCase() === addressKey)
     .reduce((total, credit) => total + asBigInt(credit.paid), 0n);
   const totalEarnings = leaseEarnings + inferenceEarnings;
+
+  // Leases served by this provider. Requests needing attention sort first.
+  const LEASE_ORDER: Record<string, number> = { Pending: 0, Active: 1 };
+  const myLeases = (leasesState.data ?? [])
+    .filter((lease) => lease.provider.toLowerCase() === addressKey)
+    .sort(
+      (a, b) =>
+        (LEASE_ORDER[a.status] ?? 2) - (LEASE_ORDER[b.status] ?? 2) || b.id - a.id,
+    );
   const apiError = providersState.error ?? listingsState.error ?? offersState.error ?? deploymentState.error;
 
   return (
@@ -298,6 +319,88 @@ export default function ProvidersPage() {
               </div>
             )}
           </section>
+
+          <Card>
+            <CardHead
+              title="Lease activity"
+              sub="Requests your agent accepted, and the intervals it is being paid for"
+              action={
+                <span className="text-[13px] text-faint">
+                  {myLeases.filter((lease) => lease.status === "Active").length} active
+                </span>
+              }
+            />
+            {leasesState.loading ? (
+              <Skeleton label="Loading lease activity" rows={2} />
+            ) : myLeases.length === 0 ? (
+              <Empty
+                icon="inbox"
+                title="No lease requests yet"
+                hint="When a requester leases your capacity, the agent accepts it automatically, bonds stake, and starts sending per-interval heartbeats. It appears here within a few seconds."
+              />
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[900px] border-collapse">
+                  <thead>
+                    <tr>
+                      <Th>Lease</Th>
+                      <Th>Requester</Th>
+                      <Th>Status</Th>
+                      <Th>Uptime</Th>
+                      <Th align="right">Intervals</Th>
+                      <Th align="right">Earned</Th>
+                      <Th align="right">Bond at risk</Th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {myLeases.map((lease) => {
+                      const earned = (
+                        asBigInt(lease.pricePerInterval) * BigInt(lease.settledIntervals)
+                      ).toString();
+                      const isActive = lease.status === "Active";
+                      return (
+                        <Tr key={lease.id}>
+                          <Td className="mono">
+                            #{lease.id}
+                            <span className="block text-[12px] text-faint">
+                              listing #{lease.listingId}
+                            </span>
+                          </Td>
+                          <Td>
+                            <CopyValue value={lease.requester} label="requester address" />
+                          </Td>
+                          <Td>
+                            <StatusTag status={lease.status} />
+                          </Td>
+                          <Td>
+                            {lease.status === "Pending" ? (
+                              <span className="text-[13px] text-muted">Awaiting agent</span>
+                            ) : (
+                              <Heartbeats
+                                up={lease.heartbeatedIntervals}
+                                total={Math.min(Math.max(lease.fundedIntervals, 1), 10)}
+                                live={isActive}
+                              />
+                            )}
+                          </Td>
+                          <Td align="right" className="mono">
+                            {lease.settledIntervals} / {lease.fundedIntervals}
+                            <span className="block text-[12px] text-faint">settled / funded</span>
+                          </Td>
+                          <Td align="right" className="mono font-medium text-ink">
+                            {fmtSmesh(earned)}
+                          </Td>
+                          <Td align="right" className={`mono ${isActive ? "text-accent" : "text-faint"}`}>
+                            {fmtSmesh(lease.bond)}
+                          </Td>
+                        </Tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Card>
 
           <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(380px,0.8fr)]">
             <div className="space-y-5">

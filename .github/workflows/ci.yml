@@ -112,9 +112,12 @@ jobs:
     runs-on: ubuntu-latest
     needs: [contracts, agent, orchestrator, web, simulator]
     # CI runners have no GPU or Ollama, so the provider serves the deterministic
-    # echo backend. It answers for any advertised model identifier.
+    # echo backend. It answers for any advertised model identifier, and lease
+    # containers run without a GPU device request.
     env:
       INFERENCE_BACKEND: echo
+      LEASE_GPU_ENABLED: "false"
+      LEASE_WORKLOAD_GPU: "false"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

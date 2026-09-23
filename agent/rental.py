@@ -7,8 +7,11 @@ value movement is on chain; this code only sends transactions.
 
 from __future__ import annotations
 
+import hashlib
+import hmac
 import re
 import time
+from dataclasses import replace
 from typing import Callable, Iterator
 
 from chain import ChainClient
@@ -69,6 +72,8 @@ class RentalProvider:
         lease_executor: LeaseExecutor | None = None,
         lease_workload: LeaseWorkload | None = None,
         auto_faucet: bool = True,
+        ssh_secret: str = "",
+        ssh_host: str = "localhost",
     ):
         if (lease_executor is None) != (lease_workload is None):
             raise ValueError("lease executor and workload must be configured together")
@@ -88,6 +93,8 @@ class RentalProvider:
         self.lease_executor = lease_executor
         self.lease_workload = lease_workload
         self.auto_faucet = auto_faucet
+        self.ssh_secret = ssh_secret
+        self.ssh_host = ssh_host
 
     def ensure_ready(self) -> None:
         """Register and stake enough to be eligible."""
@@ -238,6 +245,50 @@ class RentalProvider:
             if lease[LEASE_MANIFEST] == self.allowed_manifest and now < end:
                 yield lease_id
 
+    def lease_credentials(self, lease_id: int) -> dict | None:
+        """Connection details for an interactive lease, or None when not applicable.
+
+        The password is derived from a provider-held secret and the lease id, so it
+        is stable across agent restarts without storing per-lease state, and it
+        cannot be guessed from public chain data.
+        """
+        workload = self.lease_workload
+        executor = self.lease_executor
+        if workload is None or executor is None or not workload.interactive:
+            return None
+        if not self.ssh_secret:
+            return None
+
+        password = hmac.new(
+            self.ssh_secret.encode(),
+            f"shadermesh-lease-ssh:{lease_id}".encode(),
+            hashlib.sha256,
+        ).hexdigest()[:24]
+        return {
+            "leaseId": lease_id,
+            "protocol": "ssh",
+            "host": self.ssh_host,
+            "port": executor.ssh_port(lease_id),
+            "username": "root",
+            "password": password,
+        }
+
+    def _lease_workload_for(self, lease_id: int) -> LeaseWorkload:
+        """Bind per-lease credentials into the provider's configured workload."""
+        workload = self.lease_workload
+        assert workload is not None
+        credentials = self.lease_credentials(lease_id)
+        if credentials is None:
+            return workload
+        return replace(
+            workload,
+            environment={
+                **dict(workload.environment),
+                "LEASE_ID": str(lease_id),
+                "LEASE_SSH_PASSWORD": credentials["password"],
+            },
+        )
+
     def reconcile_workloads(self) -> int:
         """Match lease containers to chain state and heartbeat only healthy ones."""
         if self.lease_executor is None or self.lease_workload is None:
@@ -254,7 +305,7 @@ class RentalProvider:
         count = 0
         for lease_id in sorted(serving):
             try:
-                self.lease_executor.ensure_started(lease_id, self.lease_workload)
+                self.lease_executor.ensure_started(lease_id, self._lease_workload_for(lease_id))
                 if not self.lease_executor.is_healthy(lease_id):
                     print(f"[rental] workload for lease #{lease_id} is not healthy")
                     continue

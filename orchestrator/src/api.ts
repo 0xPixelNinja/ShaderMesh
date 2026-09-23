@@ -84,6 +84,9 @@ function normalizeHost(host: string): string {
   return host.trim().toLowerCase().replace(/^\[|\]$/g, "").replace(/\.$/, "");
 }
 
+/** Addresses that only resolve on the machine the provider itself runs on. */
+const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "0.0.0.0"]);
+
 function providerUrl(endpoint: string, allowedHosts: Set<string>): URL {
   let url: URL;
   try {
@@ -201,6 +204,43 @@ export function createApi(
         const lease = store.getLease(Number(leaseMatch[1]));
         if (!lease) return sendJson(res, 404, { error: "lease not found" });
         return sendJson(res, 200, lease);
+      }
+
+      // Connection details for an interactive lease, fetched from the provider
+      // that is serving it. The orchestrator holds no credentials of its own; it
+      // only forwards to the allowlisted host recorded in the listing.
+      const leaseAccessMatch = path.match(/^\/leases\/(\d+)\/access$/);
+      if (leaseAccessMatch && method === "GET") {
+        const leaseId = Number(leaseAccessMatch[1]);
+        const lease = store.getLease(leaseId);
+        if (!lease) return sendJson(res, 404, { error: "lease not found" });
+        if (lease.status !== "Active") {
+          return sendJson(res, 409, { error: "lease is not active" });
+        }
+        const listing = store.listings.get(lease.listingId);
+        if (!listing?.endpoint) {
+          return sendJson(res, 404, { error: "provider publishes no endpoint" });
+        }
+        const upstream = new URL(`/leases/${leaseId}/access`, providerUrl(listing.endpoint, allowedHosts));
+        try {
+          const response = await fetch(upstream, {
+            signal: AbortSignal.timeout(providerTimeout),
+            redirect: "error",
+          });
+          const payload = await response.json().catch(() => ({ error: "provider returned invalid JSON" })) as Record<string, unknown>;
+          // A provider reports the address it publishes the lease on. A loopback
+          // address is only meaningful on the provider's own machine, so answer
+          // with the host the requester actually used to reach this API. That
+          // keeps the connection string correct from another device on the
+          // network without pinning an address that changes with the network.
+          if (response.ok && LOOPBACK_HOSTS.has(String(payload.host ?? "").toLowerCase())) {
+            const reachedHost = (req.headers.host ?? "").replace(/:\d+$/, "").trim();
+            if (reachedHost) payload.host = reachedHost;
+          }
+          return sendJson(res, response.status, payload);
+        } catch {
+          return sendJson(res, 502, { error: "provider did not answer" });
+        }
       }
       if (path === "/providers" && method === "GET") {
         return sendJson(res, 200, store.listProviders());

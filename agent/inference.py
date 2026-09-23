@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Protocol
@@ -77,7 +78,12 @@ def make_backend(name: str) -> Backend:
     return EchoBackend()
 
 
-def make_handler(backend: Backend, models: list[str], provider: str):
+def make_handler(
+    backend: Backend,
+    models: list[str],
+    provider: str,
+    lease_access=None,
+):
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *args):  # quiet
             pass
@@ -95,6 +101,26 @@ def make_handler(backend: Backend, models: list[str], provider: str):
                 return self._json(200, {"status": "ok", "provider": provider, "models": models})
             if self.path == "/v1/models":
                 return self._json(200, {"object": "list", "data": [{"id": m, "object": "model"} for m in models]})
+
+            # Connection details for an interactive lease.
+            #
+            # DEVNET SCOPE: this returns the lease credential to any caller that
+            # can reach the provider, and the agent only checks that the lease is
+            # active on chain. A public deployment must additionally require a
+            # signature from the lease's requester, exactly as the inference
+            # gateway already does for metered requests.
+            match = re.fullmatch(r"/leases/(\d+)/access", self.path)
+            if match:
+                if lease_access is None:
+                    return self._json(404, {"error": "interactive leases are not enabled"})
+                try:
+                    access = lease_access(int(match.group(1)))
+                except Exception:
+                    return self._json(502, {"error": "lease lookup failed"})
+                if access is None:
+                    return self._json(404, {"error": "no active interactive lease"})
+                return self._json(200, access)
+
             return self._json(404, {"error": "not found"})
 
         def do_POST(self):
@@ -136,8 +162,8 @@ def make_handler(backend: Backend, models: list[str], provider: str):
     return Handler
 
 
-def run_server(host: str, port: int, backend: Backend, models: list[str], provider: str) -> ThreadingHTTPServer:
-    server = ThreadingHTTPServer((host, port), make_handler(backend, models, provider))
+def run_server(host: str, port: int, backend: Backend, models: list[str], provider: str, lease_access=None) -> ThreadingHTTPServer:
+    server = ThreadingHTTPServer((host, port), make_handler(backend, models, provider, lease_access))
     return server
 
 

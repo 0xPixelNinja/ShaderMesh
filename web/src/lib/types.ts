@@ -131,6 +131,15 @@ export interface InferenceCredit {
   active: boolean;
 }
 
+export interface LeaseAccess {
+  leaseId: number;
+  protocol: string;
+  host: string;
+  port: number;
+  username: string;
+  password: string;
+}
+
 export interface Deployment {
   chainId: number;
   contracts: Record<string, string>;

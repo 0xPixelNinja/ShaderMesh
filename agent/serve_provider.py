@@ -74,11 +74,13 @@ def _lease_runtime(provider_address: str):
     ):
         raise ValueError("LEASE_WORKLOAD_ENV must be a JSON string object")
 
+    interactive = _env_bool("LEASE_WORKLOAD_INTERACTIVE")
     workload = LeaseWorkload(
         image=image,
         command=tuple(command),
         environment=environment,
         gpu=_env_bool("LEASE_WORKLOAD_GPU"),
+        interactive=interactive,
     )
     executor = DockerLeaseExecutor(
         provider_address,
@@ -94,6 +96,8 @@ def _lease_runtime(provider_address: str):
             if item.strip()
         ),
         allow_mutable_images=_env_bool("LEASE_ALLOW_MUTABLE_IMAGE"),
+        interactive_enabled=interactive,
+        interactive_port_base=int(os.environ.get("LEASE_SSH_PORT_BASE", "2200")),
     )
     workload.validate(allow_mutable_image=executor.allow_mutable_images)
     return executor, workload
@@ -197,13 +201,6 @@ def main() -> None:
     allowed_manifest = os.environ.get("LEASE_ALLOWED_MANIFEST", "").strip() or None
     lease_executor, lease_workload = _lease_runtime(chain.address)
 
-    # Inference endpoint in a background thread.
-    backend = make_backend(os.environ.get("INFERENCE_BACKEND", "echo"))
-    port = int(os.environ.get("INFERENCE_PORT", "8100"))
-    server = run_server("0.0.0.0", port, backend, models, chain.address)
-    threading.Thread(target=server.serve_forever, daemon=True).start()
-    print(f"[provider] inference on :{port} models={models}")
-
     spec = os.environ.get(
         "RENTAL_SPEC",
         json.dumps({"gpu": "cpu-demo", "vram": 0, "region": "local", "models": models}),
@@ -221,7 +218,24 @@ def main() -> None:
         lease_executor=lease_executor,
         lease_workload=lease_workload,
         auto_faucet=_env_bool("AUTO_FAUCET", True),
+        ssh_secret=os.environ.get("LEASE_SSH_SECRET", ""),
+        ssh_host=os.environ.get("LEASE_SSH_HOST", "localhost"),
     )
+
+    def lease_access(lease_id: int):
+        """Serve connection details only while the lease is actually being served."""
+        if lease_id not in set(provider.serving_leases()):
+            return None
+        return provider.lease_credentials(lease_id)
+
+    # Inference endpoint in a background thread. It also answers lease access
+    # queries so a requester can reach the capacity they leased.
+    backend = make_backend(os.environ.get("INFERENCE_BACKEND", "echo"))
+    port = int(os.environ.get("INFERENCE_PORT", "8100"))
+    server = run_server("0.0.0.0", port, backend, models, chain.address, lease_access)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    print(f"[provider] inference on :{port} models={models}")
+
     print(f"[provider] started {chain.address}; waiting for readiness and attestation")
     provider.serve_forever(
         poll_secs=float(os.environ.get("POLL_SECS", "30")),

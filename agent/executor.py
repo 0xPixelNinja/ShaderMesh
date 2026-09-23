@@ -34,6 +34,10 @@ class LeaseWorkload:
     command: tuple[str, ...] = ()
     environment: Mapping[str, str] = field(default_factory=dict)
     gpu: bool = False
+    # Interactive leases publish an SSH port so the requester can use the
+    # hardware they paid for. This deliberately relaxes the execution sandbox,
+    # so it is opt-in per provider configuration. See DockerLeaseExecutor.
+    interactive: bool = False
 
     def validate(self, *, allow_mutable_image: bool = False) -> None:
         if not self.image or len(self.image) > 512 or any(c.isspace() for c in self.image):
@@ -87,6 +91,8 @@ class DockerLeaseExecutor:
         gpu_enabled: bool = False,
         gpu_device_ids: tuple[str, ...] = (),
         allow_mutable_images: bool = False,
+        interactive_enabled: bool = False,
+        interactive_port_base: int = 2200,
         not_found_error: type[Exception] | tuple[type[Exception], ...] | None = None,
         device_request_factory: Callable[..., object] | None = None,
     ):
@@ -109,13 +115,23 @@ class DockerLeaseExecutor:
         self.gpu_enabled = gpu_enabled
         self.gpu_device_ids = gpu_device_ids
         self.allow_mutable_images = allow_mutable_images
+        self.interactive_enabled = interactive_enabled
+        self.interactive_port_base = interactive_port_base
         self.not_found_error = not_found_error or _ContainerNotFound
         self.device_request_factory = device_request_factory
+
+    def ssh_port(self, lease_id: int) -> int:
+        """Host port published for an interactive lease."""
+        return self.interactive_port_base + int(lease_id)
 
     def ensure_started(self, lease_id: int, workload: LeaseWorkload) -> None:
         workload.validate(allow_mutable_image=self.allow_mutable_images)
         if workload.gpu and not self.gpu_enabled:
             raise ValueError("lease workload requested GPU access but GPU support is disabled")
+        if workload.interactive and not self.interactive_enabled:
+            raise ValueError(
+                "lease workload requested interactive access but it is disabled"
+            )
 
         existing = self._get(lease_id)
         if existing is not None:
@@ -152,6 +168,20 @@ class DockerLeaseExecutor:
             "init": True,
             "restart_policy": {"Name": "no"},
         }
+        if workload.interactive:
+            # An interactive lease is a shell the requester connects to, so it
+            # needs a network, a published port, a writable root for sshd state,
+            # and a privileged entrypoint. CPU, memory and PID ceilings still
+            # apply, and the container is still removed when the lease ends.
+            kwargs.update({
+                "network_disabled": False,
+                "read_only": False,
+                "cap_drop": None,
+                "security_opt": None,
+                "user": None,
+                "ports": {"22/tcp": self.ssh_port(lease_id)},
+            })
+            kwargs.pop("tmpfs", None)
         if workload.gpu:
             if self.device_request_factory is None:
                 raise RuntimeError("Docker GPU device request support is unavailable")
