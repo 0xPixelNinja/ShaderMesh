@@ -12,6 +12,7 @@ interface WalletState {
   balanceWei: bigint;
   connecting: boolean;
   connect: () => Promise<void>;
+  disconnect: () => Promise<void>;
 }
 
 const WalletContext = createContext<WalletState>({
@@ -19,7 +20,12 @@ const WalletContext = createContext<WalletState>({
   balanceWei: 0n,
   connecting: false,
   connect: async () => {},
+  disconnect: async () => {},
 });
+
+// A wallet keeps its approval after the app "disconnects", so remember the
+// intent for this tab and stop restoring the session on reload.
+const DISCONNECTED_KEY = "shadermesh:wallet-disconnected";
 
 export const useWallet = () => useContext(WalletContext);
 
@@ -64,6 +70,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
     let cancelled = false;
     (async () => {
+      if (sessionStorage.getItem(DISCONNECTED_KEY) === "1") return;
       try {
         const accounts = await eth.request({ method: "eth_accounts" });
         if (!cancelled && accounts?.[0]) setAddress(accounts[0]);
@@ -98,10 +105,29 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     try {
       const accounts = await eth.request({ method: "eth_requestAccounts" });
       const a = accounts?.[0] ?? null;
+      sessionStorage.removeItem(DISCONNECTED_KEY);
       setAddress(a);
       if (a && tokenAddr) setBalanceWei(await readBalance(a, tokenAddr));
     } finally {
       setConnecting(false);
+    }
+  }
+
+  async function disconnect() {
+    sessionStorage.setItem(DISCONNECTED_KEY, "1");
+    setAddress(null);
+    setBalanceWei(0n);
+
+    // Best effort: ask the wallet to drop the account permission entirely so a
+    // reconnect prompts again. Not every wallet implements this.
+    const eth = getEthereumProvider();
+    try {
+      await eth?.request({
+        method: "wallet_revokePermissions",
+        params: [{ eth_accounts: {} }],
+      } as never);
+    } catch {
+      // wallet does not support revocation; the session flag still applies
     }
   }
 
@@ -121,7 +147,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   }, [address, tokenAddr]);
 
   return (
-    <WalletContext.Provider value={{ address, balanceWei, connecting, connect }}>
+    <WalletContext.Provider value={{ address, balanceWei, connecting, connect, disconnect }}>
       {children}
     </WalletContext.Provider>
   );

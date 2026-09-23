@@ -66,7 +66,7 @@ function NavLink({ href, label, icon, active }: { href: string; label: string; i
 
 export function Shell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const { address, balanceWei, connect, connecting } = useWallet();
+  const { address, balanceWei, connect, connecting, disconnect } = useWallet();
   const head = TITLES[pathname] ?? { title: "ShaderMesh", sub: "" };
 
   return (
@@ -127,9 +127,20 @@ export function Shell({ children }: { children: ReactNode }) {
           </span>
 
           {address ? (
-            <span className="mono hidden items-center gap-1.5 rounded-md border border-line bg-surface px-2.5 py-1.5 text-[13px] text-ink2 sm:inline-flex">
-              <Icon name="wallet" className="h-3.5 w-3.5 text-faint" aria-hidden />
-              {shortAddr(address)}
+            <span className="hidden items-center rounded-md border border-line bg-surface sm:inline-flex">
+              <span className="mono inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[13px] text-ink2">
+                <Icon name="wallet" className="h-3.5 w-3.5 text-faint" aria-hidden />
+                {shortAddr(address)}
+              </span>
+              <button
+                type="button"
+                onClick={disconnect}
+                aria-label="Disconnect wallet"
+                title="Disconnect wallet"
+                className="grid h-[34px] w-8 place-items-center border-l border-line text-faint transition-colors duration-fast ease-out hover:bg-hover hover:text-danger"
+              >
+                <Icon name="close" className="h-3.5 w-3.5" aria-hidden />
+              </button>
             </span>
           ) : (
             <Button variant="primary" onClick={connect} loading={connecting} icon="wallet">

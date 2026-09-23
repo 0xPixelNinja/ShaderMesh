@@ -109,12 +109,12 @@ export default function ProvidersPage() {
   const [capabilityDrafts, setCapabilityDrafts] = useState<Record<string, string>>({});
   const [stakeAmount, setStakeAmount] = useState("100");
   const [unstakeAmount, setUnstakeAmount] = useState("0");
-  const [listingPrice, setListingPrice] = useState("1");
-  const [intervalSecs, setIntervalSecs] = useState("3600");
+  const [listingPrice, setListingPrice] = useState("0.02");
+  const [intervalSecs, setIntervalSecs] = useState("60");
   const [minIntervals, setMinIntervals] = useState("1");
   const [maxIntervals, setMaxIntervals] = useState("24");
   const [listingSpec, setListingSpec] = useState(DEFAULT_SPEC);
-  const [model, setModel] = useState("meta-llama/Llama-3.1-8B-Instruct");
+  const [model, setModel] = useState("gemma3:4b");
   const [tokenPrice, setTokenPrice] = useState("0.000002");
   const [pending, setPending] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ text: string; error?: boolean; hash?: string } | null>(null);

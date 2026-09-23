@@ -165,7 +165,9 @@ export default function RentPage() {
                 <tbody>
                   {available.map((listing) => {
                     const provider = repByAddr.get(listing.provider.toLowerCase());
-                    const isSelected = listing.id === selectedId;
+                    // Compare against the derived selection so the fallback row
+                    // reads as checked, not just highlighted.
+                    const isSelected = listing.id === selected?.id;
                     return (
                       <Tr key={listing.id}>
                         <Td className={isSelected ? "bg-accent-weak" : ""}>
@@ -239,22 +241,24 @@ export default function RentPage() {
                 error={!intervalsValid && intervals !== null ? "Outside the allowed range." : undefined}
               >
                 <div className="flex items-center gap-3">
-                  <Input
-                    type="number"
-                    className="mono w-28"
-                    min={selected.minIntervals}
-                    max={selected.maxIntervals}
-                    step={1}
-                    value={Number.isFinite(count) ? count : ""}
-                    invalid={intervals !== null && !intervalsValid}
-                    onChange={(e) => {
-                      const v = e.currentTarget.valueAsNumber;
-                      setIntervals(Number.isFinite(v) ? v : 0);
-                      setFailure(null);
-                    }}
-                  />
-                  <span className="text-[13px] text-muted">
-                    intervals · <span className="mono text-ink2">{totalDuration(selected, count)}</span> total
+                  <div className="w-24 shrink-0">
+                    <Input
+                      type="number"
+                      className="mono"
+                      min={selected.minIntervals}
+                      max={selected.maxIntervals}
+                      step={1}
+                      value={Number.isFinite(count) ? count : ""}
+                      invalid={intervals !== null && !intervalsValid}
+                      onChange={(e) => {
+                        const v = e.currentTarget.valueAsNumber;
+                        setIntervals(Number.isFinite(v) ? v : 0);
+                        setFailure(null);
+                      }}
+                    />
+                  </div>
+                  <span className="min-w-0 text-[13px] text-muted">
+                    intervals, <span className="mono text-ink2">{totalDuration(selected, count)}</span> total
                   </span>
                 </div>
               </Field>

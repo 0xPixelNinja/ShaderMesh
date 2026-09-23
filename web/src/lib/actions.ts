@@ -127,9 +127,43 @@ const registryAbi = [
   { type: "function", name: "unstake", stateMutability: "nonpayable", inputs: [{ name: "amount", type: "uint256" }], outputs: [] },
 ] as const;
 
-function walletClient() {
+/**
+ * Point the wallet at the deployment's chain before writing.
+ *
+ * The dashboard reads state straight from the RPC, so a wallet left on another
+ * network still renders correct balances and only fails at signing time. Switch
+ * it up front, adding the network first when the wallet does not know it yet.
+ */
+async function ensureChain(eth: NonNullable<ReturnType<typeof getEthereumProvider>>) {
+  const current = await eth.request({ method: "eth_chainId" });
+  const target = `0x${shaderChain.id.toString(16)}`;
+  if (typeof current === "string" && current.toLowerCase() === target) return;
+
+  try {
+    await eth.request({
+      method: "wallet_switchEthereumChain",
+      params: [{ chainId: target as `0x${string}` }],
+    });
+  } catch (error) {
+    // 4902 means the wallet has no such network configured yet.
+    const code = (error as { code?: number })?.code;
+    if (code !== 4902) throw error;
+    await eth.request({
+      method: "wallet_addEthereumChain",
+      params: [{
+        chainId: target,
+        chainName: shaderChain.name,
+        rpcUrls: shaderChain.rpcUrls.default.http,
+        nativeCurrency: shaderChain.nativeCurrency,
+      }],
+    } as never);
+  }
+}
+
+async function walletClient() {
   const eth = getEthereumProvider();
   if (!eth) throw new Error("No wallet found");
+  await ensureChain(eth);
   return createWalletClient({ chain: shaderChain, transport: custom(eth) });
 }
 
@@ -180,7 +214,7 @@ export async function signInferenceAuthorization(
   messages: unknown,
 ): Promise<Hash> {
   const account = getAddress(authorization.requester);
-  return walletClient().signMessage({
+  return (await walletClient()).signMessage({
     account,
     message: canonicalInferenceAuthorization(authorization, messages),
   });
@@ -192,7 +226,7 @@ export async function waitForTransaction(hash: Hash): Promise<void> {
 }
 
 export async function claimFaucet(account: string, token: string): Promise<Hash> {
-  return walletClient().writeContract({
+  return (await walletClient()).writeContract({
     account: getAddress(account),
     address: getAddress(token),
     abi: tokenAbi,
@@ -201,7 +235,7 @@ export async function claimFaucet(account: string, token: string): Promise<Hash>
 }
 
 export async function registerProvider(account: string, registry: string, capabilities: string): Promise<Hash> {
-  return walletClient().writeContract({
+  return (await walletClient()).writeContract({
     account: getAddress(account),
     address: getAddress(registry),
     abi: registryAbi,
@@ -211,7 +245,7 @@ export async function registerProvider(account: string, registry: string, capabi
 }
 
 export async function updateProviderCapabilities(account: string, registry: string, capabilities: string): Promise<Hash> {
-  return walletClient().writeContract({
+  return (await walletClient()).writeContract({
     account: getAddress(account),
     address: getAddress(registry),
     abi: registryAbi,
@@ -221,7 +255,7 @@ export async function updateProviderCapabilities(account: string, registry: stri
 }
 
 export async function setProviderActive(account: string, registry: string, active: boolean): Promise<Hash> {
-  return walletClient().writeContract({
+  return (await walletClient()).writeContract({
     account: getAddress(account),
     address: getAddress(registry),
     abi: registryAbi,
@@ -231,7 +265,7 @@ export async function setProviderActive(account: string, registry: string, activ
 }
 
 export async function approveProviderStake(account: string, token: string, registry: string, amount: bigint): Promise<Hash> {
-  return walletClient().writeContract({
+  return (await walletClient()).writeContract({
     account: getAddress(account),
     address: getAddress(token),
     abi: approveAbi,
@@ -241,7 +275,7 @@ export async function approveProviderStake(account: string, token: string, regis
 }
 
 export async function stakeProvider(account: string, registry: string, amount: bigint): Promise<Hash> {
-  return walletClient().writeContract({
+  return (await walletClient()).writeContract({
     account: getAddress(account),
     address: getAddress(registry),
     abi: registryAbi,
@@ -251,7 +285,7 @@ export async function stakeProvider(account: string, registry: string, amount: b
 }
 
 export async function unstakeProvider(account: string, registry: string, amount: bigint): Promise<Hash> {
-  return walletClient().writeContract({
+  return (await walletClient()).writeContract({
     account: getAddress(account),
     address: getAddress(registry),
     abi: registryAbi,
@@ -269,7 +303,7 @@ export async function createRentalListing(params: {
   maxIntervals: number;
   spec: string;
 }): Promise<Hash> {
-  return walletClient().writeContract({
+  return (await walletClient()).writeContract({
     account: getAddress(params.account),
     address: getAddress(params.rental),
     abi: rentalAbi,
@@ -285,7 +319,7 @@ export async function createRentalListing(params: {
 }
 
 export async function setRentalListingAvailable(account: string, rental: string, listingId: number, available: boolean): Promise<Hash> {
-  return walletClient().writeContract({
+  return (await walletClient()).writeContract({
     account: getAddress(account),
     address: getAddress(rental),
     abi: rentalAbi,
@@ -295,7 +329,7 @@ export async function setRentalListingAvailable(account: string, rental: string,
 }
 
 export async function createInferenceOffer(account: string, inferenceMarket: string, model: string, pricePerToken: bigint): Promise<Hash> {
-  return walletClient().writeContract({
+  return (await walletClient()).writeContract({
     account: getAddress(account),
     address: getAddress(inferenceMarket),
     abi: inferenceAbi,
@@ -305,7 +339,7 @@ export async function createInferenceOffer(account: string, inferenceMarket: str
 }
 
 export async function deactivateInferenceOffer(account: string, inferenceMarket: string, offerId: string): Promise<Hash> {
-  return walletClient().writeContract({
+  return (await walletClient()).writeContract({
     account: getAddress(account),
     address: getAddress(inferenceMarket),
     abi: inferenceAbi,
@@ -320,7 +354,7 @@ export async function approveInferenceCredit(
   inferenceMarket: string,
   amount: bigint,
 ): Promise<Hash> {
-  return walletClient().writeContract({
+  return (await walletClient()).writeContract({
     account: getAddress(account),
     address: getAddress(token),
     abi: approveAbi,
@@ -335,7 +369,7 @@ export async function openInferenceCredit(
   offerId: string,
   escrow: bigint,
 ): Promise<Hash> {
-  return walletClient().writeContract({
+  return (await walletClient()).writeContract({
     account: getAddress(account),
     address: getAddress(inferenceMarket),
     abi: inferenceAbi,
@@ -351,7 +385,7 @@ export async function settleInferenceUsage(
   cumulativePromptTokens: bigint,
   cumulativeCompletionTokens: bigint,
 ): Promise<Hash> {
-  return walletClient().writeContract({
+  return (await walletClient()).writeContract({
     account: getAddress(account),
     address: getAddress(inferenceMarket),
     abi: inferenceAbi,
@@ -365,7 +399,7 @@ export async function closeInferenceCredit(
   inferenceMarket: string,
   creditId: string,
 ): Promise<Hash> {
-  return walletClient().writeContract({
+  return (await walletClient()).writeContract({
     account: getAddress(account),
     address: getAddress(inferenceMarket),
     abi: inferenceAbi,
@@ -387,7 +421,7 @@ export async function requestLease(params: {
   intervals: number;
   manifest: string;
 }): Promise<string> {
-  const client = walletClient();
+  const client = await walletClient();
   const account = getAddress(params.account);
   const escrow = BigInt(params.pricePerInterval) * BigInt(params.intervals);
 
@@ -412,7 +446,7 @@ export async function requestLease(params: {
 }
 
 export async function cancelLease(account: string, rental: string, leaseId: number): Promise<string> {
-  return walletClient().writeContract({
+  return (await walletClient()).writeContract({
     account: getAddress(account),
     address: getAddress(rental),
     abi: rentalAbi,
@@ -422,7 +456,7 @@ export async function cancelLease(account: string, rental: string, leaseId: numb
 }
 
 export async function settleLease(account: string, rental: string, leaseId: number): Promise<string> {
-  return walletClient().writeContract({
+  return (await walletClient()).writeContract({
     account: getAddress(account),
     address: getAddress(rental),
     abi: rentalAbi,
@@ -432,7 +466,7 @@ export async function settleLease(account: string, rental: string, leaseId: numb
 }
 
 export async function endLease(account: string, rental: string, leaseId: number): Promise<string> {
-  return walletClient().writeContract({
+  return (await walletClient()).writeContract({
     account: getAddress(account),
     address: getAddress(rental),
     abi: rentalAbi,
