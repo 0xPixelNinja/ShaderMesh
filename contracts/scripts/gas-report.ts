@@ -91,6 +91,15 @@ async function main() {
   await time.increase(3_600);
   await record("rental.finalizeExpired", rental.finalizeExpired(1));
 
+  const answer = ethers.keccak256(ethers.toUtf8Bytes("benchmark-output"));
+  await record("registry.issueChallenge", registry.issueChallenge(provider.address));
+  await record("registry.respondChallenge", registry.connect(provider).respondChallenge(1, 900, answer));
+  await record("registry.resolveChallenge (pass)", registry.resolveChallenge(1, true));
+  await wait(registry.issueChallenge(provider.address));
+  await time.increase(15 * 60 + 1);
+  await record("registry.expireChallenge (slash)", registry.expireChallenge(2));
+  await wait(registry.attest(provider.address, "RTX4090", 24, 1_000));
+
   await record("inference.createOffer", inference.connect(provider).createOffer("llama-3.1-8b", E("0.01")));
   await wait(token.connect(requester).approve(await inference.getAddress(), E(5)));
   await record("inference.openCredit", inference.connect(requester).openCredit(1, E(5)));
