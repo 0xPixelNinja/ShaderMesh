@@ -10,6 +10,7 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test:e2e": "playwright test",
+    "test:e2e:wallet": "playwright test wallet.spec.ts --project=desktop-chromium",
     "test:e2e:headed": "playwright test --headed"
   },
   "dependencies": {

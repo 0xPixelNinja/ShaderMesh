@@ -18,6 +18,8 @@ export default defineConfig({
     },
     {
       name: "mobile-390-chromium",
+      // Wallet writes share one chain and one listing, so they run on desktop only.
+      testIgnore: /wallet\.spec\.ts/,
       use: { browserName: "chromium", viewport: { width: 390, height: 844 } },
     },
   ],

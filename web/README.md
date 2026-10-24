@@ -41,7 +41,8 @@ and slashing history from the orchestrator projection.
 ## End-to-end tests
 
 The Playwright suite expects the full Docker Compose stack to be running. It
-does not start or stop any service and uses only read-only dashboard actions.
+does not start or stop any service. `dashboard.spec.ts` uses only read-only
+dashboard actions. `wallet.spec.ts` performs real wallet writes (see below).
 
 ```powershell
 npm run test:e2e
@@ -50,4 +51,25 @@ $env:PLAYWRIGHT_BASE_URL = "http://127.0.0.1:3000"; npm run test:e2e
 
 The default base URL is `http://127.0.0.1:3000`. Install the Chromium browser
 binary with `npx playwright install chromium` if it is not already available.
-The current suite has 16 passing checks across desktop and mobile viewports.
+The read-only suite has 16 checks across desktop and mobile viewports.
+
+### Wallet write tests
+
+`tests/e2e/wallet.spec.ts` runs on the desktop project only. It injects an
+EIP-1193 wallet (`tests/e2e/wallet.ts`) that forwards JSON-RPC to the local
+Hardhat node, which signs for its unlocked accounts. The specs cover connecting
+a wallet, renting a GPU through to heartbeats and a refund on end, prepaid
+inference credit with a signed chat request and settlement, and registering and
+staking a fresh provider.
+
+Requirements: the Compose stack with the Hardhat node on `127.0.0.1:8545`, the
+orchestrator on `127.0.0.1:4000`, a provider agent that accepts the default
+manifest, and `INFERENCE_BACKEND=echo` for the chat flow when no Ollama server is
+available. Override the endpoints with `E2E_RPC_URL` and `E2E_ORCHESTRATOR_URL`.
+The tests use Hardhat accounts 5, 6 and 7 and a new random address for the
+provider spec. If every listing is reserved by another lease, the fixture ends
+or cancels that lease first. Do not run it against a public network.
+
+```powershell
+$env:PLAYWRIGHT_BASE_URL = "http://127.0.0.1:3000"; npm run test:e2e:wallet
+```
