@@ -7,57 +7,57 @@ import { Icon, Logo, type IconName } from "./icons";
 import { useWallet } from "./WalletProvider";
 import { Button } from "./ui";
 import { ThemeToggle } from "./ThemeToggle";
-import { fmtUsd, shortAddr } from "@/lib/format";
+import { fmtAmount, shortAddr } from "@/lib/format";
 import { CHAIN_ID } from "@/lib/config";
 
-interface NavigationGroup {
-  group: string;
-  items: { href: string; label: string; icon: IconName }[];
+interface NavItem {
+  href: string;
+  label: string;
+  icon: IconName;
 }
 
-const NAV: NavigationGroup[] = [
+interface NavGroup {
+  group: string | null;
+  items: NavItem[];
+}
+
+/** Navigation follows what the visitor is doing: renting, providing, or inspecting. */
+export const NAV: NavGroup[] = [
+  { group: null, items: [{ href: "/dashboard", label: "Home", icon: "dashboard" }] },
   {
-    group: "Compute",
+    group: "Rent",
     items: [
-      { href: "/dashboard", label: "Overview", icon: "dashboard" },
-      { href: "/rent", label: "Rent GPUs", icon: "gpu" },
+      { href: "/rent", label: "Marketplace", icon: "gpu" },
       { href: "/leases", label: "My leases", icon: "clock" },
+      { href: "/models", label: "Inference", icon: "model" },
     ],
   },
-  { group: "AI", items: [{ href: "/models", label: "Models", icon: "model" }] },
   {
-    group: "Network",
+    group: "Provide",
     items: [
-      { href: "/providers", label: "Provider console", icon: "providers" },
-      { href: "/explorer", label: "Explorer", icon: "explorer" },
+      { href: "/provide", label: "Node", icon: "pulse" },
+      { href: "/provide/capacity", label: "Capacity", icon: "providers" },
+      { href: "/provide/stake", label: "Stake", icon: "shield" },
     ],
   },
+  { group: "Network", items: [{ href: "/explorer", label: "Explorer", icon: "explorer" }] },
 ];
 
-const TITLES: Record<string, { title: string; sub: string }> = {
-  "/dashboard": { title: "Overview", sub: "Your rentals and network health" },
-  "/rent": { title: "Rent GPUs", sub: "Request compute from staked providers" },
-  "/leases": { title: "My leases", sub: "Pending, active, and past rental requests" },
-  "/models": { title: "Models", sub: "Call open models served by providers" },
-  "/providers": { title: "Provider console", sub: "Manage collateral, capacity, and inference offers" },
-  "/explorer": { title: "Explorer", sub: "Inspect indexed protocol state and on-chain activity" },
-};
-
 const ALL_ITEMS = NAV.flatMap((group) => group.items);
+const NETWORK_NAME = CHAIN_ID === 11155111 ? "Sepolia" : "Local devnet";
 
-function NavLink({ href, label, icon, active }: { href: string; label: string; icon: IconName; active: boolean }) {
+function NavLink({ href, label, icon, active }: NavItem & { active: boolean }) {
   return (
     <Link
       href={href}
       aria-current={active ? "page" : undefined}
-      className={`group relative flex items-center gap-2.5 rounded-md px-2.5 py-2 text-[14px] font-medium transition-colors duration-fast ease-out ${
-        active ? "bg-hover text-ink" : "text-muted hover:bg-hover hover:text-ink"
+      className={`group relative flex h-9 items-center gap-2.5 rounded-md border px-2.5 text-[14px] font-medium transition-colors duration-fast ease-out ${
+        active ? "border-line bg-surface text-ink" : "border-transparent text-muted hover:bg-hover hover:text-ink"
       }`}
     >
-      {active && <span className="absolute -left-3 bottom-1.5 top-1.5 w-0.5 bg-accent" />}
       <Icon
         name={icon}
-        className={`h-[18px] w-[18px] shrink-0 ${active ? "text-accent" : "text-faint group-hover:text-muted"}`}
+        className={`h-[17px] w-[17px] shrink-0 ${active ? "text-accent" : "text-faint group-hover:text-muted"}`}
         aria-hidden
       />
       {label}
@@ -65,109 +65,98 @@ function NavLink({ href, label, icon, active }: { href: string; label: string; i
   );
 }
 
+function WalletControl() {
+  const { address, balanceWei, connect, connecting, disconnect } = useWallet();
+  if (!address) {
+    return (
+      <Button variant="primary" onClick={connect} loading={connecting} icon="wallet">
+        {connecting ? "Connecting" : "Connect wallet"}
+      </Button>
+    );
+  }
+  return (
+    <span className="inline-flex h-9 items-center rounded-md border border-line bg-surface">
+      <span className="mono hidden items-center gap-1.5 border-r border-line px-3 text-[13px] sm:inline-flex">
+        <span className="font-semibold text-ink">{fmtAmount(balanceWei)}</span>
+        <span className="text-faint">SMESH</span>
+      </span>
+      <span className="mono inline-flex items-center gap-1.5 px-3 text-[13px] text-ink2">
+        <Icon name="wallet" className="h-3.5 w-3.5 text-faint" aria-hidden />
+        {shortAddr(address)}
+      </span>
+      <button
+        type="button"
+        onClick={disconnect}
+        aria-label="Disconnect wallet"
+        title="Disconnect wallet"
+        className="grid h-full w-8 place-items-center rounded-r-md border-l border-line text-faint transition-colors duration-fast ease-out hover:bg-hover hover:text-danger"
+      >
+        <Icon name="close" className="h-3.5 w-3.5" aria-hidden />
+      </button>
+    </span>
+  );
+}
+
+function isActive(pathname: string, href: string): boolean {
+  if (href === "/provide") return pathname === "/provide";
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
 export function Shell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const { address, balanceWei, connect, connecting, disconnect } = useWallet();
-  const head = TITLES[pathname] ?? { title: "ShaderMesh", sub: "" };
 
   // The landing page draws its own editorial frame.
   if (pathname === "/") return <>{children}</>;
 
   return (
-    <div className="flex min-h-screen flex-col md:grid md:h-screen md:grid-cols-[248px_1fr]">
-      <aside className="hidden min-h-0 flex-col border-r border-line bg-chrome px-3 py-4 md:flex">
-        <Link href="/" className="mb-5 flex items-center gap-2.5 px-2" aria-label="ShaderMesh home">
+    <div className="flex min-h-screen flex-col md:grid md:h-screen md:grid-cols-[232px_1fr]">
+      <aside className="hidden min-h-0 flex-col border-r border-line bg-chrome px-3 pb-4 pt-3 md:flex">
+        <Link href="/" className="mb-6 flex h-10 items-center gap-2.5 px-2.5" aria-label="ShaderMesh home">
           <Logo />
           <span className="text-[15px] font-semibold tracking-tight text-ink">ShaderMesh</span>
         </Link>
 
-        <nav className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto" aria-label="Primary">
+        <nav className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto" aria-label="Primary">
           {NAV.map((group) => (
-            <div key={group.group}>
-              <h2 className="mb-1.5 px-2.5 text-[12px] font-medium uppercase tracking-wider text-faint">
-                {group.group}
-              </h2>
+            <div key={group.group ?? "home"}>
+              {group.group && <h2 className="mb-1.5 px-2.5 text-[12px] font-medium text-faint">{group.group}</h2>}
               <div className="flex flex-col gap-0.5">
                 {group.items.map((item) => (
-                  <NavLink key={item.href} {...item} active={pathname === item.href} />
+                  <NavLink key={item.href} {...item} active={isActive(pathname, item.href)} />
                 ))}
               </div>
             </div>
           ))}
         </nav>
 
-        <div className="mt-4 shrink-0 rounded-lg border border-line bg-surface px-3 py-2.5">
-          <div className="flex items-center gap-2">
-            <span
-              className={`h-1.5 w-1.5 shrink-0 rounded-full ${address ? "bg-success" : "bg-faint"}`}
-              aria-hidden
-            />
-            <span className="text-[13px] text-muted">{address ? "Wallet connected" : "Not connected"}</span>
-          </div>
-          <div className="mono mt-1 truncate text-[13px] text-ink2">
-            {address ? shortAddr(address) : "No account"}
-          </div>
+        <div className="mt-4 flex items-center gap-2 px-2.5 text-[13px] text-muted">
+          <span className="live-dot h-1.5 w-1.5 shrink-0 rounded-full bg-success" aria-hidden />
+          {NETWORK_NAME}
+          <span className="mono ml-auto text-[12px] text-faint">chain {CHAIN_ID}</span>
         </div>
       </aside>
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-sticky flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-line bg-chrome px-4 py-3 sm:px-6">
-          <Link href="/" className="grid shrink-0 md:hidden" aria-label="ShaderMesh home">
+        <header className="sticky top-0 z-sticky flex h-14 shrink-0 items-center gap-3 border-b border-line bg-bg px-4 sm:px-8">
+          <Link href="/" className="flex items-center gap-2 md:hidden" aria-label="ShaderMesh home">
             <Logo />
           </Link>
-          <div className="min-w-0 flex-1">
-            <h1 className="truncate text-[18px] font-semibold leading-tight tracking-[-0.02em]">{head.title}</h1>
-            <p className="mt-0.5 truncate text-[13px] leading-tight text-muted">{head.sub}</p>
+          <div className="ml-auto flex items-center gap-2">
+            <ThemeToggle />
+            <WalletControl />
           </div>
-
-          <span className="hidden items-center gap-1.5 rounded-md border border-line bg-surface px-2.5 py-1.5 text-[13px] text-muted lg:inline-flex">
-            <span className="h-1.5 w-1.5 rounded-full bg-success" aria-hidden />
-            {CHAIN_ID === 11155111 ? "Sepolia" : "Local devnet"}
-          </span>
-
-          <span className="mono inline-flex items-center gap-1.5 rounded-md border border-line bg-surface px-2.5 py-1.5 text-[13px]">
-            <span className="font-semibold text-ink">{fmtUsd(balanceWei)}</span>
-            <span className="text-faint">SMESH</span>
-          </span>
-
-          <ThemeToggle />
-
-          {address ? (
-            <span className="hidden items-center rounded-md border border-line bg-surface sm:inline-flex">
-              <span className="mono inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[13px] text-ink2">
-                <Icon name="wallet" className="h-3.5 w-3.5 text-faint" aria-hidden />
-                {shortAddr(address)}
-              </span>
-              <button
-                type="button"
-                onClick={disconnect}
-                aria-label="Disconnect wallet"
-                title="Disconnect wallet"
-                className="grid h-[34px] w-8 place-items-center border-l border-line text-faint transition-colors duration-fast ease-out hover:bg-hover hover:text-danger"
-              >
-                <Icon name="close" className="h-3.5 w-3.5" aria-hidden />
-              </button>
-            </span>
-          ) : (
-            <Button variant="primary" onClick={connect} loading={connecting} icon="wallet">
-              {connecting ? "Connecting" : "Connect wallet"}
-            </Button>
-          )}
         </header>
 
-        <nav
-          aria-label="Mobile navigation"
-          className="flex gap-1 overflow-x-auto border-b border-line bg-chrome px-3 py-2 md:hidden"
-        >
+        <nav aria-label="Mobile navigation" className="flex gap-1 overflow-x-auto border-b border-line bg-chrome px-3 py-2 md:hidden">
           {ALL_ITEMS.map((item) => {
-            const active = pathname === item.href;
+            const active = isActive(pathname, item.href);
             return (
               <Link
                 key={item.href}
                 href={item.href}
                 aria-current={active ? "page" : undefined}
                 className={`shrink-0 rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors duration-fast ease-out ${
-                  active ? "bg-hover text-accent" : "text-muted hover:bg-hover hover:text-ink"
+                  active ? "bg-surface text-ink" : "text-muted hover:bg-hover hover:text-ink"
                 }`}
               >
                 {item.label}
@@ -176,8 +165,8 @@ export function Shell({ children }: { children: ReactNode }) {
           })}
         </nav>
 
-        <main className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6">
-          <div className="mx-auto w-full max-w-[1400px]">{children}</div>
+        <main className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden bg-bg px-4 pb-16 pt-8 sm:px-8">
+          <div className="mx-auto w-full max-w-[1200px]">{children}</div>
         </main>
       </div>
     </div>

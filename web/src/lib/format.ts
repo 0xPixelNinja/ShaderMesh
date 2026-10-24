@@ -20,7 +20,15 @@ export function fmtUsd(wei: string | bigint, digits = 2): string {
   );
 }
 
-/** SMESH amount for the muted secondary label. */
+/** A token amount without its unit, for places that print "SMESH" separately. */
+export function fmtAmount(wei: string | bigint, digits = 2): string {
+  return usd(wei).toLocaleString(undefined, {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  });
+}
+
+/** SMESH amount with its unit. Use this everywhere a value is shown. */
 export function fmtSmesh(wei: string | bigint, digits = 2): string {
   return (
     usd(wei).toLocaleString(undefined, {

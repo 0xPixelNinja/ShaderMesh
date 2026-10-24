@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode } from "react";
+import Link from "next/link";
 import { Icon, type IconName } from "./icons";
 import { shortHash } from "@/lib/format";
 
@@ -359,4 +360,169 @@ export function Td({ children, align = "left", className = "" }: { children?: Re
 
 export function Tr({ children }: { children: ReactNode }) {
   return <tr className="transition-colors duration-fast ease-out hover:bg-hover">{children}</tr>;
+}
+
+/* ---------------------------------------------------------- page structure */
+
+/** The top of every app page: workspace label, title, one-line purpose, actions. */
+export function PageHeader({
+  eyebrow,
+  title,
+  description,
+  actions,
+}: {
+  eyebrow?: string;
+  title: string;
+  description?: ReactNode;
+  actions?: ReactNode;
+}) {
+  return (
+    <header className="mb-8 flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
+      <div className="min-w-0 max-w-[44rem]">
+        {eyebrow && <p className="mb-2 text-[13px] font-medium text-accent">{eyebrow}</p>}
+        <h1 className="text-[28px] font-semibold leading-[1.15] tracking-[-0.02em] text-ink">{title}</h1>
+        {description && <p className="mt-2 text-[15px] leading-[1.6] text-muted">{description}</p>}
+      </div>
+      {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
+    </header>
+  );
+}
+
+/**
+ * A titled region without a card border. Sections separate content with space
+ * and one hairline; cards are reserved for objects (a lease, a listing).
+ */
+export function Section({
+  title,
+  description,
+  action,
+  children,
+  className = "",
+}: {
+  title: string;
+  description?: ReactNode;
+  action?: ReactNode;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <section className={`min-w-0 ${className}`}>
+      <div className="mb-4 flex flex-wrap items-end justify-between gap-x-4 gap-y-2 border-b border-line pb-3">
+        <div className="min-w-0">
+          <h2 className="text-[16px] font-semibold tracking-[-0.01em] text-ink">{title}</h2>
+          {description && <p className="mt-1 text-[13px] leading-relaxed text-muted">{description}</p>}
+        </div>
+        {action && <div className="shrink-0">{action}</div>}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+/** Label and value pairs in a responsive grid. Values are mono by default. */
+export function Facts({
+  items,
+  columns = 4,
+}: {
+  items: { label: string; value: ReactNode; sub?: ReactNode; tone?: "default" | "success" | "danger" | "accent" }[];
+  columns?: 2 | 3 | 4;
+}) {
+  const cols = columns === 2 ? "sm:grid-cols-2" : columns === 3 ? "sm:grid-cols-3" : "sm:grid-cols-2 lg:grid-cols-4";
+  const tone = { default: "text-ink", success: "text-success", danger: "text-danger", accent: "text-accent" };
+  return (
+    <dl className={`grid grid-cols-1 gap-x-8 gap-y-5 ${cols}`}>
+      {items.map((item) => (
+        <div key={item.label} className="min-w-0">
+          <dt className="text-[13px] text-muted">{item.label}</dt>
+          <dd className={`mono mt-1.5 truncate text-[20px] font-semibold leading-tight ${tone[item.tone ?? "default"]}`}>
+            {item.value}
+          </dd>
+          {item.sub && <dd className="mt-1 text-[12px] text-faint">{item.sub}</dd>}
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+/** A horizontal bar split into labelled parts, for example bonded and free stake. */
+export function Meter({
+  parts,
+  label,
+}: {
+  parts: { value: number; label: string; tone: "accent" | "success" | "danger" | "muted" | "ink" }[];
+  label: string;
+}) {
+  const total = parts.reduce((sum, p) => sum + Math.max(p.value, 0), 0) || 1;
+  const fill = { accent: "bg-accent", success: "bg-success", danger: "bg-danger", muted: "bg-line-strong", ink: "bg-ink2" };
+  return (
+    <div>
+      <div className="flex h-2.5 w-full gap-0.5 overflow-hidden rounded-[3px] bg-panel" role="img" aria-label={label}>
+        {parts.map((p) =>
+          p.value > 0 ? (
+            <span key={p.label} className={`h-full ${fill[p.tone]}`} style={{ width: `${(p.value / total) * 100}%` }} />
+          ) : null,
+        )}
+      </div>
+      <ul className="mt-2.5 flex flex-wrap gap-x-5 gap-y-1 text-[12px] text-muted">
+        {parts.map((p) => (
+          <li key={p.label} className="inline-flex items-center gap-1.5">
+            <span className={`h-2 w-2 rounded-[2px] ${fill[p.tone]}`} aria-hidden />
+            {p.label}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/** Setup steps with done, current, and upcoming states. */
+export function Checklist({ steps }: { steps: { title: string; detail: ReactNode; done: boolean; action?: ReactNode }[] }) {
+  const current = steps.findIndex((s) => !s.done);
+  return (
+    <ol className="divide-y divide-line rounded-lg border border-line bg-surface">
+      {steps.map((step, i) => {
+        const state = step.done ? "done" : i === current ? "current" : "upcoming";
+        return (
+          <li key={step.title} className="flex items-start gap-4 px-5 py-4" aria-current={state === "current" ? "step" : undefined}>
+            <span
+              className={`mono mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full border text-[12px] font-semibold ${
+                state === "done"
+                  ? "border-success bg-success text-surface"
+                  : state === "current"
+                    ? "border-accent bg-accent-weak text-accent"
+                    : "border-line-strong text-faint"
+              }`}
+            >
+              {state === "done" ? <Icon name="check" className="h-3.5 w-3.5" aria-hidden /> : i + 1}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className={`text-[14px] font-medium ${state === "upcoming" ? "text-muted" : "text-ink"}`}>{step.title}</p>
+              <p className="mt-0.5 text-[13px] leading-relaxed text-muted">{step.detail}</p>
+            </div>
+            {state === "current" && step.action && <div className="shrink-0">{step.action}</div>}
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+/** Secondary navigation inside a workspace, such as Node, Capacity, and Stake. */
+export function SubNav({ items, current }: { items: { href: string; label: string }[]; current: string }) {
+  return (
+    <nav aria-label="Workspace sections" className="mb-8 flex gap-1 overflow-x-auto border-b border-line">
+      {items.map((item) => (
+        <Link
+          key={item.href}
+          href={item.href}
+          aria-current={item.href === current ? "page" : undefined}
+          className={`-mb-px shrink-0 border-b-2 px-3 pb-2.5 text-[14px] font-medium transition-colors duration-fast ease-out ${
+            item.href === current ? "border-accent text-ink" : "border-transparent text-muted hover:text-ink"
+          }`}
+        >
+          {item.label}
+        </Link>
+      ))}
+    </nav>
+  );
 }
