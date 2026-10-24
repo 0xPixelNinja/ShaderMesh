@@ -40,6 +40,11 @@ LIVE_PROVIDER_CAPABILITIES = os.environ.get(
     "CAPABILITIES",
     '{"gpu":"NVIDIA GeForce RTX 4070 Laptop GPU","vram":8,"cpu":"host","region":"local"}',
 )
+# Low on purpose: the attester requires a challenge score of at least half of this
+# (CHALLENGE_MIN_SCORE_BPS). The score unit depends on the backend (hash kH/s for
+# echo, tokens/sec x 100 for Ollama), so a low value passes reliably on either.
+# Use `python benchmark.py` on real hardware to pick a realistic value.
+LIVE_PROVIDER_BENCHMARK = int(os.environ.get("DEMO_LIVE_PROVIDER_BENCHMARK", "100"))
 LIVE_PROVIDER_STAKE = float(os.environ.get("DEMO_PROVIDER_STAKE_SMESH", "100"))
 LIVE_PROVIDER_FUNDING = float(os.environ.get("DEMO_PROVIDER_FUNDING_SMESH", "500"))
 
@@ -76,7 +81,9 @@ def main() -> None:
     )
     owner.tx(owner.token.functions.transfer(live.chain.address, wei(LIVE_PROVIDER_FUNDING)))
     live.ensure_ready()
-    attest_provider(owner, live.chain.address, LIVE_PROVIDER_GPU, LIVE_PROVIDER_VRAM, 1000)
+    attest_provider(
+        owner, live.chain.address, LIVE_PROVIDER_GPU, LIVE_PROVIDER_VRAM, LIVE_PROVIDER_BENCHMARK
+    )
     print(f"prepared live provider {live.chain.address} as {LIVE_PROVIDER_GPU}")
 
     requester = ChainClient.from_unlocked_account(RPC, dep, REQUESTER_INDEX)

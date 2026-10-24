@@ -154,6 +154,44 @@ exponential retry. Configure it with `RETRY_MAX_ATTEMPTS`,
 `RETRY_BACKOFF_MULTIPLIER`. Contract reverts and non-transient HTTP failures are
 not retried.
 
+## Benchmark challenges
+
+The registry attester periodically challenges attested providers to prove they are
+live and performing as attested. The provider and the attester run the same
+deterministic workload: `h0 = seed`, `h(i+1) = sha256(h(i))`, output `h(N)` with
+`N = CHALLENGE_ITERATIONS` (`benchmark.py`). The seed comes from on-chain
+randomness, so it cannot be precomputed.
+
+- **Provider** (`serve_provider.py`): each poll it checks `openChallenge`, runs the
+  workload, and calls `respondChallenge(id, score, outputHash)`. The score is
+  tokens/sec x 100 on a fixed prompt when `INFERENCE_BACKEND=ollama` (first entry of
+  `MODELS`), else the hash-chain rate in kH/s. Run `python benchmark.py` to print the
+  score to use as the attested benchmark score.
+- **Attester** (`attester.py`, run with `python attester.py`): uses the registry
+  attester key. It issues a challenge to each attested provider every
+  `CHALLENGE_INTERVAL_SECONDS`, recomputes the hash chain, passes a response only if the
+  hash matches and the score is at least `benchmarkScore * CHALLENGE_MIN_SCORE_BPS / 10000`
+  (no floor when the attested score is 0), and calls `expireChallenge` for missed
+  deadlines. A failure slashes free stake to the treasury and revokes the attestation.
+  State is rebuilt from `Attested` and `ChallengeIssued` events, so a restart loses nothing.
+  It logs one line per action: `challenge=<id> provider=<addr> outcome=<issued|passed|failed|lapsed>`.
+
+| Variable | Used by | Default | Meaning |
+|----------|---------|---------|---------|
+| `ATTESTER_PRIVATE_KEY` | attester | none | Registry attester key. Never commit it. |
+| `CHALLENGE_INTERVAL_SECONDS` | attester | 300 | Minimum time between challenges per provider. |
+| `CHALLENGE_MIN_SCORE_BPS` | attester | 5000 | Required share of the attested score, in basis points. |
+| `ATTESTER_POLL_SECS` | attester | 15 | Loop period. |
+| `ATTESTER_LOG_RANGE` | attester | 2000 | Blocks per event query (set 10 on small RPC tiers). |
+| `BENCHMARK_FAULT` | provider | empty | Demo only: `wrong_hash` submits a bad hash, `silent` never responds. |
+
+On-chain challenge window and slash amount are set at deploy time with
+`CHALLENGE_WINDOW_SECONDS` and `CHALLENGE_SLASH_SMESH` (the local stack uses 120 and 10).
+The local seed attests the live provider with a deliberately low score
+(`DEMO_LIVE_PROVIDER_BENCHMARK`, default 100) so the echo backend (kH/s) and Ollama
+(tokens/sec x 100) both pass reliably. To demo slashing, start the stack with
+`BENCHMARK_FAULT=wrong_hash` or `silent`.
+
 ## Modules
 
 | File | Responsibility |
@@ -168,7 +206,9 @@ not retried.
 | `rental.py` | `RentalProvider` (discover, accept/reject, serve, heartbeat) and `RentalRenter` (request, settle, end, terminate). |
 | `inference.py` | OpenAI-compatible endpoint (`/v1/chat/completions`, `/v1/models`) with pluggable backend (echo or Ollama) and token metering. |
 | `agent.py` | Task worker entrypoint. |
-| `serve_provider.py` | Provider node entrypoint: register, stake, list, serve inference, heartbeat leases. |
+| `serve_provider.py` | Provider node entrypoint: register, stake, list, serve inference, heartbeat leases, answer challenges. |
+| `benchmark.py` | Deterministic challenge workload, scoring, provider responder, and score CLI. |
+| `attester.py` | Operator-run service that issues, judges, and expires benchmark challenges. |
 
 ## Tests
 
@@ -178,7 +218,7 @@ pip install -r requirements-dev.txt
 python -m pytest tests -v
 ```
 
-The current suite has 44 passing tests.
+The current suite has 58 passing tests.
 
 - `tests/test_deterministic_job.py` checks the render job is a valid, reproducible PNG.
 - `tests/test_agent_integration.py` drives the verifiable-task lifecycle, including slashing.
@@ -190,6 +230,9 @@ The current suite has 44 passing tests.
   cleanup, and health-backed heartbeats without requiring Docker or a GPU.
 - `tests/test_worker_safety.py` checks task sandboxing, retry classification and
   backoff, IPFS retries, and challenger sampling with fakes.
+- `tests/test_benchmark.py` checks hash chain determinism, scoring, and attester judging.
+- `tests/test_challenge_integration.py` drives issue, respond, and judge against a real
+  chain: pass refreshes attestation, wrong hash and silence are slashed, restart safety.
 - `tests/test_hardware_discovery.py` checks NVIDIA CSV and Ollama response parsing.
 
 Node and deploy are shared session fixtures in `conftest.py`.

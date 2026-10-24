@@ -6,7 +6,8 @@ A provider runs this to:
   1. register and stake (if not already),
   2. create a rental listing (if it has none active),
   3. serve an OpenAI-compatible inference endpoint for its advertised models,
-  4. keep every active lease alive by sending heartbeats.
+  4. keep every active lease alive by sending heartbeats,
+  5. answer benchmark challenges issued by the attester.
 
 Attestation is performed by the registry attester (an operator or attestation
 service) out of band; a provider cannot attest itself.
@@ -16,7 +17,8 @@ Config via environment (see .env.example):
   RENTAL_PRICE_USD, RENTAL_INTERVAL_SECS, RENTAL_MIN, RENTAL_MAX, RENTAL_SPEC,
   STAKE_AMOUNT_USD, INFERENCE_PORT, INFERENCE_BACKEND,
   INFERENCE_PRICE_SMESH_PER_1K_TOKENS, MODELS, POLL_SECS,
-  LEASE_ALLOWED_MANIFEST, LEASE_WORKLOAD_IMAGE and LEASE_* sandbox settings
+  LEASE_ALLOWED_MANIFEST, LEASE_WORKLOAD_IMAGE and LEASE_* sandbox settings,
+  BENCHMARK_FAULT ("" | "wrong_hash" | "silent", demo only)
 """
 
 from __future__ import annotations
@@ -169,6 +171,7 @@ def maintain_advertisements(
 
 def main() -> None:
     from chain import ChainClient, load_deployment
+    from benchmark import respond_to_challenge
     from rental import RentalProvider
     from inference import run_server, make_backend
     from retry import RetryPolicy
@@ -239,8 +242,9 @@ def main() -> None:
     print(f"[provider] started {chain.address}; waiting for readiness and attestation")
     provider.serve_forever(
         poll_secs=float(os.environ.get("POLL_SECS", "30")),
-        maintenance=lambda: maintain_advertisements(
-            provider, models, inference_price
+        maintenance=lambda: (
+            maintain_advertisements(provider, models, inference_price),
+            respond_to_challenge(chain),
         ),
     )
 
