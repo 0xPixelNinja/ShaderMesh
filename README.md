@@ -23,9 +23,10 @@ The protocol does not claim that arbitrary off-chain computation or non-determin
 | Boundary | Components | Responsibility |
 |----------|------------|----------------|
 | **On chain** | `SmeshToken`, `ProviderRegistry`, `RentalMarket`, `InferenceMarket`, `JobMarket`, `Verification` | Funds, stake, bonds, lifecycle state, settlement, reputation, and disputes |
-| **Provider controlled** | Python agent, Ollama adapter, constrained Docker workloads | Capacity advertisement, accepted workload execution, inference, task execution, and heartbeats |
+| **Provider controlled** | Python agent, Ollama adapter, constrained Docker workloads | Capacity advertisement, accepted workload execution, inference, task execution, heartbeats, and benchmark answers |
+| **Attester (trusted role)** | Python `attester` service | Issues, judges, and expires benchmark challenges; records attestations |
 | **Untrusted coordination** | TypeScript orchestrator, Postgres projection, IPFS, HTTP/SSE API | Event indexing, discovery, routing, replay protection, split/stitch, and read APIs |
-| **User controlled** | Next.js dashboard and browser wallet | Discovery, transaction signing, lease management, credits, provider operations, and exploration |
+| **User controlled** | Next.js web app and browser wallet | Discovery, transaction signing, lease management, credits, provider operations, and exploration |
 
 The orchestrator and provider agents hold no requester funds and cannot force contract settlement.
 
@@ -37,10 +38,11 @@ The orchestrator and provider agents hold no requester funds and cannot force co
 - Prepaid inference credits with EIP-191 request authorization and replay protection.
 - OpenAI-compatible inference routing to the provider selected by the credited offer.
 - Provider registration, staking, attestation records, listings, earnings, and availability controls.
+- Recurring seeded benchmark challenges: the provider answers a 500,000-iteration SHA-256 hash chain with a score, and the attester judges it. A wrong answer or missed deadline slashes up to 10 SMESH of free stake (never bonded stake) to a treasury, revokes the attestation, and lowers reputation.
 - Deterministic jobs with IPFS inputs and outputs, constrained execution, commitments, disputes, and settlement.
 - Rebuildable Postgres projections with exact event cursors and bounded RPC log queries.
 - Windows NVIDIA discovery, Ollama support, Docker GPU passthrough, and isolated task I/O.
-- Responsive requester, provider, model, lease, and explorer interfaces.
+- A light-first editorial web interface (light and dark themes) with a landing page at `/`, protocol diagrams, a dashboard at `/dashboard`, and requester, provider, model, lease, and explorer pages. The explorer has a Challenges tab and an event timeline.
 - Local, provider-only, and Sepolia operator Compose topologies.
 
 ## Repository Layout
@@ -74,11 +76,11 @@ docker compose up --build -d --wait
 docker compose ps
 ```
 
-The command starts a Hardhat chain, deploys all contracts, seeds listings and an accepted lease, launches a constrained workload, starts IPFS and Postgres, indexes chain events, serves inference, and builds the dashboard.
+The command starts a Hardhat chain, deploys all contracts, seeds listings and an accepted lease, launches a constrained workload, starts IPFS and Postgres, indexes chain events, serves inference, runs the attester, and builds the web app.
 
 | Service | URL |
 |---------|-----|
-| Dashboard | `http://localhost:3000` |
+| Web app (landing page `/`, dashboard `/dashboard`, explorer `/explorer`) | `http://localhost:3000` |
 | Orchestrator API | `http://localhost:4000` |
 | Hardhat RPC | `http://localhost:8545` |
 | Provider inference | `http://localhost:8100` |
@@ -137,14 +139,16 @@ The live contracts use Sepolia chain ID `11155111` and are source-verified on Et
 
 | Contract | Verified address |
 |----------|------------------|
-| `SmeshToken` | [`0x917d…f215`](https://sepolia.etherscan.io/address/0x917d2f8699b96F64BA701d380CC396992e9Ff215#code) |
-| `ProviderRegistry` | [`0x4626…068C`](https://sepolia.etherscan.io/address/0x4626B2218a7663c6c8C9D9ff7552455FAa29068C#code) |
-| `JobMarket` | [`0x22c3…d77e`](https://sepolia.etherscan.io/address/0x22c301cb18345687d94bD9A6Bb30344667f5d77e#code) |
-| `Verification` | [`0xfd32…c660`](https://sepolia.etherscan.io/address/0xfd32f4814929aaE10f29E29C14A92B4767C4c660#code) |
-| `RentalMarket` | [`0x345F…b244`](https://sepolia.etherscan.io/address/0x345F848bdAd8FE8E84DB3B13248Bb217a5BFb244#code) |
-| `InferenceMarket` | [`0xebdB…08a0`](https://sepolia.etherscan.io/address/0xebdB79a6566e64747a245a7B98E02E0eA28808a0#code) |
+| `SmeshToken` | [`0x4d08…45F1`](https://sepolia.etherscan.io/address/0x4d08515811A8b14A69aE3049278EDB04e83645F1#code) |
+| `ProviderRegistry` | [`0xd723…fC3f`](https://sepolia.etherscan.io/address/0xd723DFd9E63632e9533ea1946b57AdB6d00cfC3f#code) |
+| `JobMarket` | [`0x9F3B…Ee57`](https://sepolia.etherscan.io/address/0x9F3B0526A9c665F1Df423145eaACCe5b2479Ee57#code) |
+| `Verification` | [`0x9949…365F`](https://sepolia.etherscan.io/address/0x994927B22613bCB8c5A25fA6386E386F250D365F#code) |
+| `RentalMarket` | [`0x0Cca…3Ac3`](https://sepolia.etherscan.io/address/0x0CcaB81947Ee0Dc270908FE0cd99f280596f3Ac3#code) |
+| `InferenceMarket` | [`0x108f…f9D1`](https://sepolia.etherscan.io/address/0x108fF3eaeB81592A04212F52bEe50F46a0abf9D1#code) |
 
-Validated public flows:
+Redeployed on 2026-10-24 with benchmark challenges and source-verified with `npm run verify:sepolia`. On this deployment, the RTX 4070 Laptop GPU provider registered, staked 100 SMESH, was attested, listed capacity, published a `qwen3:0.6b` offer, and passed its first benchmark challenge with a measured score of 28,919 (289 tokens per second).
+
+Public flows validated on the previous Review 1 deployment (addresses kept in `contracts/deployments/sepolia-review1.json`, which is gitignored):
 
 - RTX 4070 Laptop GPU provider registered, staked, attested, and listed.
 - Real `qwen3:0.6b` inference routed through a prepaid credit and settled on chain.
@@ -168,11 +172,11 @@ Each provider requires a unique wallet, Sepolia ETH, the public `sepolia.json` d
 
 | Suite | Result |
 |-------|--------|
-| Contracts | 35 passing tests plus gas report |
-| Provider agent | 44 passing tests |
-| Orchestrator | 48 passing tests with Postgres |
+| Contracts | 42 passing tests plus gas report |
+| Provider agent | 58 passing tests |
+| Orchestrator | 54 passing tests with Postgres |
 | Simulator | 15 passing tests |
-| Dashboard | Lint, typecheck, production build, and 16 Playwright checks |
+| Web app | Lint, typecheck, production build, and 24 Playwright checks, including browser wallet-write flows |
 | Full stack | Local Compose, Sepolia inference, GPU rental, deterministic jobs, Postgres restart recovery |
 
 GitHub Actions repeats the component suites and starts a fresh full stack for smoke and browser checks.
@@ -191,13 +195,13 @@ See the detailed threat model and requirement traceability in the SRS.
 
 ## Known Limitations
 
-- Hardware attestation is currently operator-managed rather than independently verified.
+- Benchmark challenges are judged by the attester, which is a trusted role. A benchmark proves responsiveness, key control, and throughput, not the exact GPU model.
 - Availability is based on provider heartbeats; independent probes remain planned.
 - Inference usage is requester-metered and cannot independently prevent under-reporting.
 - Challenger selection is not yet randomized or reputation weighted.
-- Verification uses exact hashes; commit-reveal and perceptual comparison remain planned.
+- Verification uses exact hashes; commit-reveal and perceptual comparison remain planned. Blender rendering is future work.
+- Benchmark challenges run live on Sepolia with a 15-minute answer window; the local stack uses a 120-second window for quicker demos.
 - The public deployment currently has one physical provider. Multi-provider Compose support is ready for additional laptops.
-- The dashboard is functional but scheduled for a separate product-design and wallet-UX refactor.
 
 ## Documentation
 

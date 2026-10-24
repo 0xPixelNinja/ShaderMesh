@@ -14,7 +14,10 @@ availability based) and verifiable task (retained, re-execution based).
 Contracts (built):
 - `SmeshToken`: ERC-20 utility token (payments, staking, rewards, testnet faucet).
 - `ProviderRegistry`: stake, bond, slash, reputation, and attestation (attester role);
-  economic mutations are `onlyAuthorized`.
+  economic mutations are `onlyAuthorized`. Also runs benchmark challenges: the attester
+  issues and judges them, a failed or missed challenge slashes free stake only (never
+  bonded stake) to the `treasury` (default owner) and revokes the attestation, and
+  `expireChallenge` is callable by anyone.
 - `JobMarket`: verifiable-task escrow, task state machine, optimistic settlement;
   dispute outcomes are `onlyVerification`.
 - `Verification`: spot-check challenge game; resolves disputes.

@@ -44,13 +44,16 @@ cd /d C:\Projects\SEP-2026\ShaderMesh
 docker compose up -d --build
 ```
 
-Wait about 50 seconds, then confirm all six services report `healthy`:
+Wait about 50 seconds, then confirm six services report `healthy` and the
+`attester` service is running:
 
 ```cmd
 docker compose ps
 ```
 
-Expected services: `chain`, `ipfs`, `orchestrator`, `postgres`, `provider`, `web`.
+Expected services: `chain`, `ipfs`, `orchestrator`, `postgres`, `provider`, `web`
+(healthy) and `attester` (running, no health check). The `attester` issues and
+judges benchmark challenges every 60 seconds in the local stack.
 
 > **Never rebuild a single service.** Running `docker compose up -d --build web`
 > restarts the chain and the one-shot `seed` does not re-run, so all demo state is
@@ -61,14 +64,18 @@ Expected services: `chain`, `ipfs`, `orchestrator`, `postgres`, `provider`, `web
 
 ## 3. Pre-flight check
 
-In the control terminal, run these four checks. Each prints `[OK]` when it passes.
+In the control terminal, run these checks. Each prints `[OK]` when it passes.
 
 ```cmd
 curl -s http://localhost:11434/api/tags > nul && echo [OK] ollama
 curl -s http://localhost:4000/listings | findstr /C:"RTX 4070" > nul && echo [OK] listing
 curl -s http://localhost:4000/offers | findstr /C:"gemma3:4b" > nul && echo [OK] offers
-curl -s -o nul http://localhost:3000 && echo [OK] dashboard
+curl -s -o nul http://localhost:3000 && echo [OK] web app
+curl -s http://localhost:4000/challenges | findstr /C:"passed" > nul && echo [OK] challenges
 ```
+
+The challenges check passes after the first challenge resolves, which takes about
+one to two minutes after startup.
 
 To read the full values instead:
 
@@ -93,6 +100,7 @@ seconds and retry. If it stays empty, do a full reset.
 | 2, control | none | Start, reset, and run checks |
 | 3, provider log | `docker compose logs -f provider` | Live evidence of acceptance and heartbeats |
 | 4, SSH | none, kept ready | Paste the lease SSH command here |
+| 5, attester log (optional) | `docker compose logs -f attester` | Challenge issued, passed, or failed lines |
 
 Terminal 3 is started with:
 
@@ -109,6 +117,9 @@ provider is responding on its own.
 ## 5. Browser and wallet
 
 Open one browser window at `http://localhost:3000` and set zoom to 125 percent.
+The page opens on the landing page. The app routes are `/dashboard`, `/rent`,
+`/leases`, `/models`, `/providers`, and `/explorer`. The theme toggle switches
+between the light default and the dark theme; pick one before presenting.
 The layout is verified at 1536x864 and 1280x720 with no horizontal overflow.
 
 MetaMask must be on the **ShaderMesh Dev** network (chain id 31337, RPC
@@ -129,9 +140,16 @@ in the gitignored root `.env`.
 
 ## 6. Demo sequence
 
+### 6.0 Landing page
+
+Start at `/`. It explains the product with protocol diagrams: the lease lifecycle,
+token flow, escrow by interval, the heartbeat strip, and the challenge track. Use
+it for a short framing, then open the app from its call to action.
+
 ### 6.1 Overview
 
-Show network state: available capacity, attested providers, and streaming spend.
+Open `/dashboard`. Show network state: available capacity, attested providers, and
+streaming spend.
 
 ### 6.2 Rent GPUs
 
@@ -191,8 +209,12 @@ comes from the GPU through the provider's OpenAI-compatible endpoint.
 
 ### 6.6 Explorer
 
-Show the chronological on-chain trail: `LeaseRequested`, `LeaseAccepted`,
-`Heartbeat`, `IntervalSettled`.
+Open `/explorer`. The page has a network token-flow figure and three tabs:
+**Leases** (select a lease to open the lease inspector with its evidence),
+**Challenges**, and **Events and slashes** (a colour-coded timeline with plain
+English descriptions). Show the chronological on-chain trail: `LeaseRequested`,
+`LeaseAccepted`, `Heartbeat`, `IntervalSettled`. On the **Challenges** tab, show
+that the provider has passed challenges automatically.
 
 ### 6.7 Provider console
 
@@ -200,8 +222,60 @@ Switch MetaMask to the provider account and reload. **Lease activity** shows the
 lease, its heartbeat state, and the bond at risk. The header shows attestation,
 stake, reputation, and earnings.
 
+The console also lists challenge history for the provider.
+
 Do not select **Set inactive** or unstake. Either stops the agent serving and ends
 the demo.
+
+### 6.8 Benchmark challenge and slashing
+
+This segment shows a provider failing a challenge. It ends with a revoked
+attestation, so run it last and finish with a full reset (section 7).
+
+First show the normal state. In the explorer **Challenges** tab, the provider has
+challenges with status `passed`. Each pass refreshed the attestation and raised
+reputation. Explain the mechanism: the attester issues a seeded challenge, the
+provider answers with the output of a 500,000-iteration SHA-256 hash chain and a
+score before the deadline, and the attester recomputes the hash.
+
+Restart only the provider with a fault switch. In the control terminal:
+
+```cmd
+cd /d C:\Projects\SEP-2026\ShaderMesh
+set BENCHMARK_FAULT=wrong_hash
+docker compose up -d --no-deps provider
+```
+
+`wrong_hash` makes the provider submit a bad hash. `silent` makes it never
+respond. Use `--no-deps` and do not pass `--build`, so the chain and its state are
+untouched.
+
+Watch terminal 5 (`docker compose logs -f attester`) and the explorer. Within about
+one to two minutes the next challenge is issued, answered, and judged:
+
+- **Challenges** tab: the new challenge is `failed, slashed`, with a slashed amount
+  of 10 SMESH. With `silent`, the challenge stays `open` until the 120 second
+  deadline and then fails with the same slash. Anyone can close it with
+  `expireChallenge`, so this path needs no trusted input.
+- **Events and slashes** timeline: `ChallengeIssued`, `ChallengeResponded` (not for
+  `silent`), `ChallengeResolved`, `AttestationRevoked`, and `Slashed` in the danger
+  colour.
+- **Treasury**: the slash goes to the treasury, which defaults to the deployer
+  (Hardhat account 0, `0xf39F...2266`). Its SMESH balance rises by 10 SMESH. The
+  slash comes from free stake only. Bonded stake backing the active lease is not
+  touched, and the lease continues under its bond.
+- **Provider console**: attestation is revoked and reputation falls. A revoked
+  provider cannot publish new listings or offers.
+
+The slash is the configured challenge slash, one fifth of the 50 SMESH minimum
+stake. It is smaller only if the provider's free stake is below 10 SMESH.
+
+State the limit: the attester is a trusted judge. The benchmark proves the
+provider is responsive, controls its key, and delivers throughput close to what it
+was attested at. It does not prove the exact GPU model.
+
+After this segment, do a full reset (section 7). Clearing the variable alone does
+not restore the revoked attestation.
 
 ---
 
@@ -222,6 +296,8 @@ docker compose up -d --build
 | Model returns nothing, or Models page errors | Ollama not running | Start `ollama serve` in terminal 1 |
 | SSH connection refused | Lease not active yet | Wait for the heartbeat in terminal 3 |
 | Lease stays Pending | Listing has no running agent | Use the RTX 4070 listing |
+| Challenges tab empty | Attester not running, or under two minutes since start | Check `docker compose logs attester`, wait, or full reset |
+| Provider attestation revoked unexpectedly | `BENCHMARK_FAULT` is still set in the shell | Run `set BENCHMARK_FAULT=` then full reset |
 
 Check Ollama first when inference misbehaves:
 
@@ -250,8 +326,10 @@ These are real and documented. Raising them first is stronger than being asked.
   for metered requests. The dashboard states this in the access panel.
 - **Inference metering is requester-submitted.** Provider under-reporting is not
   independently prevented.
-- **Attestation is trusted.** A designated attester records hardware. There is no
-  on-chain benchmark challenge with slashing for a failed attestation yet.
+- **The attester is a trusted judge.** A designated attester records hardware and
+  judges benchmark challenges. A benchmark proves responsiveness, key control, and
+  throughput, not the exact GPU model. A missed deadline needs no trusted input,
+  but a wrong answer is judged by the attester.
 
 ---
 
@@ -262,12 +340,37 @@ Sepolia (chain 11155111). Use this when asked whether the system works publicly.
 
 | Contract | Address |
 |---|---|
-| SmeshToken | `0x917d2f8699b96F64BA701d380CC396992e9Ff215` |
-| ProviderRegistry | `0x4626B2218a7663c6c8C9D9ff7552455FAa29068C` |
-| JobMarket | `0x22c301cb18345687d94bD9A6Bb30344667f5d77e` |
-| Verification | `0xfd32f4814929aaE10f29E29C14A92B4767C4c660` |
-| RentalMarket | `0x345F848bdAd8FE8E84DB3B13248Bb217a5BFb244` |
-| InferenceMarket | `0xebdB79a6566e64747a245a7B98E02E0eA28808a0` |
+| SmeshToken | `0x4d08515811A8b14A69aE3049278EDB04e83645F1` |
+| ProviderRegistry | `0xd723DFd9E63632e9533ea1946b57AdB6d00cfC3f` |
+| JobMarket | `0x9F3B0526A9c665F1Df423145eaACCe5b2479Ee57` |
+| Verification | `0x994927B22613bCB8c5A25fA6386E386F250D365F` |
+| RentalMarket | `0x0CcaB81947Ee0Dc270908FE0cd99f280596f3Ac3` |
+| InferenceMarket | `0x108fF3eaeB81592A04212F52bEe50F46a0abf9D1` |
 
 Local devnet is used for the live demo because block times are about one second,
 which makes interval settlement and heartbeats observable during a short session.
+
+These addresses include benchmark challenges (redeployed 2026-10-24). The attester
+challenges the provider every 300 seconds with a 15-minute answer window, so a
+challenge result appears within minutes. The fault demo is still quicker on the
+local stack, where the window is 120 seconds.
+
+### 9.1 Pre-demo checklist for a live Sepolia run
+
+Complete this before presenting on Sepolia.
+
+- Operator and attester wallets hold enough Sepolia ETH. The attester sends a
+  transaction for every challenge issue and resolution.
+- The provider wallet holds Sepolia ETH and at least the minimum stake in SMESH.
+- The RPC endpoint answers (`eth_blockNumber`) and its log range limit matches
+  `ATTESTER_LOG_RANGE` and the orchestrator indexer chunk size (10 blocks on small
+  tiers).
+- The provider shows as attested and `GET /challenges?provider=<address>` lists
+  challenges with status `passed`. The Sepolia attester interval is 300 seconds
+  and the challenge window defaults to 15 minutes, so a first pass can take several
+  minutes.
+- The orchestrator indexer has caught up: its latest block is within a few blocks
+  of the chain head and `/health` is ok.
+- `BENCHMARK_FAULT` is unset on the provider, unless a failure is intended.
+- The local Hardhat stack is built and ready as a fallback (section 2). Do the
+  fault demo there, because a Sepolia slash is slow and spends test funds.

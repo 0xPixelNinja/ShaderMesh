@@ -1,7 +1,7 @@
 # ShaderMesh: Software Requirements Specification and Phase Plan
 
-Version: 1.3
-Status: Implementation-aligned baseline; Sepolia deployed and live paths validated
+Version: 1.4
+Status: Implementation-aligned baseline; benchmark challenges and the editorial web redesign implemented and redeployed to Sepolia
 Related documents: [Review 1 proposal](ShaderMesh-Review1-Proposal.md),
 [demo and presentation guide](ShaderMesh-Demo-Presentation.md),
 [Review 1 report](ShaderMesh-Review1-Report.docx), and the repository
@@ -34,8 +34,9 @@ The marketplace has two modes over one staking, reputation, and slashing layer:
 - Rental (primary). A time-based lease of a node or GPU. A rented result cannot be
   re-executed and checked, so trust is availability based. The current prototype uses
   stake, direct heartbeat transactions, trusted attestation records, reputation, and
-  slashing for missed heartbeats, with escrow streamed per interval. Independent probes
-  and real benchmark challenges remain planned.
+  slashing for missed heartbeats, with escrow streamed per interval. Attester-judged
+  benchmark challenges check responsiveness, key control, and throughput. Independent
+  probes remain planned.
 - Verifiable task (retained). A job with a checkable output such as rendering or batch
   compute. The current optimistic game uses stake, voluntary eligible challengers,
   plaintext result-hash votes, and slashing. Random selection and reputation weighting
@@ -44,12 +45,14 @@ The marketplace has two modes over one staking, reputation, and slashing layer:
 In scope:
 - On chain rental market (lease lifecycle, streamed escrow, heartbeats, SLA slashing).
 - On chain verifiable-task market (escrow, tasks, spot-check verification, disputes).
-- Provider capability attestation (benchmark or challenge) in the registry.
+- Provider capability attestation and recurring benchmark challenges in the registry, with
+  slashing of free stake to a treasury on failure.
 - A provider node agent that serves leases, serves LLM inference, and runs Docker jobs.
 - An orchestrator that indexes the market, routes inference through an OpenAI-compatible
   gateway with metering, and splits and stitches verifiable jobs.
-- A web dashboard for renting GPUs, using models, provider operations, and an on-chain
-  explorer. Verifiable-job submission and live assembly remain planned.
+- A web application with a landing page, a dashboard for renting GPUs, using models,
+  provider operations, and an on-chain explorer. Verifiable-job submission and live
+  assembly remain planned.
 - An economic simulator for evaluation.
 - Local deployment via Docker Compose and a public testnet deployment on Sepolia.
 
@@ -168,7 +171,7 @@ Untrusted (off chain):  Orchestrator (inference gateway, index, split/stitch),
 | FR-REG-06 | Expose an eligibility check that requires registration, an active flag, and a minimum stake. | must |
 | FR-REG-07 | Allow a provider to toggle availability without withdrawing stake. | should |
 | FR-REG-08 | Record structured capabilities (GPU model, VRAM, CPU, region) alongside the free form description. | must |
-| FR-REG-09 | Support a benchmark or attestation challenge that proves advertised hardware; a failed challenge is slashable and lowers reputation. | should |
+| FR-REG-09 | Support a benchmark or attestation challenge that tests advertised hardware; a failed or missed challenge is slashable and lowers reputation. | should |
 | FR-REG-10 | Update reputation from lease outcomes (uptime and SLA) as well as task outcomes. | must |
 
 ### 3.3 Job market and escrow
@@ -233,7 +236,7 @@ Untrusted (off chain):  Orchestrator (inference gateway, index, split/stitch),
 | FR-WEB-03 | Provide a model catalog and a prompt playground for managed inference, with usage and cost. | must |
 | FR-WEB-04 | Let a requester post a verifiable job and track task progress, including live tile assembly for rendering. | should |
 | FR-WEB-05 | Let a provider register, stake, list capacity, view earnings, uptime, and reputation, and toggle availability. | must |
-| FR-WEB-06 | Provide an explorer of leases, jobs, tasks, disputes, and slashing events. | must |
+| FR-WEB-06 | Provide an explorer of leases, jobs, tasks, disputes, benchmark challenges, and slashing events. | must |
 | FR-WEB-07 | Display hashes, addresses, and amounts in monospace with copy actions and safe truncation. | should |
 | FR-WEB-08 | Perform all writes through the user wallet and never store secrets. | must |
 
@@ -287,6 +290,8 @@ services depend on the following events at minimum:
   LeaseRejected, LeaseCancelled, Heartbeat, IntervalSettled, LeaseExtended, LeaseEnded,
   LeaseTerminated.
 - Inference: OfferCreated, OfferDeactivated, CreditOpened, UsageSettled, CreditClosed.
+- Registry challenges: Attested, AttestationRevoked, ChallengeIssued, ChallengeResponded,
+  ChallengeResolved, Slashed, TreasurySet, ChallengeParamsSet.
 
 The deployment file at `contracts/deployments/<network>.json` publishes the network name,
 chain id, deployer, and each contract address and ABI, so off chain services load
@@ -298,7 +303,10 @@ The orchestrator exposes a read API, a job prepare helper, and an inference gate
 - GET /health returns service status.
 - GET /jobs and GET /jobs/:id return indexed job and task state.
 - GET /listings and GET /leases and GET /leases/:id return rental state.
-- GET /providers returns provider stake, reputation, capabilities, and uptime.
+- GET /providers returns provider stake, reputation, capabilities, attestation, uptime, and
+  a challenge summary.
+- GET /challenges and GET /challenges/:id return benchmark challenges; the collection can
+  be filtered by provider.
 - GET /models returns served models across providers.
 - GET /offers and GET /offers/:id return inference offers.
 - GET /credits and GET /credits/:id return prepaid credits; the collection can be
@@ -424,7 +432,10 @@ content supplied by the requester.
 
 The current capability gate is a fresh record written by a trusted attester. The record
 contains GPU model, VRAM, and benchmark score and is required to publish a listing or
-inference offer. A real benchmark challenge and its failure-slashing path remain planned.
+inference offer.
+
+The attester also runs recurring benchmark challenges against attested providers, described
+in section 6.5.1.
 Reputation is an EMA over lease and task outcomes.
 
 Economic intuition: let V be the value a provider captures per interval by claiming uptime
@@ -438,11 +449,40 @@ seed) would let a challenger re-run a sampled prompt and compare outputs within 
 Because cross-hardware determinism is not guaranteed, this would feed reputation rather
 than hard slashing.
 
+#### 6.5.1 Benchmark challenges
+
+A challenge tests that an attested provider is responsive, controls its registered key, and
+delivers throughput close to what it was attested at.
+
+1. The attester issues a challenge. The seed is `keccak256(prevrandao, provider, id)`, so the
+   provider cannot precompute the answer. A provider can have one open challenge at a time.
+2. The provider runs a 500,000-iteration SHA-256 hash chain from the seed and submits the
+   output hash and a score before the deadline (`challengeWindow`, default 15 minutes, 120
+   seconds in the local stack). The score is Ollama tokens per second times 100 when a model
+   backend is configured, otherwise the hash rate in kilohashes per second.
+3. The attester recomputes the hash chain. The challenge passes when the hash matches and the
+   score is at least the attested benchmark score times `CHALLENGE_MIN_SCORE_BPS / 10000`
+   (default 50 percent). A pass refreshes the attestation and records a reputation success.
+4. A wrong answer judged by the attester fails the challenge. A missed deadline is closed by
+   `expireChallenge`, which anyone can call and which needs no trusted input.
+5. A failed challenge slashes up to `challengeSlash` (default one fifth of the minimum stake,
+   10 SMESH with a 50 SMESH minimum) from free stake only, never from bonded stake. The slash
+   goes to the treasury (default the registry owner). The attestation is revoked, so the
+   provider cannot publish new listings or offers, and a reputation failure is recorded.
+   Active leases continue under their existing bonds.
+6. An answered challenge that the attester does not judge within one further window lapses
+   with no penalty. A provider cannot unstake while a challenge is open.
+
+Limits: the attester remains a trusted role for judging answers. A benchmark proves
+responsiveness, key control, and throughput. It does not prove the exact GPU model.
+`BENCHMARK_FAULT=wrong_hash` or `silent` on the provider agent is a demo switch that forces
+the two failure paths.
+
 ### 6.6 Rental threats and mitigations
 
 | Threat | Mitigation |
 |--------|------------|
-| Provider advertises a GPU it does not have. | A trusted attester currently gates listings and offers. A real benchmark and failure-slashing path remain planned. |
+| Provider advertises a GPU it does not have. | A trusted attester gates listings and offers, and recurring seeded benchmark challenges require a correct answer and a score near the attested value. Failure or a missed deadline slashes free stake to the treasury and revokes the attestation. A benchmark does not prove the exact GPU model, and judging is attester-trusted. |
 | Provider takes a lease then goes offline. | Missed heartbeats terminate the lease, refund the requester, and slash the provider. |
 | Provider serves a smaller or throttled model than advertised. | Requesters can close credit or end a lease. Sampled inference reputation checks remain planned. |
 | Requester claims downtime that did not happen. | Signed heartbeats are on chain evidence; settlement follows the heartbeat record. |
@@ -453,13 +493,19 @@ than hard slashing.
 
 ## 7. Frontend design system
 
-The dashboard must look clean, modern, sharp, and professional. It must not look
-generic or machine generated. The following rules are binding.
+The web application must look clean, modern, sharp, and professional. It must not look
+generic or machine generated. The following rules are binding. The master specification
+with every token is `web/DESIGN.md`; this section summarizes it, and that file wins on
+conflict.
 
 ### 7.1 Principles
 
 - Clarity first. The interface presents dense on chain data calmly and legibly.
+- Light first. A warm paper palette is the default, with an equal dark theme chosen by a
+  toggle and remembered per browser.
 - Restraint. One accent color, used sparingly. Neutral surfaces carry most of the layout.
+- Diagrams over decoration. Hand-built SVG protocol diagrams show the lease lifecycle, token
+  flow, escrow by interval, heartbeats, and the challenge track.
 - Sharpness without harshness. Small radii and hairline borders, not heavy brutalist blocks.
 - Honesty. No hype copy, no emoji in the interface, and no em dashes in text.
 
@@ -468,52 +514,63 @@ generic or machine generated. The following rules are binding.
 Amber is the single accent. It appears on primary actions, active navigation, focus rings,
 and a small number of key metrics. It does not fill large areas.
 
-Light theme:
-- Background 0xFFFFFF, surface 0xFAFAFA, subtle 0xF4F4F5.
-- Border 0xE4E4E7.
-- Text primary 0x18181B, secondary 0x52525B, muted 0xA1A1AA.
-- Accent 0xD97706 for text and actions on light, hover 0xB45309.
+Light theme (default, warm paper):
+- Background 0xFBFAF7, chrome 0xF6F4EF, surface 0xFFFFFF, panel 0xF3F1EC.
+- Border 0xE6E2DA, strong border 0xD3CEC4.
+- Text primary 0x1A1814, secondary 0x3A362F, muted 0x5E5950, faint 0x6F6A60.
+- Accent 0xD97706 for fills and rings, accent text 0xA34A06 (AA contrast on paper),
+  hover 0xB45309.
 
-Dark theme:
-- Background 0x0B0C0E, surface 0x131518, subtle 0x1A1D21.
-- Border 0x26282D.
-- Text primary 0xF4F4F5, secondary 0xA1A1AA, muted 0x71717A.
-- Accent 0xF59E0B on dark, hover 0xFBBF24.
+Dark theme (deep charcoal):
+- Background 0x0F0E0C, chrome 0x13120F, surface 0x181714, panel 0x1E1C19.
+- Border 0x2A2824, strong border 0x3A3732.
+- Text primary 0xF3F1EC, secondary 0xD6D2CA, muted 0xA8A39A, faint 0x8E897F.
+- Accent 0xF59E0B, hover 0xFBBF24.
 
-Functional status colors are muted, not neon:
-- Success 0x15803D, warning 0xB45309, danger and slashing 0xB91C1C, neutral uses zinc.
+Functional status colors are muted, not neon, and differ by theme:
+- Success 0x137535 light and 0x4CC38A dark; warning 0xB45309 and 0xFBBF24; danger and
+  slashing 0xB91C1C and 0xF87171. Each has a weak fill for chips.
+
+All text pairs meet WCAG AA on the background, chrome, and surface in both themes.
 
 Prohibited: neon colors, violet or purple gradients, glassmorphism, large glows, and
 multi color gradients used as decoration.
 
 ### 7.3 Typography
 
-- Interface font: Inter or Geist Sans.
-- Monospace: JetBrains Mono or Geist Mono for hashes, addresses, and token amounts.
-- Type scale in pixels: 12, 14, 16, 20, 24, 30, 36 with matched line heights.
+- Interface font: Geist, with system-ui and Segoe UI fallbacks.
+- Monospace: Geist Mono, with ui-monospace and Consolas fallbacks, for hashes, addresses,
+  ids, and token amounts. Numeric data uses tabular figures.
+- Type scale in pixels: 12, 13, 14, 16, 18, 24, 36, 56. The landing hero is 56 (36 on
+  mobile) and app page titles are 18.
 - Weights: 400 for body, 500 for labels, 600 for headings. Avoid heavier weights.
 
 ### 7.4 Layout and spacing
 
 - A 4 pixel spacing grid. Generous spacing that still respects data density.
-- Left sidebar navigation with a top bar for wallet and network status.
-- Content constrained to a comfortable maximum width with responsive breakpoints.
+- The landing page at `/` has a top bar and no sidebar. App routes (`/dashboard`, `/rent`,
+  `/leases`, `/models`, `/providers`, `/explorer`) use a left sidebar with a top bar for
+  wallet and network status. The sidebar collapses to a scrolling tab row below 768 pixels.
+- Content is constrained to 1280 pixels with breakpoints at 375, 768, 1024, and 1440.
 
 ### 7.5 Shape, border, and elevation
 
-- Radius 6 pixels for controls, 8 pixels for cards. No pill shapes except small status chips.
+- Radius 6 pixels for controls, 8 pixels for cards. Buttons are never pill shaped; only
+  small status chips may be fully round.
 - Hairline 1 pixel borders as the primary separation device.
 - Minimal shadows. A single small elevation token for overlays only.
 
 ### 7.6 Motion
 
-- 150 milliseconds ease out for hover and press. 200 milliseconds for panels and modals.
-- Purposeful transitions only. Respect the reduce motion preference.
+- 150 milliseconds for hover and press, 200 for state changes, 250 for reveals, all with
+  `cubic-bezier(0.2, 0, 0, 1)`.
+- Motion conveys state only. Respect the reduce motion preference, which disables all motion.
 
 ### 7.7 Component inventory
 
-Button, Input, Select, Card, Table, StatusPill, AddressChip with copy, MetricStat,
-Progress for tile assembly, Modal, Toast, Tabs, Badge, Tooltip, EmptyState, and Skeleton.
+Button, Input, Select, Card, Stat, StatusTag, CopyValue, Note, Empty, Skeleton, table
+primitives, ThemeToggle, and the protocol diagrams (LeaseLifecycle, TokenFlow,
+EscrowIntervals, HeartbeatStrip, ChallengeTrack).
 
 ### 7.8 Copy tone
 
@@ -529,6 +586,8 @@ superlatives, and avoid em dashes.
 | Job | id, requester, inputCID, taskCount, completedTasks, rewardPerTask, verificationPolicy. |
 | Task | jobId, index, provider, resultHash, outputCID, status, bond, claimedAt, submittedAt. |
 | Provider | address, registered, active, stake, bonded, reputation, completed, failed, capabilities. |
+| Attestation | provider, attestedAt, GPU model, VRAM, benchmark score. Expires after a TTL and is cleared by a failed challenge. |
+| Benchmark challenge | id, provider, seed, issuedAt, deadline, respondedAt, status (open, responded, passed, failed, lapsed), score, outputHash. |
 | Dispute | jobId, index, opened, resolved, providerHash, deadline, agree, disagree, firstDisagree. |
 | Listing | id, provider, interval price and duration, bounds, availability, active lease, resource spec. |
 | Lease | id, listing, requester, provider, manifest, escrow, bond, interval counters, start, status. |
@@ -544,18 +603,18 @@ read-only browser pass against the full local stack.
 
 | Layer | Tooling | Scope |
 |-------|---------|-------|
-| Contracts | Hardhat, Chai | 35 tests for token, registry, jobs, disputes, pending rental acceptance, strict heartbeats, escrow conservation, and prepaid inference credits. |
-| Agent | pytest, local chain, fakes | 44 tests for task and rental lifecycles, sandbox controls, Docker-native task I/O, restart recovery, offer reconciliation, hardware parsing, retries, and challenger behavior. |
-| Orchestrator | Vitest, Postgres | 48 tests in CI, including bounded log-range replay, durable projection, ordered replay, inference replay protection, gateway controls, APIs, split, and stitch. Without `TEST_DATABASE_URL`, 47 pass and the Postgres integration test is skipped. |
-| Web | Playwright | 16 read-only route, navigation, explorer, responsive, overflow, and browser-error checks across desktop and 390-pixel mobile viewports. |
+| Contracts | Hardhat, Chai | 42 tests for token, registry, jobs, disputes, pending rental acceptance, strict heartbeats, escrow conservation, prepaid inference credits, and benchmark challenges. |
+| Agent | pytest, local chain, fakes | 58 tests for task and rental lifecycles, sandbox controls, Docker-native task I/O, restart recovery, offer reconciliation, hardware parsing, retries, challenger behavior, and benchmark answering and judging. |
+| Orchestrator | Vitest, Postgres | 54 tests in CI, including bounded log-range replay, durable projection, ordered replay, challenge indexing, inference replay protection, gateway controls, APIs, split, and stitch. Without `TEST_DATABASE_URL`, the Postgres integration test is skipped. |
+| Web | Playwright | 24 checks. Sixteen read-only route, navigation, landing, theme toggle, explorer, responsive, overflow, and browser-error checks across desktop and 390-pixel mobile viewports, plus four desktop wallet-write specs (connect, lease request to end and refund, prepaid inference credit to signed prompt and close, provider register and stake shown unattested). The wallet specs use an injected EIP-1193 wallet backed by unlocked Hardhat accounts (`web/tests/e2e/wallet.ts`). |
 | Economic | unittest | 15 tests for closed-form thresholds, heterogeneous task behavior, rental uptime, false heartbeats, escrow conservation, and deterministic seeds. |
 
 GitHub Actions runs five component jobs and a dependent full-stack job on pushes and pull
 requests. It compiles and tests contracts and records gas, runs the agent and simulator
 suites, runs all orchestrator tests against Postgres plus type checking, and runs web lint,
 type checking, and production build. The full-stack job starts a fresh Compose deployment,
-runs the signed prepaid-inference smoke flow, and runs the 16 Playwright checks. Browser
-wallet write flows and property-based contract fuzzing remain testing gaps.
+runs the signed prepaid-inference smoke flow, and runs the 24 Playwright checks, including the
+browser wallet-write specs. Property-based contract fuzzing remains a testing gap.
 
 ---
 
@@ -624,16 +683,16 @@ The live deployment uses Sepolia chain ID `11155111`.
 
 | Contract | Address |
 |----------|---------|
-| `SmeshToken` | `0x917d2f8699b96F64BA701d380CC396992e9Ff215` |
-| `ProviderRegistry` | `0x4626B2218a7663c6c8C9D9ff7552455FAa29068C` |
-| `JobMarket` | `0x22c301cb18345687d94bD9A6Bb30344667f5d77e` |
-| `Verification` | `0xfd32f4814929aaE10f29E29C14A92B4767C4c660` |
-| `RentalMarket` | `0x345F848bdAd8FE8E84DB3B13248Bb217a5BFb244` |
-| `InferenceMarket` | `0xebdB79a6566e64747a245a7B98E02E0eA28808a0` |
+| `SmeshToken` | `0x4d08515811A8b14A69aE3049278EDB04e83645F1` |
+| `ProviderRegistry` | `0xd723DFd9E63632e9533ea1946b57AdB6d00cfC3f` |
+| `JobMarket` | `0x9F3B0526A9c665F1Df423145eaACCe5b2479Ee57` |
+| `Verification` | `0x994927B22613bCB8c5A25fA6386E386F250D365F` |
+| `RentalMarket` | `0x0CcaB81947Ee0Dc270908FE0cd99f280596f3Ac3` |
+| `InferenceMarket` | `0x108fF3eaeB81592A04212F52bEe50F46a0abf9D1` |
 
 Provider `0xfd4e4A034601991A3070bD2B9B0F6a473a5bfc76` is registered,
 staked, and attested for an RTX 4070 Laptop GPU with 8 GB VRAM. It created rental
-listing `#2` with 60-second intervals and inference offer `#1` for `qwen3:0.6b`.
+listing `#1` with 60-second intervals and inference offer `#1` for `qwen3:0.6b`.
 Requester `0x7e6a268D9aa458f0deCE6280A7Eb9B86888565d8` received 1,000 test
 SMESH.
 
@@ -709,8 +768,12 @@ path (phases 1 to 4) is complete and is retained as the second market mode.
   prefix. A heartbeat is accepted only once for the current interval, so missed intervals
   cannot be covered later. Downtime pays the served prefix, refunds remaining escrow, and
   slashes the provider bond. Verified by 13 rental contract tests.
-- Planned should-level work: relayed signed heartbeats to reduce provider gas and a real
-  benchmark verifier with failure slashing behind the attester role.
+- Benchmark challenges: `ProviderRegistry` issues seeded challenges from the attester,
+  accepts provider answers, and resolves them. A failure or missed deadline slashes free
+  stake to a treasury, revokes the attestation, and records a reputation failure. Verified
+  by 7 contract tests (42 in total).
+- Planned should-level work: relayed signed heartbeats to reduce provider gas, and
+  attester decentralization.
 
 ### Phase 6: Provider rental serving and LLM inference. Status: done and live validated
 - Goal: providers actually serve leases and models.
@@ -727,6 +790,11 @@ path (phases 1 to 4) is complete and is retained as the second market mode.
 - Isolation: lease containers have no network or renter-controlled mounts, use a read-only root
   filesystem and non-root user, drop all capabilities, and enforce CPU, memory, swap, and PID
   limits. NVIDIA access is optional, disabled by default, and restricted to configured devices.
+- Benchmark challenges: the provider answers open challenges with the seeded hash chain and
+  a score (`benchmark.py`). The `attester.py` service issues, judges, and expires challenges.
+  `BENCHMARK_FAULT=wrong_hash|silent` forces failures for demos. Verified by 14 new agent
+  tests (58 in total) and live in the local Compose stack, where dozens of challenges were
+  issued and passed automatically.
 - Live validation: the Sepolia provider completed a prepaid request through offer `#1` for
   `qwen3:0.6b` and launched a GPU-enabled lease container on an RTX 4070 Laptop GPU.
 - Follow ups: broaden runtime and GPU-host coverage. Arbitrary requester-defined image and
@@ -736,39 +804,48 @@ path (phases 1 to 4) is complete and is retained as the second market mode.
 - Goal: discovery and routing.
 - Deliverables: `InferenceMarket` provider offers and prepaid credits; indexing for registry,
   rental, inference, job, and verification events; durable Postgres snapshots and cursors;
-  API routes for offers and credits; and an OpenAI-compatible gateway with request limits,
+  API routes for offers, credits, and challenges; and an OpenAI-compatible gateway with request limits,
   provider timeout, exact hostname allowlisting, redirect refusal, and durable replay keys.
 - Acceptance: met. The gateway verifies an EIP-191 signature over credit, provider, model,
   canonical message hash, request ID, and expiry, then routes only to the credited provider.
   The requester submits cumulative usage on chain and can close the credit for a refund.
-  Verified by 48 orchestrator tests with Postgres and a clean type check.
+  Challenge events are indexed and exposed at `/challenges`. Verified by 54 orchestrator tests
+  with Postgres and a clean type check.
 - Limitation: metering is requester submitted. Provider-reported usage is returned by the
   gateway, but under-reporting is not independently prevented.
 
-### Phase 8: Web dashboard. Status: done for rental, inference, provider, and explorer surfaces
-- Goal: rent GPUs, use models, and manage leases on the Design 1 dark system.
-- Deliverables: a Next.js, TypeScript, viem, and Tailwind app with Overview, Rent GPUs,
-  My leases, Models, Provider console, and Explorer. Wallet writes cover manifest-bound
+### Phase 8: Web application. Status: done for landing, rental, inference, provider, and explorer surfaces
+- Goal: rent GPUs, use models, and manage leases on the light-first editorial design system
+  documented in `web/DESIGN.md`.
+- Deliverables: a Next.js, TypeScript, viem, and Tailwind app with a landing page at `/`,
+  and Overview (`/dashboard`), Rent GPUs, My leases, Models, Provider console, and Explorer.
+  Light and dark themes with a toggle, Geist and Geist Mono, and SVG protocol diagrams
+  (lease lifecycle, token flow, escrow by interval, heartbeat strip, challenge track). Wallet writes cover manifest-bound
   lease requests, cancellation, settlement and end; inference credit open, signed request,
   usage settlement and close; and provider faucet, registration, capabilities, stake,
   availability, listing, and offer actions.
 - Acceptance: met. Built and verified live end to end: the app renders real listings, a live
   lease with streamed spend, and the model catalog from real on chain data via the orchestrator.
   The provider console shows collateral, attestation, inventory, earnings, uptime, and
-  reputation. The explorer shows leases, jobs, tasks, disputes, chronological events, and
-  slashes. The seeded dashboard is built and served by the one-command Compose stack.
-- Follow ups: verifiable-job submission and live tile assembly, additional model-backend
-  validation, and light mode.
+  reputation, and challenge history. The explorer has a network token-flow figure, a lease
+  inspector, a Challenges tab, and a colour-coded event timeline with plain-English
+  descriptions of events and slashes. My leases shows lease evidence. The seeded app is built
+  and served by the one-command Compose stack.
+- Follow ups: verifiable-job submission and live tile assembly, and additional
+  model-backend validation. Light mode, previously listed here, is done.
 
 ### Phase 9: Full stack end to end and continuous integration. Status: done for the current prototype
 - Goal: confidence that the whole system works together.
 - Deliverables: GitHub Actions component jobs, Postgres-backed orchestrator integration,
-  a fresh Compose job, signed prepaid-inference smoke test, and 16 read-only Playwright checks
-  across desktop and mobile.
+  a fresh Compose job, signed prepaid-inference smoke test, and 24 Playwright checks
+  (read-only pages plus browser wallet-write flows).
 - Acceptance: implemented in `.github/workflows/ci.yml`. The public Sepolia inference and
-  rental paths were also validated manually. Browser wallet-write automation remains open.
+  rental paths were also validated manually. Browser wallet-write automation is done with an injected test wallet.
 
-### Phase 10: Rendering workload and perceptual verification. Status: planned
+### Phase 10: Rendering workload and perceptual verification. Status: descoped to future work
+- Scope decision: for this delivery the project focuses on GPU container rental and LLM
+  inference. Deterministic verifiable tasks are retained, and Blender rendering with
+  perceptual verification is future work.
 - Goal: the visual verifiable-task showcase.
 - Tasks: split a Blender scene into tiles or frames, execute headless Blender in the agent,
   apply the perceptual verification policy, and assemble the final image.
@@ -785,8 +862,13 @@ path (phases 1 to 4) is complete and is retained as the second market mode.
   and stitched on Sepolia. Deployment descriptor flow, Compose files, gateway controls,
   worker sandboxing, retry hardening, gas reporting, and Etherscan source verification for
   all six contracts are also complete.
-- Pending: additional provider laptops, browser wallet-write automation, independent
-  benchmark verification, and should-level protocol hardening.
+- Benchmark verification: implemented with attester-judged scoring, free-stake slashing to
+  a treasury, and attestation revocation, verified in the local Compose stack. The attester
+  remains a trusted judge.
+- Redeployed to Sepolia on 2026-10-24 with the attester service; all six contracts are
+  source-verified (`npm run verify:sepolia`). The RTX 4070 provider passed its first live
+  challenge with a score of 28,919 (289 tokens per second on `qwen3:0.6b`).
+- Pending: additional provider laptops and should-level protocol hardening.
 
 ### Phase 12: Evaluation and delivery. Status: in progress
 - Goal: measure and present.
@@ -806,15 +888,15 @@ Status is based on behavior in the repository, not roadmap intent.
 | FR-TKN-01..03 | done | `SmeshToken` implements ERC-20 payment, owner mint, and rate-limited faucet. |
 | FR-REG-01..07, FR-REG-10 | done | `ProviderRegistry` and contract tests cover registration, mutable capabilities, stake, bond, eligibility, availability, EMA outcomes, and restricted protocol mutations. |
 | FR-REG-08 | partial | Free-form capability JSON plus attested GPU model and VRAM exist; CPU and region are not separate typed registry fields. |
-| FR-REG-09 | partial, should | A trusted attester records expiring GPU, VRAM, and benchmark values. A real challenge and failed-challenge slashing remain planned. |
+| FR-REG-09 | done, should | The attester records expiring GPU, VRAM, and benchmark values and issues seeded challenges. A wrong answer or missed deadline slashes up to 10 SMESH of free stake to the treasury, revokes the attestation, and lowers reputation. Limits: the attester judges, and a benchmark does not prove the exact GPU model. |
 | FR-JOB-01..09 | done | `JobMarket`, agent integration tests, and orchestrator projection implement the task lifecycle. |
 | FR-VER-01..05 | done | `Verification` implements eligible non-self voting, disputes, quorum, majority resolution, and duplicate-vote prevention. |
 | FR-VER-06..08 | planned, should | Commit-reveal, reputation-weighted random selection, and SSIM/perceptual verification are not implemented. |
 | FR-ORC-01..06 | done | Deployment discovery, Postgres projection and replay, split, pin, stitch, HTTP API, server-sent events, and no-custody design are implemented. |
 | FR-AGT-01..07, FR-AGT-09 | done | Worker, challenger, IPFS, sandbox, retries, and inference endpoint are implemented. |
 | FR-AGT-08 | partial | The agent serves accepted leases and sends strict health-backed heartbeats, but executes provider-configured workloads rather than requester-defined containers. |
-| FR-AGT-10 | planned, should | Hardware discovery exists, but the agent does not answer a protocol benchmark challenge. |
-| FR-WEB-01..03, FR-WEB-05..08 | done | Wallet, rental, prepaid inference, provider console, explorer, copy-safe protocol values, and wallet-only writes are implemented. |
+| FR-AGT-10 | done, should | The provider agent answers open challenges with the seeded hash chain output and a score (Ollama tokens per second or hash rate). Hardware discovery is also available. |
+| FR-WEB-01..03, FR-WEB-05..08 | done | Wallet, rental, prepaid inference, provider console with challenge history, explorer with a Challenges tab and event timeline, copy-safe protocol values, and wallet-only writes are implemented. |
 | FR-WEB-04 | planned, should | Explorer views jobs and tasks, but requester job posting and live tile assembly are not implemented. |
 | FR-SIM-01..04 | done | The standard-library simulator covers both heterogeneous verification and rental economics with 15 tests. |
 | FR-RENT-01..07, FR-RENT-09..10 | done | `RentalMarket` and its agent and web clients implement listings, pending manifest-bound requests, acceptance, strict heartbeats, settlement, refunds, extension, termination, slashing, and events. |
@@ -842,7 +924,7 @@ Status is based on behavior in the repository, not roadmap intent.
 | Testnet variability, faucets and RPC. | Flaky public demo. | Medium | Keep the local devnet fallback. The live Alchemy indexer uses 10-block log-query chunks. |
 | Native toolchain issues in containers. | Broken builds. | Low | Pin base images and versions. Prefer Debian slim for Node images. |
 | LLM output cannot be verified on chain. | Overpromising verifiable AI. | High | Rentals use availability evidence rather than result checks. Inference spot-checks remain planned and would affect reputation only. |
-| Provider spoofs advertised hardware. | Requester pays for less than promised. | Medium | A trusted attester currently gates market entry. Real benchmark verification and failure slashing remain planned. |
+| Provider spoofs advertised hardware. | Requester pays for less than promised. | Medium | A trusted attester gates market entry and issues recurring seeded benchmark challenges. Failure slashes free stake and revokes the attestation. Residual risk: the attester is a trusted judge and a benchmark cannot prove the exact GPU model. |
 | Streamed escrow accounting errors. | Funds locked or mispaid. | Medium | Lifecycle and escrow-conservation tests cover current paths; property fuzzing remains planned. |
 | GPU passthrough and inference runtime setup on varied hosts. | Demo friction. | Medium | Provide a CPU-served small model fallback for the inference demo; document GPU setup. |
 | Requester under-reports inference token usage. | Provider is underpaid. | High | The current requester-metered design is explicit. Add provider-signed receipts or a bounded dispute mechanism before production use. |
@@ -866,7 +948,7 @@ planned delivery work in sections 11 and 12 remain open.
 
 | Item | Options | Default if not decided |
 |------|---------|------------------------|
-| Interface font | Inter or Geist Sans. | Inter. |
+| Interface font | Inter or Geist Sans. | Decided: Geist and Geist Mono. |
 | Live channel | Server sent events or websocket. | Server sent events for simplicity. |
 | Index tool | Custom indexer or a subgraph. | Custom indexer to reduce moving parts. |
 | Testnet | Sepolia only, or add a low cost L2. | Sepolia only. |

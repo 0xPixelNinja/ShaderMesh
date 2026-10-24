@@ -48,7 +48,7 @@ Demand for GPU compute, led by AI and large language models, is rising far faste
 A rental marketplace between mutually distrusting parties needs a neutral settlement and coordination layer. Blockchain provides these mechanisms:
 
 - **Escrow with streamed settlement.** A contract holds the renter's funds and releases them for completed intervals backed by provider heartbeats, then refunds unused time.
-- **Staking and slashing.** Providers post collateral that is slashed for missed-heartbeat termination. Failed-attestation slashing remains planned.
+- **Staking and slashing.** Providers post collateral that is slashed for missed-heartbeat termination and, from free stake only, for failed or missed benchmark challenges.
 - **On-chain reputation.** A public record of protocol outcomes that no single marketplace database controls.
 - **Utility-token payments.** Per-interval and per-request settlement without banks or chargebacks.
 - **Transparent, auditable rules.** Pricing, leasing, attestation, and dispute logic live in open contracts.
@@ -98,8 +98,8 @@ Because a rented result (an LLM response, a training run) cannot be re-executed 
 **Synthesis of the gap:** Existing systems are often domain-specific, use complex
 verification, depend on trusted hardware, or focus on liveness rather than result
 correctness. ShaderMesh separates availability-secured rentals from deterministic tasks.
-The current prototype implements escrow, stake, attestation records, strict heartbeat
-settlement, and simple eligible-provider task disputes. Random selection, reputation
+The current prototype implements escrow, stake, attestation records with recurring benchmark
+challenges, strict heartbeat settlement, and simple eligible-provider task disputes. Random selection, reputation
 weighting, SSIM, and distributed GPU rendering remain planned.
 
 ---
@@ -132,7 +132,7 @@ weighting, SSIM, and distributed GPU rendering remain planned.
 
 **Rental mode (primary), for renting compute including LLMs:**
 
-1. A **Provider** registers, stakes, receives a trusted attester record, and lists capacity with a price per interval. A real hardware benchmark remains planned.
+1. A **Provider** registers, stakes, receives a trusted attester record, and lists capacity with a price per interval. The attester then issues recurring benchmark challenges; a failed or missed challenge slashes free stake to a treasury and revokes the attestation.
 2. A **Requester** submits a funded lease request bound to a content-addressed manifest. It remains pending until the provider accepts or rejects it; the requester may also cancel it.
 3. Acceptance starts the lease clock, reserves the listing, and bonds provider stake. The current agent accepts only its configured manifest and launches only provider-configured workload settings.
 4. The provider posts one direct signed transaction for each current interval. A missed interval cannot be heartbeated later. Settlement pays only completed intervals in the contiguous heartbeat prefix. Downtime permits termination, refund, and slashing.
@@ -161,7 +161,7 @@ weighting, SSIM, and distributed GPU rendering remain planned.
 - **Consensus mechanism:** We **inherit Ethereum's Proof-of-Stake** for ledger security and do not build a base-layer consensus. Our contribution is application-layer mechanism design: an availability-based rental agreement (streamed escrow, heartbeats, attestation, SLA slashing) and an optimistic re-execution game for deterministic tasks.
 - **Smart contracts (Solidity):**
   - `SmeshToken`: ERC-20 utility token for payments, staking, and rewards.
-  - `ProviderRegistry`: registration, staking, free-form capabilities, typed GPU attestation records, reputation, slashing.
+  - `ProviderRegistry`: registration, staking, free-form capabilities, typed GPU attestation records, attester-issued benchmark challenges with free-stake slashing to a treasury, reputation, slashing.
   - `RentalMarket`: pending manifest-bound requests, provider acceptance, listings, leases, strict per-interval heartbeats, streamed escrow, extension, refund, and SLA slashing.
   - `InferenceMarket`: model offers and prepaid requester-metered credits with cumulative settlement and refunds.
   - `JobMarket`: verifiable-task posting, escrow, claiming, state machine, settlement.
@@ -225,7 +225,7 @@ the orchestrator misbehaves, the worst case is degraded liveness, not loss of fu
 ## 11. Modules
 
 1. **Token (`SmeshToken`)**: ERC-20 for payments, staking, and rewards, with a testnet faucet.
-2. **Identity, staking, attestation (`ProviderRegistry`)**: registration, free-form capabilities, stake, typed GPU attestation records, eligibility, an EMA reputation over outcomes, and restricted slashing hooks. The current attester is trusted; a real benchmark challenge remains planned.
+2. **Identity, staking, attestation (`ProviderRegistry`)**: registration, free-form capabilities, stake, typed GPU attestation records, eligibility, an EMA reputation over outcomes, and restricted slashing hooks. Seeded benchmark challenges (a 500,000-iteration SHA-256 hash chain plus a score) are answered by the provider and judged by the attester; a wrong answer or a missed deadline slashes up to 10 SMESH of free stake to the treasury, revokes the attestation, and lowers reputation. The attester remains a trusted judge, and a benchmark proves responsiveness, key control, and throughput rather than the exact GPU model.
 3. **Rental market (`RentalMarket`)**: listings, pending manifest-bound requests, provider acceptance or rejection, requester cancellation, acceptance-time bonds, strict current-interval heartbeats, streamed escrow, extension, refund, and SLA slashing.
 4. **Inference market (`InferenceMarket`)**: provider model offers and prepaid credits tied to a requester, provider, model, and snapshotted price. Only the requester can submit monotonic cumulative usage or close the credit.
 5. **Verifiable-task market (`JobMarket`)**: job posting with escrow, task metadata, claiming, the task state machine, and settlement.
@@ -233,7 +233,7 @@ the orchestrator misbehaves, the worst case is degraded liveness, not loss of fu
 7. **Provider node agent (off-chain, Python)**: accepts allowlisted manifests, launches provider-configured constrained lease workloads, sends direct heartbeat transactions, maintains model offers, serves an OpenAI-compatible endpoint, executes task jobs, samples challenger work, discovers host hardware, and retries transient RPC and IPFS operations.
 8. **Orchestrator (off-chain, TypeScript)**: persists and replays a chain projection in Postgres; exposes APIs and event history; validates signed inference requests and durable replay keys; routes only to the credited provider; and splits and stitches jobs. It custodies no funds and does not settle usage.
 9. **Storage (IPFS)**: content-addressed storage for inputs, outputs, and manifests. The chain stores CIDs plus compact market metadata and accounting.
-10. **Web dashboard (off-chain, Next.js + viem)**: rental requests and management, prepaid inference, a provider operations console, and a read-only explorer. Verifiable-job submission and live tile assembly remain planned.
+10. **Web application (off-chain, Next.js + viem)**: a landing page, rental requests and management, prepaid inference, a provider operations console with challenge history, and a read-only explorer with a Challenges tab and event timeline, on a light-first editorial design system with a dark theme (`web/DESIGN.md`). Verifiable-job submission and live tile assembly remain planned.
 11. **Simulator**: models task verification and rental economics across honest, lazy, malicious, and colluding populations, including false-heartbeat detection and escrow conservation.
 
 ---
@@ -251,7 +251,7 @@ the orchestrator misbehaves, the worst case is degraded liveness, not loss of fu
 | **Frontend** | Next.js + React + TypeScript + `viem` + Tailwind | EIP-1193 wallet writes and indexed reads. |
 | **Storage** | IPFS Kubo and local test storage | Content-addressed inputs and outputs; on chain stores only CIDs. |
 | **Compute runtime** | Docker with optional NVIDIA Container Toolkit | Constrained lease and task execution. Blender remains planned. |
-| **Attestation** | Trusted attester record plus direct provider heartbeat transactions | Current prototype gate. Real benchmark verification and relayed heartbeats remain planned. |
+| **Attestation** | Attester record, seeded benchmark challenges, and direct provider heartbeat transactions | Current prototype gate. The attester judges challenges. Relayed heartbeats remain planned. |
 | **Datastore / indexer** | PostgreSQL with `pg` | Durable projection snapshots, exact event cursors, and inference replay keys. |
 | **Dev infra** | Docker Compose and GitHub Actions | Local stack, provider-only Windows node, deployed Sepolia operator stack, and CI. |
 | **Optional (Rust/Go)** | A high-performance provider agent variant | Leverages team Rust/Go skill; stretch goal. |
@@ -350,7 +350,7 @@ This is a compute marketplace rather than an ML dataset project, but we standard
 
 - **LLM inference inputs:** the local demo uses deterministic echo responses. Sepolia validation used the OpenAI-compatible gateway with a real `qwen3:0.6b` Ollama provider.
 - **Rental workloads:** the local demo uses a provider-approved CPU placeholder. Sepolia validation used an immutable NVIDIA CUDA image on an RTX 4070 Laptop GPU.
-- **Rendering inputs (verifiable task):** the current fixture is a deterministic Mandelbrot tile job. Blender scenes and perceptual verification remain planned.
+- **Rendering inputs (verifiable task):** the current fixture is a deterministic Mandelbrot tile job. Blender scenes and perceptual verification are future work.
 - **Adversarial inputs (simulator):** scripted provider behaviors: for rentals, downtime and false hardware claims; for tasks, lazy, false-result, and colluding behavior.
 
 The live stack supports IPFS for job inputs, outputs, and manifests; tests may use local
@@ -370,8 +370,9 @@ Implemented and validated:
    provider-pinned routing, replay protection, and on-chain cumulative settlement.
 4. Constrained lease and task workers, challenger sampling, bounded retries, hardware
    discovery, and idempotent provider listing and offer maintenance.
-5. Durable Postgres projection and replay, requester and provider dashboard flows,
-   provider console, explorer, and a seeded one-command Compose stack.
+5. Durable Postgres projection and replay, requester and provider flows, provider
+   console, explorer, a landing page, and a seeded one-command Compose stack.
+   Benchmark challenges run automatically in the local stack through an attester service.
 6. An expanded simulator for heterogeneous task verification and rental uptime,
    false-heartbeat detection, payments, refunds, slashing, and escrow conservation.
 7. A source-verified Sepolia deployment with an attested RTX 4070 provider, real
@@ -379,11 +380,11 @@ Implemented and validated:
 
 Still planned:
 
-1. Independent benchmark verification and failed-attestation slashing across multiple providers.
+1. Decentralized benchmark judging (the attester is currently a trusted role) and multi-provider evaluation.
 2. Provider-signed inference usage or a dispute mechanism for requester under-reporting.
 3. Commit-reveal, reputation-weighted random challenger selection, and SSIM verification.
-4. Verifiable-job submission and live tile assembly in the dashboard, wallet-write browser
-   automation, final evaluation, and recorded delivery materials.
+4. Verifiable-job submission and live tile assembly in the dashboard, final evaluation,
+   and recorded delivery materials.
 
 ---
 
@@ -398,21 +399,22 @@ The authoritative roadmap and per-requirement status are in
 | Rental and inference contracts | done for the requester-metered prototype |
 | Provider task worker, challenger, lease service, inference, and hardening | done |
 | Orchestrator split, stitch, durable projection, APIs, and signed gateway | done |
-| Rental, inference, provider, and explorer web surfaces | done; verifiable-job submission remains planned |
+| Landing, rental, inference, provider, and explorer web surfaces | done; verifiable-job submission remains planned |
 | Verification and rental simulator | done; final evaluation remains planned |
 | CI and local full-stack checks | done for current suites |
 | Sepolia operator and Windows provider tooling | deployed and validated on one provider |
-| Commit-reveal, random selection, SSIM, and real benchmark | planned |
+| Benchmark challenges with free-stake slashing | done; live on Sepolia |
+| Commit-reveal, random selection, SSIM, and Blender rendering | planned; rendering is descoped to future work |
 
 ### Current verification
 
 | Suite | Count |
 |-------|------:|
-| Hardhat contracts | 35 passing |
-| pytest provider agent | 44 passing |
-| Vitest orchestrator with Postgres | 48 passing |
+| Hardhat contracts | 42 passing |
+| pytest provider agent | 58 passing |
+| Vitest orchestrator with Postgres | 54 passing |
 | unittest simulator | 15 passing |
-| Playwright dashboard, desktop and mobile | 16 passing |
+| Playwright web app, desktop and mobile, including wallet-write flows | 24 passing |
 
 GitHub Actions compiles and tests contracts, emits the gas report, runs agent and
 simulator tests, runs orchestrator tests against Postgres and type checking, and runs

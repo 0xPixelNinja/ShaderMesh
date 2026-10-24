@@ -169,4 +169,4 @@ retries degrade `/health`; a later successful poll restores indexing health.
 The orchestrator supports split, durable index, stitch, rental and inference
 projections, and the authorized inference gateway. Live cross-service indexing
 is exercised by the full-stack tests and the healthy Sepolia operator deployment.
-The current suite has 48 passing tests when run with Postgres.
+The current suite has 54 passing tests when run with Postgres.
