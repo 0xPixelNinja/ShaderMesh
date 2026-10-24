@@ -446,7 +446,7 @@ export default function ModelsPage() {
                   disabled={locked}
                   aria-pressed={selected}
                   className={`block w-full rounded-md border px-3 py-2.5 text-left transition-colors duration-fast ease-out disabled:cursor-not-allowed disabled:opacity-50 ${
-                    selected ? "border-accent/50 bg-accent-weak" : "border-transparent hover:bg-hover"
+                    selected ? "border-accent bg-accent-weak" : "border-transparent hover:bg-hover"
                   }`}
                 >
                   <span className="block truncate text-[14px] font-medium text-ink">{offer.modelIdentifier}</span>
@@ -485,7 +485,7 @@ export default function ModelsPage() {
               <div
                 className={`max-w-[88%] whitespace-pre-wrap rounded-lg border px-3.5 py-2.5 text-[14px] leading-relaxed sm:max-w-[78%] ${
                   message.role === "user"
-                    ? "border-accent/30 bg-accent-weak text-ink"
+                    ? "border-accent bg-accent-weak text-ink"
                     : "border-line bg-panel text-ink2"
                 }`}
               >
@@ -503,7 +503,7 @@ export default function ModelsPage() {
         </div>
         <div className="border-t border-line p-3 sm:p-4">
           {(activePendingSettlement || activeBlockedReason) && (
-            <div className="mb-3 flex flex-col gap-2.5 rounded-lg border border-accent/40 bg-accent-weak px-4 py-3 text-[13px] leading-relaxed text-ink2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="mb-3 flex flex-col gap-2.5 rounded-lg border border-accent bg-accent-weak px-4 py-3 text-[13px] leading-relaxed text-ink2 sm:flex-row sm:items-center sm:justify-between">
               <span>{activeBlockedReason ?? "Usage settlement must complete before another request."}</span>
               {activePendingSettlement && (
                 <span className="flex shrink-0 gap-2">

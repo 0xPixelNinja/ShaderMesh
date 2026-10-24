@@ -19,6 +19,7 @@ import {
   Th,
   Tr,
 } from "@/components/ui";
+import { EscrowIntervals, HeartbeatStrip, LeaseLifecycle } from "@/components/diagrams";
 import { fmtUsd, shortAddr } from "@/lib/format";
 import { cancelLease, endLease, settleLease } from "@/lib/actions";
 import type { Deployment, Lease, LeaseAccess, Listing } from "@/lib/types";
@@ -32,6 +33,13 @@ function fmtTimestamp(timestamp: number): string {
 function settledPct(lease: Lease): number {
   if (!lease.fundedIntervals) return 0;
   return Math.min(100, (lease.settledIntervals / lease.fundedIntervals) * 100);
+}
+
+/** Intervals elapsed since the lease started, capped at the funded count. */
+function elapsedIntervals(lease: Lease): number {
+  if (!lease.start || !lease.intervalSecs) return 0;
+  const passed = Math.floor((Date.now() / 1000 - lease.start) / lease.intervalSecs);
+  return Math.max(0, Math.min(lease.fundedIntervals, passed));
 }
 
 export default function LeasesPage() {
@@ -122,7 +130,7 @@ export default function LeasesPage() {
       {msg && (
         <div
           role="status"
-          className="rounded-lg border border-success/30 bg-success-weak px-4 py-3 text-[13px] text-success"
+          className="rounded-lg border border-success bg-success-weak px-4 py-3 text-[13px] text-success"
         >
           {msg}
         </div>
@@ -298,6 +306,48 @@ export default function LeasesPage() {
             </div>
           )}
         </Card>
+
+      {activeLeases.length > 0 && (
+        <Card>
+          <CardHead
+            title="Lease evidence"
+            sub="Signed heartbeats and escrow settlement for each active lease"
+          />
+          <div className="rule">
+            {activeLeases.map((lease) => {
+              const listing = listingById.get(lease.listingId);
+              return (
+                <div key={lease.id} className="grid gap-6 p-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,220px)]">
+                  <div className="min-w-0">
+                    <div className="mb-3 text-[13px] font-medium text-ink2">
+                      {listing?.gpu || `Listing #${lease.listingId}`}{" "}
+                      <span className="mono text-faint">lease #{lease.id}</span>
+                    </div>
+                    <HeartbeatStrip
+                      elapsed={elapsedIntervals(lease)}
+                      beats={lease.heartbeatedIntervals}
+                      live={lease.status === "Active"}
+                    />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="mb-3 text-[13px] font-medium text-ink2">Escrow intervals</div>
+                    <EscrowIntervals
+                      funded={lease.fundedIntervals}
+                      heartbeated={lease.heartbeatedIntervals}
+                      settled={lease.settledIntervals}
+                      max={lease.maxIntervals}
+                    />
+                  </div>
+                  <div className="min-w-0 max-w-[220px]">
+                    <div className="mb-3 text-[13px] font-medium text-ink2">Lifecycle</div>
+                    <LeaseLifecycle status={lease.status} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      )}
 
       {activeLeases.length > 0 && (
         <Card>

@@ -18,7 +18,7 @@ export function CardHead({ title, sub, action }: { title: string; sub?: string; 
   return (
     <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-line px-5 py-4">
       <div className="min-w-0">
-        <h3 className="text-[15px] font-semibold leading-tight text-ink">{title}</h3>
+        <h3 className="text-[15px] font-semibold leading-tight tracking-[-0.02em] text-ink">{title}</h3>
         {sub && <p className="mt-1 text-[13px] leading-tight text-muted">{sub}</p>}
       </div>
       {action && <div className="shrink-0">{action}</div>}
@@ -43,7 +43,7 @@ export function Stat({
   return (
     <div className="px-5 py-4">
       <div className="text-[13px] font-medium text-muted">{label}</div>
-      <div className={`mono mt-1.5 text-[26px] font-semibold leading-none tracking-tight ${valueTone}`}>
+      <div className={`mono mt-1.5 text-[24px] font-semibold leading-none tracking-tight ${valueTone}`}>
         {value}
       </div>
       {sub && <div className="mt-1.5 text-[13px] leading-tight text-faint">{sub}</div>}
@@ -63,7 +63,7 @@ const BUTTON_VARIANTS: Record<ButtonVariant, string> = {
   ghost:
     "border-transparent bg-transparent text-muted hover:bg-hover hover:text-ink",
   danger:
-    "border-line bg-danger-weak text-danger hover:border-danger/50 hover:bg-danger/15",
+    "border-line bg-danger-weak text-danger hover:border-danger",
 };
 
 export function Button({
@@ -166,9 +166,9 @@ const STATUS_TONES: Record<string, string> = {
 };
 
 const TONE_STYLES: Record<string, { wrap: string; dot: string }> = {
-  accent: { wrap: "border-accent/30 bg-accent-weak text-accent", dot: "bg-accent" },
-  success: { wrap: "border-success/25 bg-success-weak text-success", dot: "bg-success" },
-  danger: { wrap: "border-danger/30 bg-danger-weak text-danger", dot: "bg-danger" },
+  accent: { wrap: "border-accent bg-accent-weak text-accent", dot: "bg-accent" },
+  success: { wrap: "border-success bg-success-weak text-success", dot: "bg-success" },
+  danger: { wrap: "border-danger bg-danger-weak text-danger", dot: "bg-danger" },
   neutral: { wrap: "border-line bg-panel text-muted", dot: "bg-faint" },
 };
 
@@ -179,11 +179,7 @@ export function StatusTag({ status }: { status: string }) {
     <span
       className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-1 text-[12px] font-medium ${tone.wrap}`}
     >
-      <span className={`relative h-1.5 w-1.5 shrink-0 rounded-full ${tone.dot}`}>
-        {live && (
-          <span className={`absolute inset-0 animate-ping rounded-full opacity-60 ${tone.dot}`} />
-        )}
-      </span>
+      <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${tone.dot} ${live ? "live-dot" : ""}`} />
       {status}
     </span>
   );
@@ -205,7 +201,7 @@ export function Heartbeats({ up, total = 10, live = false }: { up: number; total
         return (
           <span
             key={i}
-            className={`w-[3px] rounded-[1px] transition-all duration-fast ease-out ${
+            className={`w-[3px] rounded-[1px] transition-colors duration-fast ease-out ${
               on ? "h-5 bg-success" : "h-3 bg-line-strong"
             } ${newest && live ? "animate-pulse" : ""}`}
           />
@@ -233,7 +229,7 @@ export function GpuChip({ live = false }: { live?: boolean }) {
     <span
       aria-hidden
       className={`grid h-9 w-9 shrink-0 place-items-center rounded-md border bg-panel ${
-        live ? "border-accent/40 text-accent" : "border-line text-muted"
+        live ? "border-accent text-accent" : "border-line text-muted"
       }`}
     >
       <Icon name="gpu" className="h-[18px] w-[18px]" />
@@ -312,7 +308,7 @@ export function CopyValue({ value, label = "value" }: { value: string; label?: s
 export function Note({ children, tone = "neutral" }: { children: ReactNode; tone?: "neutral" | "accent" }) {
   const styles =
     tone === "accent"
-      ? "border-accent/30 bg-accent-weak text-ink2"
+      ? "border-accent bg-accent-weak text-ink2"
       : "border-line bg-panel text-muted";
   return (
     <div className={`flex items-start gap-2.5 rounded-lg border px-4 py-3 text-[13px] leading-relaxed ${styles}`}>
@@ -326,7 +322,7 @@ export function ErrorNote({ children }: { children: ReactNode }) {
   return (
     <div
       role="alert"
-      className="flex items-start gap-2.5 rounded-lg border border-danger/40 bg-danger-weak px-4 py-3 text-[13px] leading-relaxed text-danger"
+      className="flex items-start gap-2.5 rounded-lg border border-danger bg-danger-weak px-4 py-3 text-[13px] leading-relaxed text-danger"
     >
       <Icon name="alert" className="mt-px h-4 w-4 shrink-0" aria-hidden />
       <p className="min-w-0">{children}</p>
@@ -340,7 +336,7 @@ export function Th({ children, align = "left", className = "" }: { children?: Re
   return (
     <th
       scope="col"
-      className={`whitespace-nowrap border-b border-line px-5 py-2.5 text-[12px] font-medium uppercase tracking-wide text-faint ${
+      className={`whitespace-nowrap border-b border-line px-5 py-3 text-[12px] font-medium uppercase tracking-wide text-faint ${
         align === "right" ? "text-right" : "text-left"
       } ${className}`}
     >
@@ -352,7 +348,7 @@ export function Th({ children, align = "left", className = "" }: { children?: Re
 export function Td({ children, align = "left", className = "" }: { children?: ReactNode; align?: "left" | "right"; className?: string }) {
   return (
     <td
-      className={`border-b border-line px-5 py-3.5 text-[13px] align-middle ${
+      className={`border-b border-line px-5 py-3 text-[13px] align-middle ${
         align === "right" ? "text-right" : "text-left"
       } ${className}`}
     >

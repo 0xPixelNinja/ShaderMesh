@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { parseUnits, type Hash } from "viem";
 import { useApi } from "@/lib/api";
+import { ChallengeTrack } from "@/components/diagrams";
 import { useWallet } from "@/components/WalletProvider";
 import {
   Card,
@@ -32,7 +33,7 @@ import {
   waitForTransaction,
 } from "@/lib/actions";
 import { fmtInterval, fmtSmesh, repScore } from "@/lib/format";
-import type { Deployment, InferenceCredit, InferenceOffer, Lease, Listing, Provider } from "@/lib/types";
+import type { Challenge, Deployment, InferenceCredit, InferenceOffer, Lease, Listing, Provider } from "@/lib/types";
 
 const DEFAULT_CAPABILITIES = JSON.stringify({
   gpuModel: "NVIDIA GeForce RTX 4070 Laptop GPU",
@@ -107,6 +108,7 @@ export default function ProvidersPage() {
   const leasesState = useApi<Lease[]>("/leases", 5000);
   const creditsState = useApi<InferenceCredit[]>("/credits", 5000);
   const deploymentState = useApi<Deployment>("/deployment", 30000);
+  const challengesState = useApi<Challenge[]>(`/challenges?provider=${address ?? "none"}`, 5000);
 
   const providers = providersState.data ?? [];
   const listings = listingsState.data ?? [];
@@ -277,12 +279,12 @@ export default function ProvidersPage() {
   return (
     <div className="space-y-5">
       {notice && (
-        <div role={notice.error ? "alert" : "status"} aria-live="polite" className={`flex flex-wrap items-center justify-between gap-3 rounded-md border bg-panel px-4 py-3 text-sm ${notice.error ? "border-danger/40 text-danger" : "border-line text-ink2"}`}>
+        <div role={notice.error ? "alert" : "status"} aria-live="polite" className={`flex flex-wrap items-center justify-between gap-3 rounded-md border bg-panel px-4 py-3 text-sm ${notice.error ? "border-danger text-danger" : "border-line text-ink2"}`}>
           <span>{notice.text}</span>
           {notice.hash && <CopyValue value={notice.hash} label="transaction hash" />}
         </div>
       )}
-      {apiError && <div role="alert" className="rounded-md border border-danger/40 bg-panel px-4 py-3 text-sm text-danger">Provider data could not be fully refreshed. {apiError}</div>}
+      {apiError && <div role="alert" className="rounded-md border border-danger bg-panel px-4 py-3 text-sm text-danger">Provider data could not be fully refreshed. {apiError}</div>}
 
       {!address ? (
         <Card>
@@ -313,12 +315,36 @@ export default function ProvidersPage() {
             </div>
             {provider?.registered && (
               <div className="flex flex-wrap gap-x-6 gap-y-2 border-t border-line px-4 py-3 text-xs text-muted">
-                <span>Attestation: <b className={provider.attested ? "font-medium text-success" : "font-medium text-accent"}>{provider.attested ? `${provider.gpu || "Hardware"}, ${provider.vramGB} GB, score ${provider.benchmarkScore}` : "Required for market offers"}</b></span>
+                <span>Attestation: <b className={provider.attested ? "font-medium text-success" : "font-medium text-accent"}>{provider.attested ? `${provider.gpu || "Hardware"}, ${provider.vramGB} GB, score ${provider.benchmarkScore}` : (provider.challengesFailed ?? 0) > 0 ? "Revoked after a failed challenge" : "Required for market offers"}</b></span>
                 <span>Outcomes: <b className="font-medium text-ink2">{provider.completed} completed, {provider.failed} failed</b></span>
                 <span>Earnings: <b className="font-medium text-ink2">{fmtSmesh(leaseEarnings)} rental, {fmtSmesh(inferenceEarnings)} inference</b></span>
               </div>
             )}
           </section>
+
+          {provider?.registered && (
+            <Card>
+              <CardHead
+                title="Benchmark challenges"
+                sub={`${provider.challengesPassed ?? 0} passed, ${provider.challengesFailed ?? 0} failed`}
+                action={<StatusTag status={provider.attested ? "Active" : "Inactive"} />}
+              />
+              <div className="space-y-4 p-5">
+                <p className="text-[13px] leading-relaxed text-ink2">
+                  {provider.attested
+                    ? `Attested hardware: ${provider.gpu || "declared GPU"}, ${provider.vramGB} GB, benchmark score ${provider.benchmarkScore}. The protocol re-checks it with random benchmark challenges.`
+                    : (provider.challengesFailed ?? 0) > 0
+                      ? "Attestation revoked after a failed challenge. Part of your free stake was slashed. Submit a fresh attestation to publish listings and offers again."
+                      : "Not attested. Market listings and inference offers require a fresh hardware attestation."}
+                </p>
+                {challengesState.loading && !challengesState.data ? (
+                  <Skeleton label="Loading challenges" rows={1} />
+                ) : (
+                  <ChallengeTrack challenges={challengesState.data ?? []} />
+                )}
+              </div>
+            </Card>
+          )}
 
           <Card>
             <CardHead

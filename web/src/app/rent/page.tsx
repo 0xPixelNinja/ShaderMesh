@@ -324,7 +324,7 @@ export default function RentPage() {
               {notice && (
                 <div
                   role="status"
-                  className="rounded-lg border border-success/30 bg-success-weak px-4 py-3 text-[13px] leading-relaxed text-success"
+                  className="rounded-lg border border-success bg-success-weak px-4 py-3 text-[13px] leading-relaxed text-success"
                 >
                   {notice}
                 </div>

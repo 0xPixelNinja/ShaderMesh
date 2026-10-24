@@ -280,7 +280,7 @@ export default function OverviewPage() {
             <CardHead title="Run a model" sub="Managed inference" />
             <div className="p-5">
               <div className="flex items-start gap-3">
-                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-md border border-accent/40 bg-accent-weak text-accent">
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-md border border-accent bg-accent-weak text-accent">
                   <Icon name="model" className="h-[18px] w-[18px]" aria-hidden />
                 </span>
                 <p className="text-[13px] leading-relaxed text-muted">

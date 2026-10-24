@@ -51,10 +51,10 @@ function NavLink({ href, label, icon, active }: { href: string; label: string; i
       href={href}
       aria-current={active ? "page" : undefined}
       className={`group relative flex items-center gap-2.5 rounded-md px-2.5 py-2 text-[14px] font-medium transition-colors duration-fast ease-out ${
-        active ? "bg-hover text-ink" : "text-muted hover:bg-hover/60 hover:text-ink"
+        active ? "bg-hover text-ink" : "text-muted hover:bg-hover hover:text-ink"
       }`}
     >
-      {active && <span className="absolute -left-3 bottom-1.5 top-1.5 w-[3px] rounded-r-full bg-accent" />}
+      {active && <span className="absolute -left-3 bottom-1.5 top-1.5 w-0.5 bg-accent" />}
       <Icon
         name={icon}
         className={`h-[18px] w-[18px] shrink-0 ${active ? "text-accent" : "text-faint group-hover:text-muted"}`}
@@ -116,7 +116,7 @@ export function Shell({ children }: { children: ReactNode }) {
             <Logo />
           </Link>
           <div className="min-w-0 flex-1">
-            <h1 className="truncate text-[17px] font-semibold leading-tight tracking-tight">{head.title}</h1>
+            <h1 className="truncate text-[18px] font-semibold leading-tight tracking-[-0.02em]">{head.title}</h1>
             <p className="mt-0.5 truncate text-[13px] leading-tight text-muted">{head.sub}</p>
           </div>
 
