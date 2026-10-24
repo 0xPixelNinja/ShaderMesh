@@ -804,6 +804,123 @@ def fig_chart_gas() -> Fig:
 # Render and check
 # ---------------------------------------------------------------------------
 
+
+# ---------------------------------------------------------------------------
+# Project report figures: modules, tech stack, methodology, problem
+# ---------------------------------------------------------------------------
+
+
+def card(f: Fig, x, y, w, h, title, lines, kind="plain"):
+    fill, stroke, tc = {"chain": (AMBERF, AMBER, AMBERT), "dash": ("#FFFFFF", MUTED, INK)}.get(kind, ("#FFFFFF", INK, INK))
+    f.rect(x, y, w, h, fill, stroke, dash="5 4" if kind == "dash" else None)
+    f.text(x + 16, y + 30, title, 15, tc, weight="bold")
+    f.lines(x + 16, y + 58, lines, 13, 19, fill=AMBERT if kind == "chain" else INK2)
+
+
+def fig_modules() -> Fig:
+    f = Fig("modules", 1100, 480)
+    w, gap, x0 = 200, 15, 20
+    f.text(x0, 28, "On chain: Solidity contracts on Ethereum (hold all value)", 14, MUTED, weight="bold")
+    chain = [
+        ("SmeshToken", ["ERC-20 utility token", "Testnet faucet", "Pays escrow, stake"]),
+        ("ProviderRegistry", ["Registration, stake", "Attestation", "Reputation", "Challenges, slashing"]),
+        ("RentalMarket", ["GPU listings", "Lease escrow", "Heartbeat per interval", "Settle, refund, end"]),
+        ("InferenceMarket", ["Model offers", "Prepaid credit", "Usage settlement"]),
+        ("JobMarket", ["with Verification", "Deterministic tasks", "Commitments", "Challenge votes"]),
+    ]
+    for i, (t, ls) in enumerate(chain):
+        card(f, x0 + i * (w + gap), 42, w, 132, t, ls, "chain")
+    f.line([(330, 244), (330, 178)], INK, 1.75)
+    f.line([(770, 178), (770, 244)], INK, 1.75)
+    f.text(345, 216, "signed transactions", 13, MUTED)
+    f.text(755, 216, "events and state reads", 13, MUTED, "end")
+    f.text(x0, 270, "Off chain: services that hold no requester funds", 14, MUTED, weight="bold")
+    off = [
+        ("Provider agent", ["Hardware discovery", "Docker GPU workloads", "Ollama inference", "Heartbeats, answers"], "plain"),
+        ("Attester", ["Issues challenges", "Judges hash, score", "Expires missed ones"], "plain"),
+        ("Orchestrator", ["Event indexer", "Postgres projection", "REST and SSE API", "Inference gateway"], "plain"),
+        ("Web app", ["Rent workspace", "Provide workspace", "Explorer", "Wallet signing"], "plain"),
+        ("Simulator", ["Offline model", "Spot-check economics", "Rental outcomes"], "dash"),
+    ]
+    for i, (t, ls, k) in enumerate(off):
+        card(f, x0 + i * (w + gap), 284, w, 132, t, ls, k)
+    f.text(550, 458, "Amber: contracts on chain. Solid: off-chain services. Dashed: offline analysis tool.", 13, MUTED, "middle")
+    return f
+
+
+def chip_w(t, size=13):
+    return round(len(t) * size * 0.56 + 28)
+
+
+def fig_tech_stack() -> Fig:
+    f = Fig("tech-stack", 1100, 440)
+    rows = [
+        ("Interface", "what users touch", ["Next.js 16", "React 19", "Tailwind CSS", "viem", "MetaMask (EIP-1193)"], "plain"),
+        ("Coordination", "untrusted, rebuildable", ["Node.js 20", "TypeScript", "ethers", "PostgreSQL 16", "IPFS (Kubo)"], "plain"),
+        ("Execution", "provider hardware", ["Python 3.11", "web3.py", "Docker Engine", "NVIDIA Container Toolkit", "Ollama"], "plain"),
+        ("Settlement", "trust and payment", ["Ethereum Sepolia", "Solidity 0.8.24", "OpenZeppelin", "Hardhat"], "chain"),
+        ("Tooling", "build and test", ["Docker Compose", "Playwright", "pytest", "Mocha and Chai", "GitHub Actions"], "faint"),
+    ]
+    y = 20
+    for name, sub, chips, k in rows:
+        f.rect(20, y, 1060, 70, AMBERF if k == "chain" else (FAINT if k == "faint" else "#FFFFFF"), AMBER if k == "chain" else HAIR)
+        f.text(40, y + 31, name, 15, AMBERT if k == "chain" else INK, weight="bold")
+        f.text(40, y + 52, sub, 12, AMBERT if k == "chain" else MUTED)
+        x = 240
+        for c in chips:
+            cw = chip_w(c)
+            f.rect(x, y + 17, cw, 36, "#FFFFFF", AMBER if k == "chain" else INK, 1.25, rx=5)
+            f.text(x + cw / 2, y + 40, c, 13, INK, "middle")
+            x += cw + 12
+        y += 82
+    return f
+
+
+def fig_methodology() -> Fig:
+    f = Fig("methodology", 1100, 262)
+    phases = [
+        ("Requirements", ["SRS, trust model", "threat model"]),
+        ("Contracts", ["6 contracts", "42 tests"]),
+        ("Agent", ["Docker, Ollama", "58 tests"]),
+        ("Orchestrator", ["indexer, API", "54 tests"]),
+        ("Web app", ["role workspaces", "30 browser checks"]),
+        ("Integration", ["Compose stack", "simulator"]),
+        ("Testnet", ["Sepolia deploy", "live provider"]),
+    ]
+    w, gap, x0 = 134, 20, 21
+    for i, (t, ls) in enumerate(phases):
+        x = x0 + i * (w + gap)
+        f.text(x + w / 2, 44, f"Phase {i + 1}", 12, MUTED, "middle")
+        f.node(x, 56, w, 60, t, (), "chain" if t == "Testnet" else "plain", tsize=14)
+        f.lines(x + w / 2, 148, ls, 13, 19, "middle", INK2)
+        if i < len(phases) - 1:
+            f.line([(x + w, 86), (x + w + gap, 86)], INK, 1.5)
+    f.line([(x0 + 7 * w + 6 * gap, 100), (1088, 100), (1088, 200), (10, 200), (10, 100), (x0, 100)], MUTED, 1.4, dash="5 4")
+    f.text(550, 236, "Every phase ends with automated tests and review; findings feed back into the requirements.", 13, MUTED, "middle")
+    return f
+
+
+def fig_problem() -> Fig:
+    f = Fig("problem", 1100, 360)
+    f.text(275, 30, "Today: a central operator", 15, INK, "middle", "bold")
+    f.text(825, 30, "ShaderMesh: contracts as the trusted party", 15, AMBERT, "middle", "bold")
+    f.line([(550, 14), (550, 346)], HAIR, 1.25, head=False, seg=False)
+    # left
+    f.node(40, 60, 170, 64, "Renter", ["pays up front"])
+    f.node(340, 60, 170, 64, "GPU owner", ["paid later"])
+    f.node(175, 190, 200, 72, "Marketplace", ["holds funds, rules", "on disputes"], "faint")
+    f.line([(125, 124), (220, 190)], INK, 1.5)
+    f.line([(330, 190), (425, 124)], INK, 1.5)
+    f.lines(275, 300, [("Single point of trust and failure", BAD), ("Opaque reputation and fees", BAD), ("No proof the hours were served", BAD)], 13, 22, "middle")
+    # right
+    f.node(590, 60, 170, 64, "Requester", ["funds escrow"])
+    f.node(890, 60, 170, 64, "Provider", ["stakes collateral"])
+    f.node(705, 190, 240, 72, "Smart contracts", ["escrow, stake, slashing"], "chain")
+    f.line([(675, 124), (760, 190)], INK, 1.5)
+    f.line([(975, 124), (890, 190)], INK, 1.5, tail=True)
+    f.lines(825, 300, [("Paid per interval with signed heartbeats", OK), ("Public stake, reputation, and history", OK), ("Missed service is refunded or slashed", OK)], 13, 22, "middle")
+    return f
+
 JS = """() => [...document.querySelectorAll('svg text')].filter(t => !t.dataset.skip).map(t => {
   const b = t.getBBox(); return {t: t.textContent, x: b.x, y: b.y, w: b.width, h: b.height};})"""
 
@@ -857,6 +974,7 @@ def main() -> int:
         fig_system_context(), fig_architecture(), fig_rental_sequence(), fig_challenge_sequence(),
         fig_lease_state(), fig_challenge_state(), fig_token_flow(), fig_trust_boundary(),
         fig_chart_detection(), fig_chart_rental(), fig_chart_gas(),
+        fig_modules(), fig_tech_stack(), fig_methodology(), fig_problem(),
     ]
     only = set(sys.argv[1:])
     bad = 0

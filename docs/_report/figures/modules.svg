@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="480" viewBox="0 0 1100 480">
+<rect width="1100" height="480" fill="#FFFFFF"/>
+<text x="20" y="28" font-family="Arial, Helvetica, sans-serif" font-size="14" fill="#5E5950" text-anchor="start" font-weight="bold">On chain: Solidity contracts on Ethereum (hold all value)</text>
+<rect x="20" y="42" width="200" height="132" rx="6" fill="#FDF3E1" stroke="#D97706" stroke-width="1.5"/>
+<text x="36" y="72" font-family="Arial, Helvetica, sans-serif" font-size="15" fill="#A34A06" text-anchor="start" font-weight="bold">SmeshToken</text>
+<text x="36" y="100" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#A34A06" text-anchor="start" font-weight="normal">ERC-20 utility token</text>
+<text x="36" y="119" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#A34A06" text-anchor="start" font-weight="normal">Testnet faucet</text>
+<text x="36" y="138" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#A34A06" text-anchor="start" font-weight="normal">Pays escrow, stake</text>
+<rect x="235" y="42" width="200" height="132" rx="6" fill="#FDF3E1" stroke="#D97706" stroke-width="1.5"/>
+<text x="251" y="72" font-family="Arial, Helvetica, sans-serif" font-size="15" fill="#A34A06" text-anchor="start" font-weight="bold">ProviderRegistry</text>
+<text x="251" y="100" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#A34A06" text-anchor="start" font-weight="normal">Registration, stake</text>
+<text x="251" y="119" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#A34A06" text-anchor="start" font-weight="normal">Attestation</text>
+<text x="251" y="138" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#A34A06" text-anchor="start" font-weight="normal">Reputation</text>
+<text x="251" y="157" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#A34A06" text-anchor="start" font-weight="normal">Challenges, slashing</text>
+<rect x="450" y="42" width="200" height="132" rx="6" fill="#FDF3E1" stroke="#D97706" stroke-width="1.5"/>
+<text x="466" y="72" font-family="Arial, Helvetica, sans-serif" font-size="15" fill="#A34A06" text-anchor="start" font-weight="bold">RentalMarket</text>
+<text x="466" y="100" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#A34A06" text-anchor="start" font-weight="normal">GPU listings</text>
+<text x="466" y="119" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#A34A06" text-anchor="start" font-weight="normal">Lease escrow</text>
+<text x="466" y="138" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#A34A06" text-anchor="start" font-weight="normal">Heartbeat per interval</text>
+<text x="466" y="157" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#A34A06" text-anchor="start" font-weight="normal">Settle, refund, end</text>
+<rect x="665" y="42" width="200" height="132" rx="6" fill="#FDF3E1" stroke="#D97706" stroke-width="1.5"/>
+<text x="681" y="72" font-family="Arial, Helvetica, sans-serif" font-size="15" fill="#A34A06" text-anchor="start" font-weight="bold">InferenceMarket</text>
+<text x="681" y="100" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#A34A06" text-anchor="start" font-weight="normal">Model offers</text>
+<text x="681" y="119" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#A34A06" text-anchor="start" font-weight="normal">Prepaid credit</text>
+<text x="681" y="138" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#A34A06" text-anchor="start" font-weight="normal">Usage settlement</text>
+<rect x="880" y="42" width="200" height="132" rx="6" fill="#FDF3E1" stroke="#D97706" stroke-width="1.5"/>
+<text x="896" y="72" font-family="Arial, Helvetica, sans-serif" font-size="15" fill="#A34A06" text-anchor="start" font-weight="bold">JobMarket</text>
+<text x="896" y="100" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#A34A06" text-anchor="start" font-weight="normal">with Verification</text>
+<text x="896" y="119" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#A34A06" text-anchor="start" font-weight="normal">Deterministic tasks</text>
+<text x="896" y="138" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#A34A06" text-anchor="start" font-weight="normal">Commitments</text>
+<text x="896" y="157" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#A34A06" text-anchor="start" font-weight="normal">Challenge votes</text>
+<path d="M330.0,244.0 L330.0,185.0" fill="none" stroke="#1A1814" stroke-width="1.75" stroke-linejoin="round"/>
+<polygon points="330.0,178.0 334.0,187.0 326.0,187.0" fill="#1A1814"/>
+<path d="M770.0,178.0 L770.0,237.0" fill="none" stroke="#1A1814" stroke-width="1.75" stroke-linejoin="round"/>
+<polygon points="770.0,244.0 766.0,235.0 774.0,235.0" fill="#1A1814"/>
+<text x="345" y="216" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="start" font-weight="normal">signed transactions</text>
+<text x="755" y="216" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="end" font-weight="normal">events and state reads</text>
+<text x="20" y="270" font-family="Arial, Helvetica, sans-serif" font-size="14" fill="#5E5950" text-anchor="start" font-weight="bold">Off chain: services that hold no requester funds</text>
+<rect x="20" y="284" width="200" height="132" rx="6" fill="#FFFFFF" stroke="#1A1814" stroke-width="1.5"/>
+<text x="36" y="314" font-family="Arial, Helvetica, sans-serif" font-size="15" fill="#1A1814" text-anchor="start" font-weight="bold">Provider agent</text>
+<text x="36" y="342" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#3A362F" text-anchor="start" font-weight="normal">Hardware discovery</text>
+<text x="36" y="361" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#3A362F" text-anchor="start" font-weight="normal">Docker GPU workloads</text>
+<text x="36" y="380" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#3A362F" text-anchor="start" font-weight="normal">Ollama inference</text>
+<text x="36" y="399" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#3A362F" text-anchor="start" font-weight="normal">Heartbeats, answers</text>
+<rect x="235" y="284" width="200" height="132" rx="6" fill="#FFFFFF" stroke="#1A1814" stroke-width="1.5"/>
+<text x="251" y="314" font-family="Arial, Helvetica, sans-serif" font-size="15" fill="#1A1814" text-anchor="start" font-weight="bold">Attester</text>
+<text x="251" y="342" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#3A362F" text-anchor="start" font-weight="normal">Issues challenges</text>
+<text x="251" y="361" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#3A362F" text-anchor="start" font-weight="normal">Judges hash, score</text>
+<text x="251" y="380" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#3A362F" text-anchor="start" font-weight="normal">Expires missed ones</text>
+<rect x="450" y="284" width="200" height="132" rx="6" fill="#FFFFFF" stroke="#1A1814" stroke-width="1.5"/>
+<text x="466" y="314" font-family="Arial, Helvetica, sans-serif" font-size="15" fill="#1A1814" text-anchor="start" font-weight="bold">Orchestrator</text>
+<text x="466" y="342" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#3A362F" text-anchor="start" font-weight="normal">Event indexer</text>
+<text x="466" y="361" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#3A362F" text-anchor="start" font-weight="normal">Postgres projection</text>
+<text x="466" y="380" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#3A362F" text-anchor="start" font-weight="normal">REST and SSE API</text>
+<text x="466" y="399" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#3A362F" text-anchor="start" font-weight="normal">Inference gateway</text>
+<rect x="665" y="284" width="200" height="132" rx="6" fill="#FFFFFF" stroke="#1A1814" stroke-width="1.5"/>
+<text x="681" y="314" font-family="Arial, Helvetica, sans-serif" font-size="15" fill="#1A1814" text-anchor="start" font-weight="bold">Web app</text>
+<text x="681" y="342" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#3A362F" text-anchor="start" font-weight="normal">Rent workspace</text>
+<text x="681" y="361" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#3A362F" text-anchor="start" font-weight="normal">Provide workspace</text>
+<text x="681" y="380" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#3A362F" text-anchor="start" font-weight="normal">Explorer</text>
+<text x="681" y="399" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#3A362F" text-anchor="start" font-weight="normal">Wallet signing</text>
+<rect x="880" y="284" width="200" height="132" rx="6" fill="#FFFFFF" stroke="#5E5950" stroke-width="1.5" stroke-dasharray="5 4"/>
+<text x="896" y="314" font-family="Arial, Helvetica, sans-serif" font-size="15" fill="#1A1814" text-anchor="start" font-weight="bold">Simulator</text>
+<text x="896" y="342" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#3A362F" text-anchor="start" font-weight="normal">Offline model</text>
+<text x="896" y="361" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#3A362F" text-anchor="start" font-weight="normal">Spot-check economics</text>
+<text x="896" y="380" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#3A362F" text-anchor="start" font-weight="normal">Rental outcomes</text>
+<text x="550" y="458" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="middle" font-weight="normal">Amber: contracts on chain. Solid: off-chain services. Dashed: offline analysis tool.</text>
+</svg>

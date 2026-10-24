@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="360" viewBox="0 0 1100 360">
+<rect width="1100" height="360" fill="#FFFFFF"/>
+<text x="275" y="30" font-family="Arial, Helvetica, sans-serif" font-size="15" fill="#1A1814" text-anchor="middle" font-weight="bold">Today: a central operator</text>
+<text x="825" y="30" font-family="Arial, Helvetica, sans-serif" font-size="15" fill="#A34A06" text-anchor="middle" font-weight="bold">ShaderMesh: contracts as the trusted party</text>
+<path d="M550.0,14.0 L550.0,346.0" fill="none" stroke="#D3CEC4" stroke-width="1.25" stroke-linejoin="round"/>
+<rect x="40" y="60" width="170" height="64" rx="6" fill="#FFFFFF" stroke="#1A1814" stroke-width="1.5"/>
+<text x="125.0" y="87.8" font-family="Arial, Helvetica, sans-serif" font-size="15" fill="#1A1814" text-anchor="middle" font-weight="bold">Renter</text>
+<text x="125.0" y="105.8" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="middle" font-weight="normal">pays up front</text>
+<rect x="340" y="60" width="170" height="64" rx="6" fill="#FFFFFF" stroke="#1A1814" stroke-width="1.5"/>
+<text x="425.0" y="87.8" font-family="Arial, Helvetica, sans-serif" font-size="15" fill="#1A1814" text-anchor="middle" font-weight="bold">GPU owner</text>
+<text x="425.0" y="105.8" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="middle" font-weight="normal">paid later</text>
+<rect x="175" y="190" width="200" height="72" rx="6" fill="#F3F1EC" stroke="#D3CEC4" stroke-width="1.5"/>
+<text x="275.0" y="212.8" font-family="Arial, Helvetica, sans-serif" font-size="15" fill="#1A1814" text-anchor="middle" font-weight="bold">Marketplace</text>
+<text x="275.0" y="230.8" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="middle" font-weight="normal">holds funds, rules</text>
+<text x="275.0" y="248.8" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="middle" font-weight="normal">on disputes</text>
+<path d="M125.0,124.0 L214.3,186.0" fill="none" stroke="#1A1814" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="220.0,190.0 210.3,188.2 214.9,181.6" fill="#1A1814"/>
+<path d="M330.0,190.0 L419.3,128.0" fill="none" stroke="#1A1814" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="425.0,124.0 419.9,132.4 415.3,125.8" fill="#1A1814"/>
+<text x="275" y="300" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#B91C1C" text-anchor="middle" font-weight="normal">Single point of trust and failure</text>
+<text x="275" y="322" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#B91C1C" text-anchor="middle" font-weight="normal">Opaque reputation and fees</text>
+<text x="275" y="344" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#B91C1C" text-anchor="middle" font-weight="normal">No proof the hours were served</text>
+<rect x="590" y="60" width="170" height="64" rx="6" fill="#FFFFFF" stroke="#1A1814" stroke-width="1.5"/>
+<text x="675.0" y="87.8" font-family="Arial, Helvetica, sans-serif" font-size="15" fill="#1A1814" text-anchor="middle" font-weight="bold">Requester</text>
+<text x="675.0" y="105.8" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="middle" font-weight="normal">funds escrow</text>
+<rect x="890" y="60" width="170" height="64" rx="6" fill="#FFFFFF" stroke="#1A1814" stroke-width="1.5"/>
+<text x="975.0" y="87.8" font-family="Arial, Helvetica, sans-serif" font-size="15" fill="#1A1814" text-anchor="middle" font-weight="bold">Provider</text>
+<text x="975.0" y="105.8" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="middle" font-weight="normal">stakes collateral</text>
+<rect x="705" y="190" width="240" height="72" rx="6" fill="#FDF3E1" stroke="#D97706" stroke-width="1.5"/>
+<text x="825.0" y="221.8" font-family="Arial, Helvetica, sans-serif" font-size="15" fill="#A34A06" text-anchor="middle" font-weight="bold">Smart contracts</text>
+<text x="825.0" y="239.8" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#A34A06" text-anchor="middle" font-weight="normal">escrow, stake, slashing</text>
+<path d="M675.0,124.0 L754.5,185.7" fill="none" stroke="#1A1814" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="760.0,190.0 750.4,187.6 755.3,181.3" fill="#1A1814"/>
+<path d="M969.5,128.3 L895.5,185.7" fill="none" stroke="#1A1814" stroke-width="1.5" stroke-linejoin="round"/>
+<polygon points="890.0,190.0 894.7,181.3 899.6,187.6" fill="#1A1814"/>
+<polygon points="975.0,124.0 970.3,132.7 965.4,126.4" fill="#1A1814"/>
+<text x="825" y="300" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#137535" text-anchor="middle" font-weight="normal">Paid per interval with signed heartbeats</text>
+<text x="825" y="322" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#137535" text-anchor="middle" font-weight="normal">Public stake, reputation, and history</text>
+<text x="825" y="344" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#137535" text-anchor="middle" font-weight="normal">Missed service is refunded or slashed</text>
+</svg>
