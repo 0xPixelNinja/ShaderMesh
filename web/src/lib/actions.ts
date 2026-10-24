@@ -52,6 +52,7 @@ const rentalAbi = [
   { type: "function", name: "cancelLease", stateMutability: "nonpayable", inputs: [{ name: "leaseId", type: "uint256" }], outputs: [] },
   { type: "function", name: "settle", stateMutability: "nonpayable", inputs: [{ name: "leaseId", type: "uint256" }], outputs: [] },
   { type: "function", name: "endLease", stateMutability: "nonpayable", inputs: [{ name: "leaseId", type: "uint256" }], outputs: [] },
+  { type: "function", name: "bondPerLease", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "uint256" }] },
 ] as const;
 
 const approveAbi = [
@@ -420,11 +421,14 @@ export async function requestLease(params: {
   pricePerInterval: string;
   intervals: number;
   manifest: string;
+  /** Optional progress callback, called as each wallet step starts or lands. */
+  onStep?: (step: "approve" | "approved" | "request", hash?: Hash) => void;
 }): Promise<string> {
   const client = await walletClient();
   const account = getAddress(params.account);
   const escrow = BigInt(params.pricePerInterval) * BigInt(params.intervals);
 
+  params.onStep?.("approve");
   const approvalHash = await client.writeContract({
     account,
     address: getAddress(params.token),
@@ -433,7 +437,9 @@ export async function requestLease(params: {
     args: [getAddress(params.rental), escrow],
   });
   await waitForTransaction(approvalHash);
+  params.onStep?.("approved", approvalHash);
 
+  params.onStep?.("request");
   const hash = await client.writeContract({
     account,
     address: getAddress(params.rental),
@@ -443,6 +449,15 @@ export async function requestLease(params: {
   });
 
   return hash;
+}
+
+/** The stake a provider bonds when it accepts a lease (read only). */
+export async function readBondPerLease(rental: string): Promise<bigint> {
+  return publicClient.readContract({
+    address: getAddress(rental),
+    abi: rentalAbi,
+    functionName: "bondPerLease",
+  });
 }
 
 export async function cancelLease(account: string, rental: string, leaseId: number): Promise<string> {

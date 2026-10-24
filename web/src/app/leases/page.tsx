@@ -1,18 +1,17 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
+import { Icon } from "@/components/icons";
 import { api, useApi } from "@/lib/api";
 import { useWallet } from "@/components/WalletProvider";
 import {
   Button,
-  Card,
-  CardHead,
-  CopyValue,
   Empty,
   ErrorNote,
   GpuChip,
-  Heartbeats,
-  Note,
+  PageHeader,
+  Section,
   Skeleton,
   StatusTag,
   Td,
@@ -20,19 +19,15 @@ import {
   Tr,
 } from "@/components/ui";
 import { EscrowIntervals, HeartbeatStrip, LeaseLifecycle } from "@/components/diagrams";
-import { fmtUsd, shortAddr } from "@/lib/format";
+import { fmtInterval, fmtSmesh, shortAddr } from "@/lib/format";
 import { cancelLease, endLease, settleLease } from "@/lib/actions";
 import type { Deployment, Lease, LeaseAccess, Listing } from "@/lib/types";
+
+type Kind = "cancel" | "settle" | "end";
 
 function fmtTimestamp(timestamp: number): string {
   if (!timestamp) return "Not started";
   return new Date(timestamp * 1000).toLocaleString();
-}
-
-/** Share of funded intervals already settled, as a percentage. */
-function settledPct(lease: Lease): number {
-  if (!lease.fundedIntervals) return 0;
-  return Math.min(100, (lease.settledIntervals / lease.fundedIntervals) * 100);
 }
 
 /** Intervals elapsed since the lease started, capped at the funded count. */
@@ -40,6 +35,21 @@ function elapsedIntervals(lease: Lease): number {
   if (!lease.start || !lease.intervalSecs) return 0;
   const passed = Math.floor((Date.now() / 1000 - lease.start) / lease.intervalSecs);
   return Math.max(0, Math.min(lease.fundedIntervals, passed));
+}
+
+/** Time left on the funded intervals, for example "14m left". */
+function timeLeft(lease: Lease): string {
+  if (!lease.start) return "-";
+  const secs = lease.start + lease.fundedIntervals * lease.intervalSecs - Date.now() / 1000;
+  if (secs <= 0) return "Funded time used";
+  if (secs >= 86400) return `${(secs / 86400).toFixed(1)}d left`;
+  if (secs >= 3600) return `${(secs / 3600).toFixed(1)}h left`;
+  if (secs >= 60) return `${Math.floor(secs / 60)}m left`;
+  return `${Math.floor(secs)}s left`;
+}
+
+function mul(price: string, n: number): string {
+  return (BigInt(price) * BigInt(n)).toString();
 }
 
 export default function LeasesPage() {
@@ -53,6 +63,7 @@ export default function LeasesPage() {
   const [msg, setMsg] = useState<string | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
   const [pending, setPending] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState<string | null>(null);
   const [access, setAccess] = useState<Record<number, LeaseAccess>>({});
   const [accessError, setAccessError] = useState<Record<number, string>>({});
 
@@ -80,9 +91,12 @@ export default function LeasesPage() {
         .sort((a, b) => b.id - a.id)
     : [];
   const activeLeases = mine.filter((lease) => lease.status === "Active");
+  const pendingLeases = mine.filter((lease) => lease.status === "Pending");
+  const pastLeases = mine.filter((lease) => lease.status !== "Active" && lease.status !== "Pending");
 
-  async function act(kind: "cancel" | "settle" | "end", lease: Lease) {
+  async function act(kind: Kind, lease: Lease) {
     if (!address) return;
+    setConfirming(null);
     if (!deployment?.contracts?.RentalMarket) {
       setFailure("Deployment is not available yet. Check the orchestrator connection.");
       return;
@@ -104,10 +118,19 @@ export default function LeasesPage() {
     }
   }
 
+  const header = (
+    <PageHeader
+      eyebrow="Rent"
+      title="My leases"
+      description="Leases funded by your wallet. Escrow settles only for intervals the provider proves with a signed heartbeat."
+    />
+  );
+
   if (!address) {
     return (
-      <div className="mx-auto max-w-lg">
-        <Card>
+      <div>
+        {header}
+        <div className="rounded-lg border border-line bg-surface">
           <Empty
             icon="wallet"
             title="Connect your wallet to see your leases"
@@ -118,325 +141,410 @@ export default function LeasesPage() {
               </Button>
             }
           />
-        </Card>
+        </div>
       </div>
     );
   }
 
   const apiError = leasesState.error ?? listingsState.error ?? deploymentState.error;
+  const busy = pending !== null;
+  const gpuOf = (lease: Lease) => listingById.get(lease.listingId)?.gpu || `Listing #${lease.listingId}`;
 
   return (
-    <div className="space-y-4">
-      {msg && (
-        <div
-          role="status"
-          className="rounded-lg border border-success bg-success-weak px-4 py-3 text-[13px] text-success"
-        >
-          {msg}
+    <div>
+      {header}
+
+      <div role="status" aria-live="polite" className="empty:hidden mb-6">
+        {msg && (
+          <div className="rounded-lg border border-success bg-success-weak px-4 py-3 text-[13px] text-success">{msg}</div>
+        )}
+      </div>
+      {(failure || apiError) && (
+        <div className="mb-6 space-y-3">
+          {failure && <ErrorNote>{failure}</ErrorNote>}
+          {apiError && <ErrorNote>Some lease data could not be loaded. {apiError}</ErrorNote>}
         </div>
       )}
-      {failure && <ErrorNote>{failure}</ErrorNote>}
-      {apiError && <ErrorNote>Some lease data could not be loaded. {apiError}</ErrorNote>}
 
-      <Note>
-        A lease request is accepted by the provider&apos;s agent automatically, normally within seconds;
-        there is no manual approval. Once accepted the provider bonds stake, starts your workload in a
-        sandboxed container on its GPU, and must publish a signed heartbeat every interval. Escrow
-        settles only for intervals it proved it served.
-      </Note>
-
-      <Card>
-        <CardHead
-          title="My leases"
-          sub={`${mine.length} request${mine.length === 1 ? "" : "s"}, newest first`}
-        />
-        {leasesState.loading ? (
-          <Skeleton label="Loading leases" rows={3} />
-        ) : leasesState.error ? (
-          <Empty
-            icon="alert"
-            title="Leases could not be loaded"
-            hint="Check the orchestrator connection and try again."
-          />
-        ) : mine.length === 0 ? (
+      {leasesState.loading ? (
+        <Skeleton label="Loading leases" rows={3} />
+      ) : leasesState.error ? (
+        <Empty icon="alert" title="Leases could not be loaded" hint="Check the orchestrator connection and try again." />
+      ) : mine.length === 0 ? (
+        <div className="rounded-lg border border-line bg-surface">
           <Empty
             icon="gpu"
             title="No lease requests yet"
             hint="Request a GPU from the marketplace. Your escrow is deposited immediately, but the lease clock only starts when the provider accepts."
+            action={
+              <Link
+                href="/rent"
+                className="inline-flex h-9 items-center gap-2 rounded-md border border-accent bg-accent px-3.5 text-[13px] font-medium text-accent-ink transition-colors duration-fast ease-out hover:border-accent-hover hover:bg-accent-hover"
+              >
+                Browse the marketplace
+              </Link>
+            }
           />
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[900px] border-collapse">
-              <thead>
-                <tr>
-                  <Th>GPU</Th>
-                  <Th>Hardware you leased</Th>
-                  <Th>Uptime</Th>
-                  <Th align="right">Streamed</Th>
-                  <Th>Status</Th>
-                  <Th align="right">Actions</Th>
-                </tr>
-              </thead>
-              <tbody>
-                {mine.map((lease) => {
-                  const listing = listingById.get(lease.listingId);
-                  const gpu = listing?.gpu || `Listing #${lease.listingId}`;
-                  const isPending = lease.status === "Pending";
-                  const isActive = lease.status === "Active";
-                  const streamed = (
-                    BigInt(lease.pricePerInterval) * BigInt(lease.settledIntervals)
-                  ).toString();
-                  const busy = pending !== null;
+        </div>
+      ) : (
+        <div className="space-y-12">
+          <Section
+            title="Active leases"
+            description="The provider bonds stake on accept, runs your workload in a sandboxed container, and signs a heartbeat every interval."
+          >
+            {activeLeases.length === 0 ? (
+              <p className="text-[13px] text-muted">No lease is running right now.</p>
+            ) : (
+              <div className="space-y-6">
+                {activeLeases.map((lease) => (
+                  <ActiveLeaseCard
+                    key={lease.id}
+                    lease={lease}
+                    listing={listingById.get(lease.listingId)}
+                    access={access[lease.id]}
+                    accessError={accessError[lease.id]}
+                    pending={pending}
+                    busy={busy}
+                    confirming={confirming === `end-${lease.id}`}
+                    onAccess={() => loadAccess(lease.id)}
+                    onSettle={() => act("settle", lease)}
+                    onAskEnd={() => setConfirming(`end-${lease.id}`)}
+                    onKeep={() => setConfirming(null)}
+                    onEnd={() => act("end", lease)}
+                  />
+                ))}
+              </div>
+            )}
+          </Section>
 
+          {pendingLeases.length > 0 && (
+            <Section
+              title="Pending requests"
+              description="The provider agent accepts automatically, usually within seconds. Until then no bond is locked and the clock has not started."
+            >
+              <ul className="divide-y divide-line rounded-lg border border-line bg-surface">
+                {pendingLeases.map((lease) => {
+                  const isConfirming = confirming === `cancel-${lease.id}`;
                   return (
-                    <Tr key={lease.id}>
-                      <Td>
-                        <div className="flex items-center gap-3">
-                          <GpuChip live={isActive} />
-                          <div className="min-w-0">
-                            <div className="font-medium text-ink">{gpu}</div>
-                            <div className="mono truncate text-[12px] text-faint">
-                              lease #{lease.id} · {fmtTimestamp(lease.start)}
-                            </div>
+                    <li key={lease.id} className="flex flex-wrap items-center gap-x-6 gap-y-3 px-5 py-4">
+                      <div className="flex min-w-0 basis-full items-center gap-3 sm:basis-0 sm:flex-1">
+                        <GpuChip />
+                        <div className="min-w-0">
+                          <div className="truncate font-medium text-ink">{gpuOf(lease)}</div>
+                          <div className="mono text-[12px] text-faint">
+                            lease #{lease.id}, {shortAddr(lease.provider)}
                           </div>
                         </div>
-                      </Td>
-
-                      <Td>
-                        {listing ? (
+                      </div>
+                      <div className="text-[13px]">
+                        <div className="mono text-ink">{fmtSmesh(lease.escrow)}</div>
+                        <div className="text-[12px] text-faint">
+                          in escrow, {lease.fundedIntervals} x {fmtInterval(lease.intervalSecs)}
+                        </div>
+                      </div>
+                      <StatusTag status={lease.status} />
+                      <div className="flex items-center gap-2">
+                        {isConfirming ? (
                           <>
-                            <div className="text-[13px] text-ink2">
-                              {listing.vramGB ? `${listing.vramGB} GB VRAM` : "CPU only"}
-                              {listing.region ? ` · ${listing.region}` : ""}
-                            </div>
-                            <div className="mono text-[12px] text-faint">
-                              {shortAddr(lease.provider)}
-                            </div>
+                            <span className="text-[12px] text-muted">Refund {fmtSmesh(lease.escrow)}?</span>
+                            <Button size="sm" variant="ghost" onClick={() => setConfirming(null)}>
+                              Keep
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="danger"
+                              onClick={() => act("cancel", lease)}
+                              loading={pending === `cancel-${lease.id}`}
+                              disabled={busy}
+                            >
+                              Confirm cancel
+                            </Button>
                           </>
                         ) : (
-                          <span className="mono text-[13px] text-muted">
-                            {shortAddr(lease.provider)}
-                          </span>
-                        )}
-                      </Td>
-
-                      <Td>
-                        {isPending ? (
-                          <span className="text-[13px] text-muted">
-                            Awaiting provider acceptance
-                          </span>
-                        ) : (
-                          <div className="space-y-1.5">
-                            <Heartbeats
-                              up={lease.heartbeatedIntervals}
-                              total={Math.min(Math.max(lease.fundedIntervals, 1), 10)}
-                              live={isActive}
-                            />
-                            <div className="mono text-[12px] text-faint">
-                              {lease.settledIntervals} settled · {lease.heartbeatedIntervals}/
-                              {lease.fundedIntervals} beats
-                            </div>
-                          </div>
-                        )}
-                      </Td>
-
-                      <Td align="right">
-                        <div className="mono font-medium text-ink">{fmtUsd(streamed)}</div>
-                        <div className="mono text-[12px] text-faint">
-                          {fmtUsd(lease.escrow)} left
-                        </div>
-                        {!isPending && (
-                          <span className="mt-1.5 block h-1 w-full overflow-hidden rounded-full bg-panel">
-                            <span
-                              className="block h-full rounded-full bg-accent"
-                              style={{ width: `${settledPct(lease)}%` }}
-                            />
-                          </span>
-                        )}
-                      </Td>
-
-                      <Td>
-                        <StatusTag status={lease.status} />
-                        {isPending && lease.bond === "0" && (
-                          <div className="mt-1 text-[12px] text-faint">No bond locked yet</div>
-                        )}
-                      </Td>
-
-                      <Td align="right">
-                        {isPending ? (
                           <Button
                             size="sm"
                             variant="secondary"
-                            onClick={() => act("cancel", lease)}
+                            onClick={() => setConfirming(`cancel-${lease.id}`)}
                             loading={pending === `cancel-${lease.id}`}
                             disabled={busy}
                           >
                             Cancel
                           </Button>
-                        ) : isActive ? (
-                          <span className="inline-flex justify-end gap-2">
-                            <Button
-                              size="sm"
-                              variant="secondary"
-                              onClick={() => act("settle", lease)}
-                              loading={pending === `settle-${lease.id}`}
-                              disabled={busy}
-                            >
-                              Settle
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="primary"
-                              onClick={() => act("end", lease)}
-                              loading={pending === `end-${lease.id}`}
-                              disabled={busy}
-                            >
-                              End
-                            </Button>
-                          </span>
-                        ) : (
-                          <span className="text-[13px] text-faint">No actions</span>
                         )}
-                      </Td>
-                    </Tr>
+                      </div>
+                    </li>
                   );
                 })}
-                </tbody>
-              </table>
-            </div>
+              </ul>
+            </Section>
           )}
-        </Card>
 
-      {activeLeases.length > 0 && (
-        <Card>
-          <CardHead
-            title="Lease evidence"
-            sub="Signed heartbeats and escrow settlement for each active lease"
-          />
-          <div className="rule">
-            {activeLeases.map((lease) => {
-              const listing = listingById.get(lease.listingId);
-              return (
-                <div key={lease.id} className="grid gap-6 p-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,220px)]">
-                  <div className="min-w-0">
-                    <div className="mb-3 text-[13px] font-medium text-ink2">
-                      {listing?.gpu || `Listing #${lease.listingId}`}{" "}
-                      <span className="mono text-faint">lease #{lease.id}</span>
-                    </div>
-                    <HeartbeatStrip
-                      elapsed={elapsedIntervals(lease)}
-                      beats={lease.heartbeatedIntervals}
-                      live={lease.status === "Active"}
-                    />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="mb-3 text-[13px] font-medium text-ink2">Escrow intervals</div>
-                    <EscrowIntervals
-                      funded={lease.fundedIntervals}
-                      heartbeated={lease.heartbeatedIntervals}
-                      settled={lease.settledIntervals}
-                      max={lease.maxIntervals}
-                    />
-                  </div>
-                  <div className="min-w-0 max-w-[220px]">
-                    <div className="mb-3 text-[13px] font-medium text-ink2">Lifecycle</div>
-                    <LeaseLifecycle status={lease.status} />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </Card>
-      )}
-
-      {activeLeases.length > 0 && (
-        <Card>
-          <CardHead
-            title="Connect to your GPU"
-            sub="Shell access to the container your escrow is paying for"
-          />
-          <div className="rule">
-            {activeLeases.map((lease) => {
-              const listing = listingById.get(lease.listingId);
-              const details = access[lease.id];
-              const error = accessError[lease.id];
-              return (
-                <div key={lease.id} className="p-5">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <GpuChip live />
-                      <div>
-                        <div className="font-medium text-ink">
-                          {listing?.gpu || `Listing #${lease.listingId}`}
-                        </div>
-                        <div className="mono text-[12px] text-faint">lease #{lease.id}</div>
-                      </div>
-                    </div>
-                    {!details && (
-                      <Button
-                        variant="primary"
-                        icon="shield"
-                        onClick={() => loadAccess(lease.id)}
-                        loading={pending === `access-${lease.id}`}
-                      >
-                        Get connection details
-                      </Button>
-                    )}
-                  </div>
-
-                  {error && (
-                    <div className="mt-3">
-                      <ErrorNote>{error}</ErrorNote>
-                    </div>
-                  )}
-
-                  {details && (
-                    <div className="mt-4 space-y-3">
-                      <div>
-                        <div className="mb-1.5 text-[13px] font-medium text-ink2">
-                          SSH command
-                        </div>
-                        <div className="flex items-center gap-2 rounded-md border border-line bg-bg px-3 py-2.5">
-                          <code className="mono min-w-0 flex-1 truncate text-[13px] text-ink">
-                            ssh {details.username}@{details.host} -p {details.port}
-                          </code>
-                          <CopyValue
-                            value={`ssh ${details.username}@${details.host} -p ${details.port}`}
-                            label="ssh command"
-                          />
-                        </div>
-                      </div>
-
-                      <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-line bg-line sm:grid-cols-4">
-                        {[
-                          ["Host", details.host],
-                          ["Port", String(details.port)],
-                          ["Username", details.username],
-                          ["Password", details.password],
-                        ].map(([label, value]) => (
-                          <div key={label} className="bg-panel px-3 py-2.5">
-                            <dt className="text-[12px] text-faint">{label}</dt>
-                            <dd className="mono mt-0.5 truncate text-[13px] text-ink" title={value}>
-                              {value}
-                            </dd>
-                          </div>
-                        ))}
-                      </dl>
-
-                      <Note tone="accent">
-                        Access lasts as long as the lease. When it ends or is terminated the provider
-                        stops the container and this credential stops working. On this devnet the
-                        provider returns the credential to any caller that can reach it; a public
-                        deployment must require a signature from the lease holder.
-                      </Note>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </Card>
+          <Section title="History" description="Ended, terminated, rejected, and cancelled leases.">
+            {pastLeases.length === 0 ? (
+              <p className="text-[13px] text-muted">No finished leases yet.</p>
+            ) : (
+              <div className="overflow-x-auto rounded-lg border border-line bg-surface">
+                <table className="w-full min-w-[680px] border-collapse">
+                  <caption className="sr-only">Finished leases, newest first</caption>
+                  <thead>
+                    <tr>
+                      <Th>Lease</Th>
+                      <Th>GPU</Th>
+                      <Th>Provider</Th>
+                      <Th align="right">Intervals served</Th>
+                      <Th align="right">Paid</Th>
+                      <Th>Status</Th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pastLeases.map((lease) => (
+                      <Tr key={lease.id}>
+                        <Td className="mono whitespace-nowrap text-ink2">
+                          lease #{lease.id}
+                          <div className="text-[12px] text-faint">{fmtTimestamp(lease.start)}</div>
+                        </Td>
+                        <Td className="whitespace-nowrap text-ink">{gpuOf(lease)}</Td>
+                        <Td className="mono whitespace-nowrap text-muted">{shortAddr(lease.provider)}</Td>
+                        <Td align="right" className="mono text-ink2">
+                          {lease.settledIntervals} / {lease.fundedIntervals}
+                        </Td>
+                        <Td align="right" className="mono text-ink">
+                          {fmtSmesh(mul(lease.pricePerInterval, lease.settledIntervals))}
+                        </Td>
+                        <Td>
+                          <StatusTag status={lease.status} />
+                        </Td>
+                      </Tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Section>
+        </div>
       )}
     </div>
+  );
+}
+
+function ActiveLeaseCard({
+  lease,
+  listing,
+  access,
+  accessError,
+  pending,
+  busy,
+  confirming,
+  onAccess,
+  onSettle,
+  onAskEnd,
+  onKeep,
+  onEnd,
+}: {
+  lease: Lease;
+  listing?: Listing;
+  access?: LeaseAccess;
+  accessError?: string;
+  pending: string | null;
+  busy: boolean;
+  confirming: boolean;
+  onAccess: () => void;
+  onSettle: () => void;
+  onAskEnd: () => void;
+  onKeep: () => void;
+  onEnd: () => void;
+}) {
+  const funded = mul(lease.pricePerInterval, lease.fundedIntervals);
+  const spent = mul(lease.pricePerInterval, lease.settledIntervals);
+  const unsettled = Math.max(lease.heartbeatedIntervals - lease.settledIntervals, 0);
+  const ssh = access ? `ssh ${access.username}@${access.host} -p ${access.port}` : "";
+
+  return (
+    <article
+      aria-labelledby={`lease-${lease.id}-title`}
+      className="rounded-lg border border-line bg-surface"
+    >
+      <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 border-b border-line px-5 py-4">
+        <div className="flex min-w-0 items-center gap-3">
+          <GpuChip live />
+          <div className="min-w-0">
+            <h3 id={`lease-${lease.id}-title`} className="truncate text-[15px] font-semibold tracking-[-0.01em] text-ink">
+              {listing?.gpu || `Listing #${lease.listingId}`}
+            </h3>
+            <div className="mono text-[12px] text-faint">
+              lease #{lease.id}, {shortAddr(lease.provider)}
+              {listing?.vramGB ? `, ${listing.vramGB} GB` : ""}
+              {listing?.region ? `, ${listing.region}` : ""}
+            </div>
+          </div>
+        </div>
+        <StatusTag status={lease.status} />
+      </header>
+
+      <div className="space-y-8 p-5">
+        <dl className="grid grid-cols-2 gap-x-8 gap-y-4 sm:grid-cols-4">
+          <Fact label="Settled so far" value={fmtSmesh(spent)} sub={`of ${fmtSmesh(funded)} funded`} />
+          <Fact label="Escrow remaining" value={fmtSmesh(lease.escrow)} sub={`${unsettled} interval${unsettled === 1 ? "" : "s"} unsettled`} />
+          <Fact label="Time left" value={timeLeft(lease)} sub={`started ${fmtTimestamp(lease.start)}`} />
+          <Fact
+            label="Heartbeats"
+            value={`${lease.heartbeatedIntervals} / ${lease.fundedIntervals}`}
+            sub={`one every ${fmtInterval(lease.intervalSecs)}`}
+          />
+        </dl>
+
+        <section aria-label="Lease evidence">
+          <h4 className="mb-4 text-[13px] font-medium text-ink2">Lease evidence</h4>
+          <div className="grid gap-8 md:grid-cols-2">
+            <div className="min-w-0">
+              <div className="mb-3 text-[12px] text-muted">Signed heartbeats</div>
+              <HeartbeatStrip elapsed={elapsedIntervals(lease)} beats={lease.heartbeatedIntervals} live />
+            </div>
+            <div className="min-w-0">
+              <div className="mb-3 text-[12px] text-muted">Escrow intervals</div>
+              <EscrowIntervals
+                funded={lease.fundedIntervals}
+                heartbeated={lease.heartbeatedIntervals}
+                settled={lease.settledIntervals}
+                max={lease.maxIntervals}
+              />
+            </div>
+          </div>
+          <details className="group mt-6">
+            <summary className="inline-flex cursor-pointer list-none items-center gap-1.5 rounded-md text-[12px] font-medium text-muted transition-colors duration-fast ease-out hover:text-ink">
+              Lifecycle
+              <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 transition-transform duration-fast ease-out group-open:rotate-180" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M6 9l6 6 6-6" />
+              </svg>
+            </summary>
+            <div className="mt-3 max-w-[560px]">
+              <LeaseLifecycle status={lease.status} />
+            </div>
+          </details>
+        </section>
+
+        <section aria-label="Connect to your GPU" className="border-t border-line pt-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="min-w-0">
+              <h4 className="text-[13px] font-medium text-ink2">Connect to your GPU</h4>
+              <p className="mt-0.5 text-[12px] text-faint">Shell access to the container your escrow is paying for.</p>
+            </div>
+            {!access && (
+              <Button
+                variant="primary"
+                icon="shield"
+                onClick={onAccess}
+                loading={pending === `access-${lease.id}`}
+              >
+                Get connection details
+              </Button>
+            )}
+          </div>
+
+          {accessError && (
+            <div className="mt-3">
+              <ErrorNote>{accessError}</ErrorNote>
+            </div>
+          )}
+
+          {access && (
+            <div className="mt-4 space-y-3">
+              <div className="flex items-center gap-2 rounded-md border border-line bg-bg px-3 py-2.5">
+                <code className="mono min-w-0 flex-1 break-all text-[13px] text-ink">{ssh}</code>
+                <CopyButton value={ssh} label="ssh command" />
+              </div>
+              <dl className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-4">
+                {[
+                  ["Host", access.host],
+                  ["Port", String(access.port)],
+                  ["Username", access.username],
+                  ["Password", access.password],
+                ].map(([label, value]) => (
+                  <div key={label} className="min-w-0">
+                    <dt className="text-[12px] text-faint">{label}</dt>
+                    <dd className="mono mt-0.5 truncate text-[13px] text-ink" title={value}>
+                      {value}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+              <p className="text-[12px] leading-relaxed text-faint">
+                Access lasts as long as the lease. When it ends or is terminated the provider stops the container and
+                this credential stops working. On this devnet the provider returns the credential to any caller that can
+                reach it; a public deployment must require a signature from the lease holder.
+              </p>
+            </div>
+          )}
+        </section>
+      </div>
+
+      <footer className="flex flex-wrap items-center justify-end gap-2 border-t border-line px-5 py-3">
+        {confirming ? (
+          <>
+            <span className="mr-auto text-[13px] text-ink2">
+              End lease #{lease.id}? Heartbeated intervals are paid and the rest of the escrow is refunded to you.
+            </span>
+            <Button size="sm" variant="ghost" onClick={onKeep}>
+              Keep running
+            </Button>
+            <Button size="sm" variant="danger" onClick={onEnd} loading={pending === `end-${lease.id}`} disabled={busy}>
+              Confirm end
+            </Button>
+          </>
+        ) : (
+          <>
+            <span className="mr-auto text-[12px] text-faint">
+              Settle pays the provider for proven intervals. End also refunds the rest.
+            </span>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={onSettle}
+              loading={pending === `settle-${lease.id}`}
+              disabled={busy}
+            >
+              Settle
+            </Button>
+            <Button size="sm" variant="secondary" onClick={onAskEnd} loading={pending === `end-${lease.id}`} disabled={busy}>
+              End
+            </Button>
+          </>
+        )}
+      </footer>
+    </article>
+  );
+}
+
+function Fact({ label, value, sub }: { label: string; value: string; sub?: string }) {
+  return (
+    <div className="min-w-0">
+      <dt className="text-[12px] text-muted">{label}</dt>
+      <dd className="mono mt-1 truncate text-[16px] font-semibold text-ink">{value}</dd>
+      {sub && <dd className="mt-0.5 truncate text-[12px] text-faint">{sub}</dd>}
+    </div>
+  );
+}
+
+/** Copies a full value (the shared CopyValue shortens what it shows). */
+function CopyButton({ value, label }: { value: string; label: string }) {
+  const [copied, setCopied] = useState(false);
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1600);
+    } catch {
+      setCopied(false);
+    }
+  }
+  return (
+    <button
+      type="button"
+      onClick={copy}
+      aria-label={copied ? `Copied ${label}` : `Copy ${label}`}
+      className="grid h-7 w-7 shrink-0 place-items-center rounded-md border border-transparent text-faint transition-colors duration-fast ease-out hover:border-line hover:bg-hover hover:text-ink"
+    >
+      <Icon name={copied ? "check" : "copy"} className={`h-3.5 w-3.5 ${copied ? "text-success" : ""}`} aria-hidden />
+    </button>
   );
 }

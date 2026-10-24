@@ -4,7 +4,8 @@ import { useState } from "react";
 import { parseUnits } from "viem";
 import { useApi, api } from "@/lib/api";
 import { useWallet } from "@/components/WalletProvider";
-import { Button, Card, CardHead, Empty, ErrorNote, Input, Skeleton } from "@/components/ui";
+import { Button, Empty, ErrorNote, Input, PageHeader, Section, Skeleton } from "@/components/ui";
+import { Icon } from "@/components/icons";
 import {
   approveInferenceCredit,
   closeInferenceCredit,
@@ -420,149 +421,128 @@ export default function ModelsPage() {
     }
   }
 
+
   const apiError = offersState.error ?? creditsState.error ?? deploymentState.error;
 
+  // Group active offers by model so the catalog lists each model once, with the
+  // cheapest offer first.
+  const catalog = [...activeOffers.reduce((map, offer) => {
+    const list = map.get(offer.modelIdentifier) ?? [];
+    list.push(offer);
+    map.set(offer.modelIdentifier, list);
+    return map;
+  }, new Map<string, InferenceOffer[]>())].map(([model, offers]) => ({
+    model,
+    offers: [...offers].sort((a, b) => (BigInt(a.pricePerToken) < BigInt(b.pricePerToken) ? -1 : 1)),
+  }));
+  const selectedGroup = catalog.find((group) => group.model === selectedModel);
+
+  function selectModel(offers: InferenceOffer[]) {
+    if (selectedOffer && offers.some((offer) => offer.id === selectedOffer.id)) return;
+    selectOffer(offers[0]);
+  }
+
+  const lockedReason = operation
+    ? "Wait for the current wallet step to finish."
+    : activePendingSettlement || activeBlockedReason
+      ? "Settle the last request first."
+      : null;
+  const usedTokens = selectedCredit
+    ? BigInt(selectedCredit.promptTokens) + BigInt(selectedCredit.completionTokens)
+    : 0n;
+
   return (
-    <div className="grid items-start gap-5 xl:grid-cols-[280px_minmax(0,1fr)_300px]">
-      <Card className="order-1 overflow-hidden">
-        <CardHead title="Inference offers" sub={`${activeOffers.length} active`} />
-        {offersState.loading ? (
-          <Skeleton label="Loading inference offers" rows={3} />
-        ) : activeOffers.length === 0 ? (
-          <Empty
-            icon="model"
-            title="No active inference offers"
-            hint="A provider must stake, pass attestation, and publish a model offer before it appears here."
-          />
-        ) : (
-          <div className="max-h-[420px] space-y-1 overflow-auto p-2 xl:max-h-[calc(100vh-13rem)]">
-            {activeOffers.map((offer) => {
-              const selected = selectedOffer?.id === offer.id;
-              return (
-                <button
-                  key={offer.id}
-                  type="button"
-                  onClick={() => selectOffer(offer)}
-                  disabled={locked}
-                  aria-pressed={selected}
-                  className={`block w-full rounded-md border px-3 py-2.5 text-left transition-colors duration-fast ease-out disabled:cursor-not-allowed disabled:opacity-50 ${
-                    selected ? "border-accent bg-accent-weak" : "border-transparent hover:bg-hover"
-                  }`}
-                >
-                  <span className="block truncate text-[14px] font-medium text-ink">{offer.modelIdentifier}</span>
-                  <span className="mono mt-1 block text-[12px] text-accent">{pricePerThousand(offer.pricePerToken)}</span>
-                  <span className="mono mt-0.5 block text-[12px] text-faint">
-                    #{offer.id} · {shortAddr(offer.provider)}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        )}
-      </Card>
+    <div>
+      <PageHeader
+        eyebrow="Rent"
+        title="Inference"
+        description="Prepay a credit with one provider, then chat with its model. Each request is signed by your wallet and metered per token on chain."
+      />
 
-      <Card className="order-3 flex min-h-[560px] flex-col overflow-hidden xl:order-2 xl:h-[calc(100vh-9rem)]">
-        <CardHead
-          title={selectedModel || "Inference playground"}
-          sub={selectedCredit ? `credit #${selectedCredit.id} · ${shortAddr(selectedCredit.provider)}` : "Select an active prepaid credit"}
-          action={lastUsage && (
-            <span className="mono text-right text-[12px] text-faint">
-              {lastUsage.prompt.toString()} in · {lastUsage.completion.toString()} out
-              <b className="ml-2 font-medium text-ink2">{fmtSmesh(lastUsage.cost, 4)}</b>
-            </span>
-          )}
-        />
-        <div className="flex-1 space-y-4 overflow-auto p-5" aria-live="polite">
-          {messages.length === 0 && (
-            <Empty
-              icon={selectedCredit ? "send" : "wallet"}
-              title={selectedCredit ? "Ask the model something" : "Fund or select a credit to begin"}
-              hint="Each request is signed by your wallet, routed only to the provider holding your credit, and metered per token on chain."
-            />
-          )}
-          {messages.map((message, index) => (
-            <div key={index} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
-              <div
-                className={`max-w-[88%] whitespace-pre-wrap rounded-lg border px-3.5 py-2.5 text-[14px] leading-relaxed sm:max-w-[78%] ${
-                  message.role === "user"
-                    ? "border-accent bg-accent-weak text-ink"
-                    : "border-line bg-panel text-ink2"
-                }`}
-              >
-                {message.content}
-              </div>
-            </div>
-          ))}
-          {operation === "requesting" && (
-            <div role="status" className="flex items-center gap-2.5 text-[13px] text-muted">
-              <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-muted border-r-transparent" aria-hidden />
-              Waiting for the credited provider
-            </div>
-          )}
-          {err && <ErrorNote>{err}</ErrorNote>}
-        </div>
-        <div className="border-t border-line p-3 sm:p-4">
-          {(activePendingSettlement || activeBlockedReason) && (
-            <div className="mb-3 flex flex-col gap-2.5 rounded-lg border border-accent bg-accent-weak px-4 py-3 text-[13px] leading-relaxed text-ink2 sm:flex-row sm:items-center sm:justify-between">
-              <span>{activeBlockedReason ?? "Usage settlement must complete before another request."}</span>
-              {activePendingSettlement && (
-                <span className="flex shrink-0 gap-2">
-                  <Button
-                    size="sm"
-                    variant="primary"
-                    onClick={() => selectedCredit && submitSettlement(activePendingSettlement, selectedCredit)}
-                    disabled={operation !== null || !selectedCredit}
-                  >
-                    Retry settlement
-                  </Button>
-                  <Button size="sm" variant="secondary" onClick={reconcileSettlement} disabled={operation !== null}>
-                    Reconcile
-                  </Button>
-                </span>
-              )}
-            </div>
-          )}
-          <div className="flex flex-col items-stretch gap-2.5 sm:flex-row sm:items-end">
-            <label className="sr-only" htmlFor="inference-prompt">Prompt</label>
-            <textarea
-              id="inference-prompt"
-              value={input}
-              onChange={(event) => setInput(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" && !event.shiftKey) {
-                  event.preventDefault();
-                  send();
-                }
-              }}
-              disabled={locked || !selectedCredit}
-              rows={2}
-              placeholder={selectedCredit ? "Ask anything, or paste a prompt" : "Select an active credit first"}
-              className="min-h-[46px] flex-1 resize-none rounded-md border border-line bg-bg px-3 py-2.5 text-[14px] leading-relaxed text-ink transition-colors duration-fast ease-out placeholder:text-faint hover:border-line-strong focus-visible:border-accent disabled:cursor-not-allowed disabled:opacity-50"
-            />
-            <Button
-              variant="primary"
-              icon="send"
-              onClick={send}
-              loading={operation === "requesting" || operation === "settling"}
-              disabled={locked || !selectedCredit || !input.trim()}
-              className="sm:h-[46px]"
-            >
-              {operation === "requesting" ? "Requesting" : operation === "settling" ? "Settling" : "Send"}
-            </Button>
-          </div>
-        </div>
-      </Card>
-
-      <div className="order-2 space-y-5 xl:order-3">
-        <Card>
-          <CardHead title="Prepaid credit" sub={selectedModel || "Choose an offer"} />
-          <div className="space-y-4 p-4">
-            {!address ? (
-              <Button variant="primary" icon="wallet" className="w-full" onClick={connect}>
-                Connect wallet
-              </Button>
+      <div className="grid items-start gap-10 lg:grid-cols-[320px_minmax(0,1fr)]">
+        <div className="min-w-0 space-y-10">
+          <Section
+            title="Inference offers"
+            description={`${catalog.length} model${catalog.length === 1 ? "" : "s"} from ${activeOffers.length} active offer${activeOffers.length === 1 ? "" : "s"}`}
+          >
+            {offersState.loading ? (
+              <Skeleton label="Loading inference offers" rows={3} />
+            ) : catalog.length === 0 ? (
+              <Empty
+                icon="model"
+                title="No active inference offers"
+                hint="A provider must stake, pass attestation, and publish a model offer before it appears here."
+              />
             ) : (
-              <>
+              <ul className="space-y-2">
+                {catalog.map((group) => {
+                  const selected = group.model === selectedModel;
+                  const providers = new Set(group.offers.map((offer) => offer.provider.toLowerCase())).size;
+                  return (
+                    <li key={group.model}>
+                      <button
+                        type="button"
+                        onClick={() => selectModel(group.offers)}
+                        disabled={locked && !selected}
+                        aria-pressed={selected}
+                        className={`block w-full rounded-lg border px-4 py-3 text-left transition-colors duration-fast ease-out disabled:cursor-not-allowed disabled:opacity-50 ${
+                          selected ? "border-accent bg-accent-weak" : "border-line bg-surface hover:border-line-strong hover:bg-hover"
+                        }`}
+                      >
+                        <span className="mono block truncate text-[14px] font-medium text-ink">{group.model}</span>
+                        <span className="mt-1.5 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 text-[12px]">
+                          <span className="text-muted">
+                            {providers} provider{providers === 1 ? "" : "s"}
+                          </span>
+                          <span className="mono text-ink2">from {pricePerThousand(group.offers[0].pricePerToken)}</span>
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+
+            {selectedGroup && selectedGroup.offers.length > 1 && (
+              <fieldset className="mt-5">
+                <legend className="mb-2 text-[13px] font-medium text-ink2">Provider for {selectedGroup.model}</legend>
+                <ul className="divide-y divide-line rounded-lg border border-line bg-surface">
+                  {selectedGroup.offers.map((offer) => (
+                    <li key={offer.id}>
+                      <button
+                        type="button"
+                        onClick={() => selectOffer(offer)}
+                        disabled={locked}
+                        aria-pressed={selectedOffer?.id === offer.id}
+                        className="flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left text-[12px] transition-colors duration-fast ease-out hover:bg-hover disabled:cursor-not-allowed disabled:opacity-50 aria-pressed:bg-accent-weak"
+                      >
+                        <span className="mono text-ink2">
+                          #{offer.id} · {shortAddr(offer.provider)}
+                        </span>
+                        <span className="mono text-muted">{pricePerThousand(offer.pricePerToken)}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </fieldset>
+            )}
+          </Section>
+
+          <Section
+            title="Prepaid credit"
+            description={selectedModel ? `Credit for ${selectedModel}. Requests draw it down per token.` : "Choose an offer first."}
+          >
+            {!address ? (
+              <div className="space-y-3">
+                <p className="text-[13px] leading-relaxed text-muted">
+                  Connect the wallet that will fund the credit and sign each request.
+                </p>
+                <Button variant="primary" icon="wallet" className="w-full" onClick={connect}>
+                  Connect wallet
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-6">
                 <div>
                   <label htmlFor="active-credit" className="mb-1.5 block text-[13px] font-medium text-ink2">
                     Active credit
@@ -574,7 +554,7 @@ export default function ModelsPage() {
                     disabled={locked || matchingCredits.length === 0}
                     className="mono h-9 w-full rounded-md border border-line bg-bg px-2.5 text-[13px] text-ink transition-colors duration-fast ease-out hover:border-line-strong disabled:opacity-50"
                   >
-                    {matchingCredits.length === 0 && <option value="">No matching credit</option>}
+                    {matchingCredits.length === 0 && <option value="">No open credit for this model</option>}
                     {matchingCredits.map((credit) => (
                       <option key={credit.id} value={credit.id}>
                         #{credit.id} · {fmtSmesh(credit.escrow, 4)}
@@ -584,29 +564,53 @@ export default function ModelsPage() {
                 </div>
 
                 {selectedCredit ? (
-                  <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-line bg-line">
-                    {[
-                      ["Balance", fmtSmesh(selectedCredit.escrow, 4)],
-                      ["Paid", fmtSmesh(selectedCredit.paid, 4)],
-                      ["Prompt tokens", BigInt(selectedCredit.promptTokens).toLocaleString()],
-                      ["Completion tokens", BigInt(selectedCredit.completionTokens).toLocaleString()],
-                    ].map(([label, value]) => (
-                      <div key={label} className="bg-panel px-3 py-2.5">
-                        <dt className="text-[12px] text-faint">{label}</dt>
-                        <dd className="mono mt-0.5 truncate text-[13px] font-medium text-ink" title={value}>
-                          {value}
+                  <>
+                    <dl className="grid grid-cols-2 gap-x-6 gap-y-4">
+                      <div className="col-span-2">
+                        <dt className="text-[12px] text-muted">Balance remaining</dt>
+                        <dd className="mono mt-1 text-[20px] font-semibold leading-tight text-ink">
+                          {fmtSmesh(selectedCredit.escrow, 4)}
                         </dd>
                       </div>
-                    ))}
-                  </dl>
+                      <div className="min-w-0">
+                        <dt className="text-[12px] text-muted">Paid</dt>
+                        <dd className="mono mt-0.5 truncate text-[13px] text-ink2">{fmtSmesh(selectedCredit.paid, 4)}</dd>
+                      </div>
+                      <div className="min-w-0">
+                        <dt className="text-[12px] text-muted">Tokens used</dt>
+                        <dd className="mono mt-0.5 truncate text-[13px] text-ink2">{usedTokens.toLocaleString()}</dd>
+                        <dd className="mono mt-0.5 text-[12px] text-faint">
+                          {BigInt(selectedCredit.promptTokens).toLocaleString()} in,{" "}
+                          {BigInt(selectedCredit.completionTokens).toLocaleString()} out
+                        </dd>
+                      </div>
+                    </dl>
+                    <div>
+                      <Button
+                        variant="secondary"
+                        className="w-full"
+                        onClick={handleCloseCredit}
+                        loading={operation === "closing"}
+                        disabled={locked}
+                      >
+                        {operation === "closing" ? "Closing" : "Close credit and refund balance"}
+                      </Button>
+                      <p className="mt-2 text-[12px] text-faint">
+                        {lockedReason ?? "Closing returns the remaining balance to your wallet."}
+                      </p>
+                    </div>
+                  </>
                 ) : (
                   <p className="text-[13px] leading-relaxed text-muted">
-                    Open a credit against the selected offer, then select it once the indexer picks it up.
+                    Open a credit against the selected offer. It appears here once the indexer picks it up.
                   </p>
                 )}
 
-                <div className="border-t border-line pt-4">
-                  <label htmlFor="credit-amount" className="mb-1.5 flex items-center justify-between text-[13px] font-medium text-ink2">
+                <div className="border-t border-line pt-5">
+                  <label
+                    htmlFor="credit-amount"
+                    className="mb-1.5 flex items-center justify-between gap-3 text-[13px] font-medium text-ink2"
+                  >
                     <span>New credit amount</span>
                     <span className="mono font-normal text-faint">Wallet {fmtSmesh(balanceWei, 2)}</span>
                   </label>
@@ -625,69 +629,170 @@ export default function ModelsPage() {
                       </span>
                     </div>
                     <Button
-                      variant="primary"
+                      variant={selectedCredit ? "secondary" : "primary"}
                       onClick={handleOpenCredit}
                       loading={operation === "opening"}
                       disabled={locked || !selectedOffer}
                     >
-                      {operation === "opening" ? "Opening" : "Open"}
+                      {operation === "opening" ? "Opening" : "Open credit"}
                     </Button>
                   </div>
-                  {selectedOffer && (
-                    <p className="mono mt-2 text-[12px] text-faint">
-                      Offer #{selectedOffer.id} · {pricePerThousand(selectedOffer.pricePerToken)}
-                    </p>
+                  <p className="mono mt-2 text-[12px] text-faint">
+                    {!selectedOffer
+                      ? "Select an offer to open a credit."
+                      : (lockedReason ?? `Offer #${selectedOffer.id} · ${pricePerThousand(selectedOffer.pricePerToken)}`)}
+                  </p>
+                </div>
+              </div>
+            )}
+          </Section>
+        </div>
+
+        <div className="min-w-0 space-y-10">
+          <section
+            aria-label="Playground"
+            className="flex min-h-[520px] flex-col overflow-hidden rounded-lg border border-line bg-surface lg:h-[640px]"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-line px-5 py-4">
+              <div className="min-w-0">
+                <h2 className="mono truncate text-[15px] font-semibold tracking-[-0.01em] text-ink">
+                  {selectedModel || "Inference playground"}
+                </h2>
+                <p className="mt-1 truncate text-[13px] text-muted">
+                  {selectedCredit
+                    ? `Credit #${selectedCredit.id} with ${shortAddr(selectedCredit.provider)}`
+                    : "Open or select a prepaid credit to chat"}
+                </p>
+              </div>
+              {lastUsage && (
+                <span className="mono text-right text-[12px] text-faint">
+                  {lastUsage.prompt.toString()} in · {lastUsage.completion.toString()} out
+                  <b className="ml-2 font-medium text-ink2">{fmtSmesh(lastUsage.cost, 4)}</b>
+                </span>
+              )}
+            </div>
+
+            <div className="flex-1 space-y-4 overflow-auto bg-bg/40 p-5" aria-live="polite">
+              {messages.length === 0 && (
+                <Empty
+                  icon={selectedCredit ? "send" : "wallet"}
+                  title={selectedCredit ? "Ask the model something" : "Fund or select a credit to begin"}
+                  hint="Requests go only to the provider holding your credit. Usage is metered per token and settled on chain after each reply."
+                />
+              )}
+              {messages.map((message, index) => (
+                <div key={index} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
+                  <div
+                    className={`max-w-[88%] whitespace-pre-wrap rounded-lg border px-3.5 py-2.5 text-[14px] leading-relaxed sm:max-w-[78%] ${
+                      message.role === "user"
+                        ? "border-accent bg-accent-weak text-ink"
+                        : "border-line bg-panel text-ink2"
+                    }`}
+                  >
+                    {message.content}
+                  </div>
+                </div>
+              ))}
+              {operation === "requesting" && (
+                <div role="status" className="flex items-center gap-2.5 text-[13px] text-muted">
+                  <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-muted border-r-transparent" aria-hidden />
+                  Waiting for the credited provider
+                </div>
+              )}
+              {err && <ErrorNote>{err}</ErrorNote>}
+            </div>
+
+            <div className="border-t border-line p-3 sm:p-4">
+              {(activePendingSettlement || activeBlockedReason) && (
+                <div className="mb-3 flex flex-col gap-2.5 rounded-lg border border-accent bg-accent-weak px-4 py-3 text-[13px] leading-relaxed text-ink2 sm:flex-row sm:items-center sm:justify-between">
+                  <span>{activeBlockedReason ?? "Usage settlement must complete before another request."}</span>
+                  {activePendingSettlement && (
+                    <span className="flex shrink-0 gap-2">
+                      <Button
+                        size="sm"
+                        variant="primary"
+                        onClick={() => selectedCredit && submitSettlement(activePendingSettlement, selectedCredit)}
+                        disabled={operation !== null || !selectedCredit}
+                      >
+                        Retry settlement
+                      </Button>
+                      <Button size="sm" variant="secondary" onClick={reconcileSettlement} disabled={operation !== null}>
+                        Reconcile
+                      </Button>
+                    </span>
                   )}
                 </div>
-
-                <Button
-                  variant="secondary"
-                  className="w-full"
-                  onClick={handleCloseCredit}
-                  loading={operation === "closing"}
+              )}
+              <div className="flex flex-col items-stretch gap-2.5 sm:flex-row sm:items-end">
+                <label className="sr-only" htmlFor="inference-prompt">Prompt</label>
+                <textarea
+                  id="inference-prompt"
+                  value={input}
+                  onChange={(event) => setInput(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && !event.shiftKey) {
+                      event.preventDefault();
+                      send();
+                    }
+                  }}
                   disabled={locked || !selectedCredit}
+                  rows={2}
+                  placeholder={selectedCredit ? "Ask anything, or paste a prompt" : "Open or select a credit first"}
+                  className="min-h-[46px] flex-1 resize-none rounded-md border border-line bg-bg px-3 py-2.5 text-[14px] leading-relaxed text-ink transition-colors duration-fast ease-out placeholder:text-faint hover:border-line-strong focus-visible:border-accent disabled:cursor-not-allowed disabled:opacity-50"
+                />
+                <Button
+                  variant="primary"
+                  icon="send"
+                  onClick={send}
+                  loading={operation === "requesting" || operation === "settling"}
+                  disabled={locked || !selectedCredit || !input.trim()}
+                  className="sm:h-[46px]"
                 >
-                  {operation === "closing" ? "Closing" : "Close credit and refund balance"}
+                  {operation === "requesting" ? "Requesting" : operation === "settling" ? "Settling" : "Send"}
                 </Button>
-              </>
-            )}
-          </div>
-        </Card>
-
-        <Card>
-          <CardHead title="Transaction state" sub="Requester signed" />
-          <div className="p-5">
-            {displayedTransaction ? (
-              <div role="status" aria-live="polite">
-                <p
-                  className={`text-[13px] leading-relaxed ${
-                    displayedTransaction.tone === "error"
-                      ? "text-danger"
-                      : displayedTransaction.tone === "success"
-                        ? "text-success"
-                        : "text-ink2"
-                  }`}
-                >
-                  {displayedTransaction.label}
-                </p>
-                {displayedTransaction.hash && (
-                  <p className="mono mt-2 break-all text-[12px] text-faint" title={displayedTransaction.hash}>
-                    {displayedTransaction.hash}
-                  </p>
-                )}
               </div>
-            ) : (
-              <p className="text-[13px] leading-relaxed text-muted">
-                Approval, credit, request authorization, and settlement states appear here.
+              <p className="mt-2 flex items-start gap-1.5 text-[12px] leading-relaxed text-faint">
+                <Icon name="shield" className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+                <span>
+                  Your wallet signs each request (no gas), valid for {INFERENCE_AUTH_TTL_SECONDS}s. After the reply it asks
+                  you to confirm the usage settlement transaction. Enter sends, Shift+Enter adds a line.
+                </span>
               </p>
-            )}
+            </div>
+          </section>
+
+          <Section title="Transaction state" description="Approval, credit, request authorization, and settlement steps.">
+            <div role="status" aria-live="polite">
+              {displayedTransaction ? (
+                <>
+                  <p
+                    className={`text-[13px] leading-relaxed ${
+                      displayedTransaction.tone === "error"
+                        ? "text-danger"
+                        : displayedTransaction.tone === "success"
+                          ? "text-success"
+                          : "text-ink2"
+                    }`}
+                  >
+                    {displayedTransaction.label}
+                  </p>
+                  {displayedTransaction.hash && (
+                    <p className="mono mt-2 break-all text-[12px] text-faint" title={displayedTransaction.hash}>
+                      {displayedTransaction.hash}
+                    </p>
+                  )}
+                </>
+              ) : (
+                <p className="text-[13px] leading-relaxed text-muted">Nothing in progress.</p>
+              )}
+            </div>
             {apiError && (
               <p role="alert" className="mt-3 border-t border-line pt-3 text-[13px] leading-relaxed text-danger">
                 Marketplace data could not be refreshed. {apiError}
               </p>
             )}
-          </div>
-        </Card>
+          </Section>
+        </div>
       </div>
     </div>
   );
