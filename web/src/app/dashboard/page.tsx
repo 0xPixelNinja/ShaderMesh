@@ -4,7 +4,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { useApi } from "@/lib/api";
 import { useWallet } from "@/components/WalletProvider";
-import { Button, Facts, PageHeader, Section, StatusTag } from "@/components/ui";
+import { Facts, PageHeader, Section, StatusTag } from "@/components/ui";
 import { HeartbeatStrip } from "@/components/diagrams";
 import { Icon, type IconName } from "@/components/icons";
 import { KIND_STYLE, describe, kindOf, timeAgo } from "@/lib/events";
@@ -45,7 +45,7 @@ function elapsedIntervals(lease: Lease): number {
 }
 
 export default function HomePage() {
-  const { address, connect, connecting } = useWallet();
+  const { address } = useWallet();
   const listings = useApi<Listing[]>("/listings?all=true", 6000).data ?? [];
   const leases = useApi<Lease[]>("/leases", 4000).data ?? [];
   const providers = useApi<Provider[]>("/providers", 8000).data ?? [];
@@ -69,13 +69,6 @@ export default function HomePage() {
           address
             ? "What you are renting, what you are serving, and what the network is doing right now."
             : "Connect a wallet to see your leases and your node. The network view below is public."
-        }
-        actions={
-          !address && (
-            <Button variant="primary" icon="wallet" onClick={connect} loading={connecting}>
-              {connecting ? "Connecting" : "Connect wallet"}
-            </Button>
-          )
         }
       />
 
