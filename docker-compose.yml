@@ -35,6 +35,9 @@ services:
         condition: service_healthy
     environment:
       RPC_URL: http://chain:8545
+      # Short challenge window and a visible slash so the demo resolves quickly.
+      CHALLENGE_WINDOW_SECONDS: ${CHALLENGE_WINDOW_SECONDS:-120}
+      CHALLENGE_SLASH_SMESH: ${CHALLENGE_SLASH_SMESH:-10}
     command: npx hardhat run scripts/deploy.ts --network docker
     volumes:
       - deployments:/app/deployments
@@ -139,6 +142,8 @@ services:
       RENTAL_INTERVAL_SECS: ${RENTAL_INTERVAL_SECS:-60}
       RENTAL_PRICE_USD: ${RENTAL_PRICE_USD:-0.02}
       POLL_SECS: ${POLL_SECS:-10}
+      # Demo only: "" | wrong_hash | silent makes the provider fail its challenges.
+      BENCHMARK_FAULT: ${BENCHMARK_FAULT:-}
       # A provider-approved local workload. Production images require a sha256 digest.
       LEASE_ALLOWED_MANIFEST: ${DEMO_LEASE_MANIFEST:-ipfs://bafybeigdyrzt5sfp7udm7hu76uh7y26nf3ayu5ol5qi2ngv3a6h4q}
       # Leasing hands the requester a real shell on the provider's GPU.
@@ -190,6 +195,30 @@ services:
     volumes:
       - deployments:/app/deployments:ro
     restart: "no"
+
+  # --- Attester: issues, judges, and expires benchmark challenges -------------
+  attester:
+    image: shadermesh/agent
+    depends_on:
+      chain:
+        condition: service_healthy
+      deployer:
+        condition: service_completed_successfully
+      seed:
+        condition: service_completed_successfully
+    command: python attester.py
+    environment:
+      RPC_URL: http://chain:8545
+      DEPLOYMENTS_FILE: /app/deployments/docker.json
+      # Hardhat account #0, the deployer and registry attester. Test-only.
+      ATTESTER_PRIVATE_KEY: "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+      # Short interval so a challenge is visible during a live demo.
+      CHALLENGE_INTERVAL_SECONDS: ${CHALLENGE_INTERVAL_SECONDS:-60}
+      CHALLENGE_MIN_SCORE_BPS: ${CHALLENGE_MIN_SCORE_BPS:-5000}
+      ATTESTER_POLL_SECS: ${ATTESTER_POLL_SECS:-10}
+    volumes:
+      - deployments:/app/deployments:ro
+    restart: unless-stopped
 
   # --- Dashboard ------------------------------------------------------------
   web:

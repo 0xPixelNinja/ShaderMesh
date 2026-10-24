@@ -55,6 +55,23 @@ services:
       timeout: 5s
       retries: 20
 
+  attester:
+    build:
+      context: ./agent
+    image: shadermesh/agent
+    command: python attester.py
+    environment:
+      RPC_URL: ${SEPOLIA_RPC_URL:?set SEPOLIA_RPC_URL in the untracked root .env}
+      DEPLOYMENTS_FILE: /app/deployments/sepolia.json
+      ATTESTER_PRIVATE_KEY: ${ATTESTER_PRIVATE_KEY:?set ATTESTER_PRIVATE_KEY in the untracked root .env}
+      CHALLENGE_INTERVAL_SECONDS: ${CHALLENGE_INTERVAL_SECONDS:-300}
+      CHALLENGE_MIN_SCORE_BPS: ${CHALLENGE_MIN_SCORE_BPS:-5000}
+      ATTESTER_POLL_SECS: ${ATTESTER_POLL_SECS:-30}
+      ATTESTER_LOG_RANGE: ${ATTESTER_LOG_RANGE:-10}
+    volumes:
+      - ${SEPOLIA_DEPLOYMENT_FILE:-./contracts/deployments/sepolia.json}:/app/deployments/sepolia.json:ro
+    restart: unless-stopped
+
   web:
     build:
       context: ./web
