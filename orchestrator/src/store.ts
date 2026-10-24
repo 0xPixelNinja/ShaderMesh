@@ -77,6 +77,33 @@ export interface ProviderRecord {
   vramGB: number;
   benchmarkScore: string;
   models: string[];
+  challengesPassed: number;
+  challengesFailed: number;
+  lastChallenge: { id: number; status: ChallengeStatus } | null;
+}
+
+export type ChallengeStatus = "open" | "responded" | "passed" | "failed" | "lapsed";
+
+/** Where an event was mined. `timestamp` is the block time when the indexer supplied it. */
+export interface ChainRef {
+  blockNumber: number;
+  transactionHash: string;
+  timestamp: number | null;
+}
+
+export interface ChallengeRecord {
+  id: number;
+  provider: string;
+  seed: string;
+  issuedAt: number | null;
+  deadline: number;
+  status: ChallengeStatus;
+  score: string | null;
+  outputHash: string | null;
+  slashed: string;
+  issued: ChainRef | null;
+  responded: ChainRef | null;
+  resolved: ChainRef | null;
 }
 
 export interface ChallengeVoteRecord {
@@ -141,10 +168,12 @@ export interface ProjectionSnapshot {
   offers: InferenceOfferRecord[];
   credits: InferenceCreditRecord[];
   disputes: DisputeRecord[];
+  /** Absent in snapshots written before benchmark challenges were indexed. */
+  challenges?: ChallengeRecord[];
   eventHistory: EventHistoryRecord[];
 }
 
-export interface LegacyProjectionSnapshot extends Omit<ProjectionSnapshot, "version" | "providers" | "disputes" | "eventHistory"> {
+export interface LegacyProjectionSnapshot extends Omit<ProjectionSnapshot, "version" | "providers" | "disputes" | "eventHistory" | "challenges"> {
   version: 1;
   providers: Array<Pick<ProviderRecord, "address" | "reputation" | "attested" | "gpu" | "vramGB" | "models">>;
 }
@@ -160,6 +189,7 @@ export class ProjectionStore {
   readonly offers = new Map<string, InferenceOfferRecord>();
   readonly credits = new Map<string, InferenceCreditRecord>();
   readonly disputes = new Map<string, DisputeRecord>();
+  readonly challenges = new Map<number, ChallengeRecord>();
   readonly eventHistory: EventHistoryRecord[] = [];
 
   snapshot(): ProjectionSnapshot {
@@ -173,6 +203,7 @@ export class ProjectionStore {
       offers: structuredClone([...this.offers.values()]),
       credits: structuredClone([...this.credits.values()]),
       disputes: structuredClone([...this.disputes.values()]),
+      challenges: structuredClone([...this.challenges.values()]),
       eventHistory: structuredClone(this.eventHistory),
     };
   }
@@ -189,6 +220,7 @@ export class ProjectionStore {
     this.offers.clear();
     this.credits.clear();
     this.disputes.clear();
+    this.challenges.clear();
     this.eventHistory.length = 0;
     for (const record of structuredClone(snapshot.jobs)) this.jobs.set(record.id, record);
     for (const record of structuredClone(snapshot.tasks)) this.tasks.set(this.key(record.jobId, record.index), record);
@@ -214,12 +246,16 @@ export class ProjectionStore {
         vramGB: record.vramGB,
         benchmarkScore: "benchmarkScore" in record ? record.benchmarkScore : "0",
         models: record.models,
+        challengesPassed: "challengesPassed" in record ? record.challengesPassed : 0,
+        challengesFailed: "challengesFailed" in record ? record.challengesFailed : 0,
+        lastChallenge: "lastChallenge" in record ? record.lastChallenge : null,
       });
     }
     for (const record of structuredClone(snapshot.offers)) this.offers.set(record.id, record);
     for (const record of structuredClone(snapshot.credits)) this.credits.set(record.id, record);
     if (snapshot.version === 2) {
       for (const record of structuredClone(snapshot.disputes)) this.disputes.set(this.key(record.jobId, record.index), record);
+      for (const record of structuredClone(snapshot.challenges ?? [])) this.challenges.set(record.id, record);
       this.eventHistory.push(...structuredClone(snapshot.eventHistory).slice(-EVENT_HISTORY_CAPACITY));
     }
   }
@@ -267,6 +303,9 @@ export class ProjectionStore {
         vramGB: 0,
         benchmarkScore: "0",
         models: [],
+        challengesPassed: 0,
+        challengesFailed: 0,
+        lastChallenge: null,
       };
       this.providers.set(normalized, p);
     }
@@ -597,14 +636,26 @@ export class ProjectionStore {
     this.onBonded(provider, totalBonded);
   }
 
-  onSlashed(provider: string, amount: string): void {
+  onSlashed(provider: string, amount: string, transactionHash?: string): void {
     const p = this.provider(provider);
     const slashed = BigInt(amount);
     const stake = BigInt(p.stake);
     const bonded = BigInt(p.bonded);
     p.stake = (slashed < stake ? stake - slashed : 0n).toString();
-    p.bonded = (slashed < bonded ? bonded - slashed : 0n).toString();
+    // A challenge slash takes free stake only and leaves bonded stake untouched.
+    if (!this.isChallengeSlash(p.address, amount, transactionHash)) {
+      p.bonded = (slashed < bonded ? bonded - slashed : 0n).toString();
+    }
     this.updateAvailable(p);
+  }
+
+  private isChallengeSlash(provider: string, amount: string, transactionHash?: string): boolean {
+    if (!transactionHash) return false;
+    for (const c of this.challenges.values()) {
+      if (c.provider === provider && c.status === "failed" && c.slashed === amount
+        && c.resolved?.transactionHash === transactionHash) return true;
+    }
+    return false;
   }
 
   onActiveSet(provider: string, active: boolean): void {
@@ -617,6 +668,80 @@ export class ProjectionStore {
     if (gpuModel) p.gpu = gpuModel;
     if (vramGB) p.vramGB = vramGB;
     p.benchmarkScore = benchmarkScore;
+  }
+
+  onAttestationRevoked(provider: string): void {
+    this.provider(provider).attested = false;
+  }
+
+  // --------------------------------------------------------------------- //
+  // Benchmark challenges
+  // --------------------------------------------------------------------- //
+
+  onChallengeIssued(id: number, provider: string, seed: string, deadline: number, at?: ChainRef): void {
+    const who = this.normalizeAddress(provider);
+    this.challenges.set(id, {
+      id,
+      provider: who,
+      seed,
+      issuedAt: at?.timestamp ?? null,
+      deadline,
+      status: "open",
+      score: null,
+      outputHash: null,
+      slashed: "0",
+      issued: at ? { ...at } : null,
+      responded: null,
+      resolved: null,
+    });
+    this.provider(who).lastChallenge = { id, status: "open" };
+  }
+
+  onChallengeResponded(id: number, score: string, outputHash: string, at?: ChainRef): void {
+    const c = this.challenges.get(id);
+    if (!c) return;
+    c.status = "responded";
+    c.score = score;
+    c.outputHash = outputHash;
+    c.responded = at ? { ...at } : null;
+    this.touchLast(c);
+  }
+
+  /** `status` is the on-chain enum value: Passed=3, Failed=4, Lapsed=5. */
+  onChallengeResolved(id: number, status: number, slashed: string, at?: ChainRef): void {
+    const c = this.challenges.get(id);
+    if (!c) return;
+    const next: ChallengeStatus | null = status === 3 ? "passed" : status === 4 ? "failed" : status === 5 ? "lapsed" : null;
+    if (!next) return;
+    c.status = next;
+    c.slashed = slashed;
+    c.resolved = at ? { ...at } : null;
+    const p = this.provider(c.provider);
+    if (next === "passed") {
+      p.challengesPassed += 1;
+      // A pass refreshes the attestation on chain without emitting Attested.
+      p.attested = true;
+    } else if (next === "failed") {
+      p.challengesFailed += 1;
+      p.attested = false;
+    }
+    this.touchLast(c);
+  }
+
+  private touchLast(c: ChallengeRecord): void {
+    const p = this.provider(c.provider);
+    if (!p.lastChallenge || p.lastChallenge.id <= c.id) p.lastChallenge = { id: c.id, status: c.status };
+  }
+
+  getChallenge(id: number): ChallengeRecord | null {
+    return this.challenges.get(id) ?? null;
+  }
+
+  listChallenges(provider?: string): ChallengeRecord[] {
+    const who = provider?.toLowerCase();
+    return [...this.challenges.values()]
+      .filter((c) => !who || c.provider === who)
+      .sort((a, b) => a.id - b.id);
   }
 
   onReputationUpdated(provider: string, reputation: number, success?: boolean): void {

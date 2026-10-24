@@ -78,6 +78,9 @@ describe("dispatch", () => {
       vramGB: 24,
       benchmarkScore: "987",
       models: ["render-v1", "llama"],
+      challengesPassed: 0,
+      challengesFailed: 0,
+      lastChallenge: null,
     });
   });
 

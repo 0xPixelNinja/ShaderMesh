@@ -1,6 +1,6 @@
 import { EventEmitter } from "node:events";
 import type { Contract, Result } from "ethers";
-import { ProjectionStore, type JsonValue } from "./store";
+import { ProjectionStore, type ChainRef, type JsonValue } from "./store";
 import type { DeploymentIdentity, EventCursor, PersistedProjection, ProjectionPersistence } from "./persistence";
 import type { ServiceHealth } from "./health";
 
@@ -45,11 +45,19 @@ const REGISTRY_EVENTS = [
   "ReputationUpdated",
   "ActiveSet",
   "Attested",
+  "AttestationRevoked",
+  "ChallengeIssued",
+  "ChallengeResponded",
+  "ChallengeResolved",
+  "TreasurySet",
+  "ChallengeParamsSet",
 ];
 const INFERENCE_EVENTS = ["OfferCreated", "OfferDeactivated", "CreditOpened", "UsageSettled", "CreditClosed"];
 
 export interface EventMetadata extends EventCursor {
   transactionHash: string;
+  /** Block time, supplied by the indexer for challenge events. */
+  timestamp?: number | null;
 }
 
 export function dispatch(
@@ -163,13 +171,25 @@ export function dispatch(
       store.onUnbonded(a.provider, a.totalBonded.toString());
       break;
     case "Slashed":
-      store.onSlashed(a.provider, a.amount.toString());
+      store.onSlashed(a.provider, a.amount.toString(), metadata?.transactionHash);
       break;
     case "ActiveSet":
       store.onActiveSet(a.provider, Boolean(a.active));
       break;
     case "Attested":
       store.onAttested(a.provider, a.gpuModel, Number(a.vramGB), a.benchmarkScore?.toString() ?? "0");
+      break;
+    case "AttestationRevoked":
+      store.onAttestationRevoked(a.provider);
+      break;
+    case "ChallengeIssued":
+      store.onChallengeIssued(Number(a.id), a.provider, String(a.seed), Number(a.deadline), chainRef(metadata));
+      break;
+    case "ChallengeResponded":
+      store.onChallengeResponded(Number(a.id), a.score.toString(), String(a.outputHash), chainRef(metadata));
+      break;
+    case "ChallengeResolved":
+      store.onChallengeResolved(Number(a.id), Number(a.status), a.slashed.toString(), chainRef(metadata));
       break;
     case "ReputationUpdated":
       store.onReputationUpdated(
@@ -222,6 +242,12 @@ export function dispatch(
   emitter?.emit("update", { name, payload });
 }
 
+function chainRef(metadata?: EventMetadata): ChainRef | undefined {
+  return metadata
+    ? { blockNumber: metadata.blockNumber, transactionHash: metadata.transactionHash, timestamp: metadata.timestamp ?? null }
+    : undefined;
+}
+
 /** Convert a Result / args object to a plain, JSON-serializable object. */
 function serializable(a: any): Record<string, JsonValue> {
   const out: Record<string, JsonValue> = {};
@@ -268,6 +294,7 @@ interface IndexedEvent {
   name: string;
   args: Result;
   transactionHash: string;
+  timestamp?: number | null;
 }
 
 export interface IndexerOptions {
@@ -348,6 +375,7 @@ export class Indexer {
           name,
           args,
           transactionHash: (log as any).transactionHash ?? "",
+          timestamp: name.startsWith("Challenge") ? await this.blockTime(log) : undefined,
         });
       }
     }
@@ -357,10 +385,21 @@ export class Indexer {
     );
   }
 
+  /** Block time for a log, or null when the provider cannot supply it. */
+  private async blockTime(log: unknown): Promise<number | null> {
+    try {
+      const block = await this.retryRpc<any>(() => (log as any).getBlock());
+      const time = Number(block?.timestamp);
+      return Number.isFinite(time) ? time : null;
+    } catch {
+      return null;
+    }
+  }
+
   private async apply(event: IndexedEvent): Promise<void> {
     if (!isAfterCursor(event.cursor, this.cursor)) return;
     const persistence = this.options.persistence;
-    const metadata = { ...event.cursor, transactionHash: event.transactionHash };
+    const metadata: EventMetadata = { ...event.cursor, transactionHash: event.transactionHash, timestamp: event.timestamp };
     if (!persistence) {
       dispatch(this.store, event.name, event.args, this.emitter, metadata);
       this.cursor = event.cursor;

@@ -44,7 +44,8 @@ Built and started by the root `docker-compose.yml` after `deployer` completes
 | `GET /health` | Service status. |
 | `GET /listings` | Available GPU rental offers, including duration bounds. |
 | `GET /leases` and `GET /leases/:id` | Rental leases and their state. |
-| `GET /providers` | Providers with registration, stake, reputation, capabilities, attestation, and served models. |
+| `GET /providers` | Providers with registration, stake, reputation, capabilities, attestation, served models, and challenge summary (`challengesPassed`, `challengesFailed`, `lastChallenge`). |
+| `GET /challenges` and `GET /challenges/:id` | Benchmark challenges with status, score, output hash, slashed amount, and per-phase block and transaction. Use `?provider=0x...` to filter the collection. |
 | `GET /models` | Model catalog aggregated from available listings. |
 | `GET /offers` and `GET /offers/:id` | Inference offers projected from `InferenceMarket`. |
 | `GET /credits` and `GET /credits/:id` | Prepaid inference credits. Use `?requester=0x...` to filter the collection. |
@@ -54,8 +55,19 @@ Built and started by the root `docker-compose.yml` after `deployer` completes
 | `GET /disputes` | Verification disputes with votes and outcomes. |
 | `GET /jobs/:id/result` | Final stitched artifact CID. |
 | `POST /jobs/prepare` | Split an image and pin the manifest; returns inputCID and taskCount. |
-| `GET /events` | Server sent events stream of on-chain updates. |
+| `GET /events` | Server sent events stream of on-chain updates, including `ChallengeIssued`, `ChallengeResponded`, `ChallengeResolved`, and `AttestationRevoked`. |
 | `GET /events/history` | Recent indexed events. Use `?type=EventName&limit=100` to filter. |
+
+### Benchmark challenges
+
+A challenge record has the shape `{ id, provider, seed, issuedAt, deadline, status, score,
+outputHash, slashed, issued, responded, resolved }`. `status` is one of `open`, `responded`,
+`passed`, `failed`, or `lapsed`. `issuedAt` and the `timestamp` of each phase reference
+(`{ blockNumber, transactionHash, timestamp }`) are block times, or null when the RPC could
+not supply them. `score` and `outputHash` are null until the provider responds, and
+`slashed` is a base-unit string. A passed challenge refreshes the provider `attested` flag,
+while a failed one clears it (the chain also emits `AttestationRevoked`). A challenge slash
+takes free stake only, so the projection leaves `bonded` unchanged for it.
 
 ### Inference authorization
 

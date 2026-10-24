@@ -167,6 +167,17 @@ export function createApi(
         return sendJson(res, 200, store.listDisputes());
       }
 
+      if (path === "/challenges" && method === "GET") {
+        const provider = url.searchParams.get("provider") || undefined;
+        return sendJson(res, 200, store.listChallenges(provider));
+      }
+      const challengeMatch = path.match(/^\/challenges\/(\d+)$/);
+      if (challengeMatch && method === "GET") {
+        const challenge = store.getChallenge(Number(challengeMatch[1]));
+        if (!challenge) return sendJson(res, 404, { error: "challenge not found" });
+        return sendJson(res, 200, challenge);
+      }
+
       const jobMatch = path.match(/^\/jobs\/(\d+)$/);
       if (jobMatch && method === "GET") {
         const id = Number(jobMatch[1]);
