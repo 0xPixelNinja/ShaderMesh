@@ -22,19 +22,21 @@ ICONS = DECK / "icons"
 FIGURES = DECK / "figures"
 OUTPUT = HERE.parent / "ShaderMesh-Presentation.pptx"
 
-INK = RGBColor(0x18, 0x18, 0x1B)
-INK2 = RGBColor(0x3F, 0x3F, 0x46)
-MUTED = RGBColor(0x52, 0x52, 0x5B)
-FAINT = RGBColor(0x71, 0x71, 0x7A)
-LINE = RGBColor(0xE4, 0xE4, 0xE7)
-LINE_STRONG = RGBColor(0xD4, 0xD4, 0xD8)
-SURFACE = RGBColor(0xFA, 0xFA, 0xFA)
-PANEL = RGBColor(0xF4, 0xF4, 0xF5)
+INK = RGBColor(0x1A, 0x18, 0x14)
+INK2 = RGBColor(0x3A, 0x36, 0x2F)
+MUTED = RGBColor(0x5E, 0x59, 0x50)
+FAINT = RGBColor(0x6F, 0x6A, 0x60)
+LINE = RGBColor(0xE6, 0xE2, 0xDA)
+LINE_STRONG = RGBColor(0xD3, 0xCE, 0xC4)
+SURFACE = RGBColor(0xFB, 0xFA, 0xF7)
+PANEL = RGBColor(0xF3, 0xF1, 0xEC)
 WHITE = RGBColor(0xFF, 0xFF, 0xFF)
 ACCENT = RGBColor(0xD9, 0x77, 0x06)
-ACCENT_WEAK = RGBColor(0xFE, 0xF3, 0xC7)
-SUCCESS = RGBColor(0x15, 0x80, 0x3D)
-SUCCESS_WEAK = RGBColor(0xEC, 0xFD, 0xF5)
+ACCENT_TEXT = RGBColor(0xA3, 0x4A, 0x06)
+ACCENT_WEAK = RGBColor(0xFD, 0xF3, 0xE1)
+SUCCESS = RGBColor(0x13, 0x75, 0x35)
+SUCCESS_WEAK = RGBColor(0xE8, 0xF4, 0xEC)
+DANGER = RGBColor(0xB9, 0x1C, 0x1C)
 
 SANS = "Segoe UI"
 MONO = "Consolas"
@@ -120,21 +122,6 @@ def footer(slide, number, label="ShaderMesh"):
     write(tf2, [(str(number), 10, True, FAINT, SANS, 0)])
 
 
-def figure(slide, name, top, max_h):
-    """Place a figure centred, fitted to the available height."""
-    from PIL import Image
-
-    path = FIGURES / name
-    with Image.open(path) as im:
-        aspect = im.width / im.height
-    h = max_h
-    w = Emu(int(h * aspect))
-    if w > W - 2 * MARGIN:
-        w = W - 2 * MARGIN
-        h = Emu(int(w / aspect))
-    slide.shapes.add_picture(str(path), Emu(int((W - w) / 2)), top, width=w, height=h)
-
-
 def icon(slide, name, x, y, size):
     path = ICONS / f"{name}.png"
     if path.exists():
@@ -143,253 +130,362 @@ def icon(slide, name, x, y, size):
 
 # ------------------------------------------------------------------- slides
 
+REPORT = HERE.parent / "_report"
+RFIG = REPORT / "figures"
+RSCR = REPORT / "screens"
+CROPS = DECK / "figures"
+TOP = Inches(1.45)
+BOTTOM = H - Inches(0.6)
+CT = Inches(1.8)  # top of card-only slides
+
+
+def place(slide, path, x, y, w, h, *, border=False):
+    """Fit an image inside the box (x, y, w, h), centred, keeping its aspect."""
+    from PIL import Image
+
+    with Image.open(path) as im:
+        aspect = im.width / im.height
+    pw, ph = w, Emu(int(w / aspect))
+    if ph > h:
+        ph, pw = h, Emu(int(h * aspect))
+    px, py = x + Emu(int((w - pw) / 2)), y + Emu(int((h - ph) / 2))
+    pic = slide.shapes.add_picture(str(path), px, py, width=pw, height=ph)
+    if border:
+        pic.line.color.rgb = LINE_STRONG
+        pic.line.width = Pt(1)
+    return px, py, pw, ph
+
+
+def notes(slide, text):
+    slide.notes_slide.notes_text_frame.text = text
+
+
+def side_panel(slide, x, y, w, h, items, *, title=None, tint=SURFACE, outline=LINE):
+    """items: list of (headline, body) or plain strings."""
+    card(slide, x, y, w, h, fill=tint, outline=outline)
+    tf = textbox(slide, x + Inches(0.26), y + Inches(0.24), w - Inches(0.52), h - Inches(0.4))
+    lines = []
+    if title:
+        lines.append((title, 11, True, ACCENT_TEXT, SANS, 8))
+    for it in items:
+        if isinstance(it, str):
+            lines.append((it, 14, False, INK2, SANS, 8))
+        else:
+            lines.append((it[0], 17, True, INK, SANS, 3))
+            lines.append((it[1], 15, False, MUTED, SANS, 14))
+    write(tf, lines)
+
+
+def fig_slide(prs, number, title, subtitle, image, items, *, panel_w=Inches(3.4),
+              panel_title=None, note=""):
+    slide = blank(prs)
+    header(slide, title, subtitle)
+    fw = W - 2 * MARGIN - panel_w - Inches(0.3)
+    place(slide, image, MARGIN, TOP, fw, BOTTOM - TOP)
+    side_panel(slide, W - MARGIN - panel_w, TOP, panel_w, BOTTOM - TOP, items, title=panel_title)
+    footer(slide, number)
+    notes(slide, note)
+    return slide
+
+
+def two_columns(slide, cols, *, height=Inches(4.3), item_size=18, gap_pt=16):
+    cw = (W - 2 * MARGIN - Inches(0.4)) / 2
+    for col, (title, tint, outline, tcol, items) in enumerate(cols):
+        x = MARGIN + col * (cw + Inches(0.4))
+        card(slide, x, CT, cw, height, fill=tint, outline=outline,
+             width=Pt(1.5) if col else Pt(1))
+        tf = textbox(slide, x + Inches(0.36), CT + Inches(0.3), cw - Inches(0.72), height - Inches(0.5))
+        lines = [(title, 20, True, tcol, SANS, 16)]
+        for it in items:
+            if isinstance(it, str):
+                lines.append((it, item_size, False, INK2, SANS, gap_pt))
+            else:
+                lines.append((it[0], 18, True, INK, SANS, 3))
+                lines.append((it[1], 16, False, MUTED, SANS, 16))
+        write(tf, lines)
+
 
 def slide_title(prs):
     slide = blank(prs)
-
-    # Logo mark: a three by three grid echoing the product mark.
     gx, gy, cell, gap = MARGIN, Inches(0.85), Inches(0.12), Inches(0.04)
     for r in range(3):
         for c in range(3):
             sq = slide.shapes.add_shape(
-                MSO_SHAPE.RECTANGLE,
-                gx + c * (cell + gap), gy + r * (cell + gap), cell, cell,
-            )
+                MSO_SHAPE.RECTANGLE, gx + c * (cell + gap), gy + r * (cell + gap), cell, cell)
             sq.fill.solid()
             sq.fill.fore_color.rgb = ACCENT if r == c else LINE_STRONG
             sq.line.fill.background()
             sq.shadow.inherit = False
 
-    tf = textbox(slide, MARGIN, Inches(1.72), Inches(8.5), Inches(1.0))
-    write(tf, [("ShaderMesh", 58, True, INK, SANS, 0)])
+    tf = textbox(slide, MARGIN, Inches(1.72), Inches(9), Inches(1.0))
+    write(tf, [("ShaderMesh", 60, True, INK, SANS, 0)])
+    tf = textbox(slide, MARGIN, Inches(2.8), Inches(10.5), Inches(0.5))
+    write(tf, [("A decentralized marketplace for renting GPU compute on Ethereum",
+                20, False, MUTED, SANS, 0)])
+    rule(slide, MARGIN, Inches(3.55), Inches(1.6))
 
-    tf = textbox(slide, MARGIN, Inches(2.74), Inches(8.5), Inches(0.5))
-    write(tf, [("A decentralised marketplace for renting GPU compute on Ethereum",
-                19, False, MUTED, SANS, 0)])
-
-    rule(slide, MARGIN, Inches(3.42), Inches(1.6))
-
-    tf = textbox(slide, MARGIN, Inches(3.72), Inches(8.5), Inches(1.0))
+    tf = textbox(slide, MARGIN, Inches(3.9), Inches(9), Inches(1.2))
     write(tf, [
-        ("Providers stake collateral, prove uptime each interval, and are slashed for downtime.",
-         14.5, False, INK2, SANS, 5),
-        ("Interactive GPU leases and provider-served model inference, settled on chain.",
-         14.5, False, INK2, SANS, 0),
+        ("[TEAM MEMBERS]", 18, True, INK, SANS, 6),
+        ("Guide: [GUIDE NAME]", 16, False, INK2, SANS, 0),
+    ])
+    tf = textbox(slide, MARGIN, Inches(5.1), Inches(9), Inches(0.9))
+    write(tf, [
+        ("VIT-AP University", 15, False, INK2, SANS, 4),
+        ("Final review  |  October 2026", 15, False, MUTED, SANS, 0),
     ])
 
-    facts = [
-        ("GPU rental", "interactive leases with shell access"),
-        ("Model inference", "metered per token and settled on chain"),
-        ("Ethereum", "escrow, staking and slashing"),
-    ]
-    fx = MARGIN
-    for value, label in facts:
-        tf = textbox(slide, fx, Inches(4.82), Inches(2.6), Inches(0.75))
-        write(tf, [
-            (value, 15, True, ACCENT, SANS, 2),
-            (label, 11, False, FAINT, SANS, 0),
-        ])
-        fx += Inches(2.78)
-
-    # Team block, intended to be edited.
-    tx, ty, tw = Inches(9.42), Inches(1.72), Inches(3.28)
-    card(slide, tx, ty, tw, Inches(4.38), fill=SURFACE, outline=LINE)
-    tf = textbox(slide, tx + Inches(0.3), ty + Inches(0.26), tw - Inches(0.6), Inches(0.3))
-    write(tf, [("TEAM <number>", 10, True, ACCENT, SANS, 0)])
-    tf = textbox(slide, tx + Inches(0.3), ty + Inches(0.58), tw - Inches(0.6), Inches(0.5))
-    write(tf, [("<Team name>", 15, True, INK, SANS, 0)])
-
-    rows = [
-        ("<Member 1 name>", "<Roll number>"),
-        ("<Member 2 name>", "<Roll number>"),
-        ("<Member 3 name>", "<Roll number>"),
-        ("<Member 4 name>", "<Roll number>"),
-    ]
-    y = ty + Inches(1.34)
-    for name, roll in rows:
-        tf = textbox(slide, tx + Inches(0.3), y, tw - Inches(0.6), Inches(0.5))
-        write(tf, [
-            (name, 12.5, False, INK2, SANS, 1),
-            (roll, 10.5, False, FAINT, MONO, 0),
-        ])
-        y += Inches(0.6)
-
-    rule(slide, tx + Inches(0.3), ty + Inches(3.82), tw - Inches(0.6), colour=LINE, thickness=Pt(1))
-    tf = textbox(slide, tx + Inches(0.3), ty + Inches(3.95), tw - Inches(0.6), Inches(0.3))
-    write(tf, [("Guide: <supervisor name>", 10.5, False, FAINT, SANS, 0)])
-
-    # Technology strip.
     strip = ["solidity", "ethereum", "python", "nodejs", "typescript", "nextjs", "react", "docker", "nvidia"]
     sx = MARGIN
     for name in strip:
-        icon(slide, name, sx, Inches(5.95), Inches(0.3))
+        icon(slide, name, sx, Inches(6.35), Inches(0.3))
         sx += Inches(0.52)
-
-    tf = textbox(slide, MARGIN, Inches(6.46), Inches(8.6), Inches(0.4))
-    write(tf, [("<Course code and name>   |   <Review number>   |   <Date>", 11, False, FAINT, SANS, 0)])
     footer(slide, 1, "")
+    notes(slide, "Introduce the project and the team. Eight to ten minutes in total.")
     return slide
 
 
 def slide_problem(prs):
     slide = blank(prs)
-    header(slide, "Problem and approach", "Renting compute from an unknown provider requires trusting that provider.")
-
-    left = [
-        ("Supply is concentrated", "A small number of cloud providers set price and availability, while idle consumer GPUs remain unused."),
-        ("Rented time cannot be re-executed", "A rented interval produces no output to recompute and compare, so re-execution based verification does not apply."),
-        ("Payment is committed up front", "The requester pays for a window in advance and has no automatic remedy if the machine stops serving."),
-    ]
-    right = [
-        ("Providers post collateral", "A provider stakes tokens to list capacity, and a further bond is locked for the duration of each lease."),
-        ("Uptime is proven per interval", "The provider publishes a signed heartbeat for the current interval. A missed interval cannot be back-filled later."),
-        ("Escrow settles per interval", "Escrow releases only for the contiguous proven prefix. Downtime refunds the remainder and slashes the bond."),
-    ]
-
-    cw = (W - 2 * MARGIN - Inches(0.4)) / 2
-    for col, (items, title, tint, accent) in enumerate([
-        (left, "Why this is hard", PANEL, INK),
-        (right, "What ShaderMesh does", ACCENT_WEAK, ACCENT),
-    ]):
-        x = MARGIN + col * (cw + Inches(0.4))
-        card(slide, x, Inches(1.68), cw, Inches(4.5), fill=tint,
-             outline=ACCENT if col else LINE, width=Pt(1.5) if col else Pt(1))
-        tf = textbox(slide, x + Inches(0.34), Inches(1.94), cw - Inches(0.68), Inches(0.4))
-        write(tf, [(title, 17, True, accent, SANS, 0)])
-        y = Inches(2.52)
-        for headline, body in items:
-            tf = textbox(slide, x + Inches(0.34), y, cw - Inches(0.68), Inches(1.1))
-            write(tf, [
-                (headline, 14.5, True, INK, SANS, 3),
-                (body, 12, False, MUTED, SANS, 0),
-            ])
-            y += Inches(1.22)
-
-    tf = textbox(slide, MARGIN, Inches(6.42), W - 2 * MARGIN, Inches(0.5))
-    write(tf, [
-        ("The chain provides trust, coordination and payment. Compute is never executed on chain.",
-         13.5, True, INK, SANS, 0),
+    header(slide, "Problem and why blockchain",
+           "Renting compute from a stranger requires trusting the stranger.")
+    two_columns(slide, [
+        ("The problem", PANEL, LINE, INK, [
+            ("Concentrated supply", "A few clouds set price while consumer GPUs sit idle."),
+            ("Nothing to re-run", "A rented interval has no output to recompute and check."),
+            ("Pay first, hope later", "No automatic remedy for downtime."),
+        ]),
+        ("Why a blockchain", ACCENT_WEAK, ACCENT, ACCENT_TEXT, [
+            ("Neutral escrow", "Funds sit in a contract neither party controls."),
+            ("Enforceable collateral", "Stake and slashing make downtime costly."),
+            ("Public record", "Heartbeats and settlement are auditable."),
+        ]),
     ])
     footer(slide, 2)
+    notes(slide, "Rental has no checkable output, so trust must come from collateral and provable "
+                 "availability. The chain is the trust, coordination and payment layer, not the compute layer.")
     return slide
 
 
-def slide_architecture(prs):
+def slide_what(prs, n):
     slide = blank(prs)
-    header(slide, "System architecture", "Four off-chain components, one on-chain authority.")
-    figure(slide, "architecture.png", Inches(1.62), Inches(4.55))
-    tf = textbox(slide, MARGIN, Inches(6.34), W - 2 * MARGIN, Inches(0.6))
-    write(tf, [
-        ("The agent and orchestrator are treated as untrusted. Neither holds user funds, and neither can "
-         "force a payout. Settlement occurs only against the heartbeat history recorded on chain.",
-         12, False, MUTED, SANS, 0),
-    ])
-    footer(slide, 3)
+    header(slide, "What ShaderMesh is", "Two market modes share one staking, reputation and slashing layer.")
+    pw = Inches(4.1)
+    place(slide, RFIG / "system-context.png", MARGIN, TOP, W - 2 * MARGIN - pw - Inches(0.3), BOTTOM - TOP)
+    x = W - MARGIN - pw
+    h = (BOTTOM - TOP - Inches(0.25)) / 2
+    card(slide, x, TOP, pw, h, fill=ACCENT_WEAK, outline=ACCENT, width=Pt(1.5))
+    tf = textbox(slide, x + Inches(0.26), TOP + Inches(0.24), pw - Inches(0.52), h - Inches(0.4))
+    write(tf, [("Rental (primary)", 18, True, ACCENT_TEXT, SANS, 4),
+               ("GPU leases and model inference. Trust from stake, heartbeats and slashing.",
+                16, False, INK2, SANS, 0)])
+    y2 = TOP + h + Inches(0.25)
+    card(slide, x, y2, pw, h)
+    tf = textbox(slide, x + Inches(0.26), y2 + Inches(0.24), pw - Inches(0.52), h - Inches(0.4))
+    write(tf, [("Verifiable task", 18, True, INK, SANS, 4),
+               ("Jobs with checkable output. Trust from randomized re-execution.",
+                16, False, INK2, SANS, 0)])
+    footer(slide, n)
+    notes(slide, "Rental is the headline use case. The verifiable task mode is retained and shares the same stake and slashing layer.")
     return slide
 
 
-def slide_trust(prs):
+def slide_testing(prs, n):
     slide = blank(prs)
-    header(slide, "Trust model", "Availability is provable on chain. Output correctness is not.")
-    figure(slide, "trust.png", Inches(1.62), Inches(4.55))
-    tf = textbox(slide, MARGIN, Inches(6.34), W - 2 * MARGIN, Inches(0.6))
-    write(tf, [
-        ("A second market mode for verifiable tasks, using re-execution and challenge voting, is also "
-         "implemented in the contracts for workloads whose output can be checked.",
-         12, False, MUTED, SANS, 0),
-    ])
-    footer(slide, 4)
-    return slide
-
-
-def slide_lifecycle(prs):
-    slide = blank(prs)
-    header(slide, "Rental lifecycle", "Acceptance, settlement and termination proceed without operator intervention.")
-    figure(slide, "lifecycle.png", Inches(1.62), Inches(4.4))
-    tf = textbox(slide, MARGIN, Inches(6.22), W - 2 * MARGIN, Inches(0.7))
-    write(tf, [
-        ("Acceptance is automatic because a provider runs unattended. Requiring manual approval for each "
-         "lease would conflict with the availability the market is selling.",
-         12, False, MUTED, SANS, 0),
-    ])
-    footer(slide, 5)
-    return slide
-
-
-def slide_stack(prs):
-    slide = blank(prs)
-    header(slide, "Implementation and verification", "Each component is implemented, containerised and covered by an automated test suite.")
-
-    components = [
-        ("solidity", "Smart contracts", "Solidity 0.8.24", "Escrow, staking, slashing", "Hardhat, OpenZeppelin"),
-        ("python", "Provider agent", "Python 3.11", "Lease serving, inference", "web3.py, Docker SDK"),
-        ("nodejs", "Orchestrator", "Node 20, TypeScript", "Indexer, API, gateway", "ethers v6, Postgres"),
-        ("nextjs", "Dashboard", "Next.js 16, React 19", "Marketplace and console", "viem, Tailwind"),
+    header(slide, "Testing and gas cost", "Every layer has an automated suite, and CI runs all of them.")
+    rows = [
+        ("Contracts (Hardhat)", "42", "unit and scenario"),
+        ("Provider agent", "58", "leases, challenges"),
+        ("Orchestrator", "54 + 1 skipped", "skipped needs live stack"),
+        ("Simulator", "15", "game economics"),
+        ("Web (Playwright)", "24", "incl. 4 wallet-write"),
     ]
-    cw = (W - 2 * MARGIN - Inches(0.34) * 3) / 4
-    for i, (ic, name, stack, role, libs) in enumerate(components):
-        x = MARGIN + i * (cw + Inches(0.34))
-        card(slide, x, Inches(1.66), cw, Inches(2.15))
-        icon(slide, ic, x + Inches(0.28), Inches(1.92), Inches(0.38))
-        tf = textbox(slide, x + Inches(0.28), Inches(2.48), cw - Inches(0.56), Inches(1.7))
-        write(tf, [
-            (name, 15, True, INK, SANS, 3),
-            (stack, 11, False, ACCENT, MONO, 6),
-            (role, 12, False, INK2, SANS, 3),
-            (libs, 11, False, FAINT, SANS, 0),
-        ])
+    tw = Inches(6.7)
+    rh = Inches(0.64)
+    card(slide, MARGIN, CT, tw, rh * (len(rows) + 1), fill=WHITE)
+    for label, x_off in [("Suite", 0.25), ("Tests", 2.75), ("Covers", 4.45)]:
+        tf = textbox(slide, MARGIN + Inches(x_off), CT + Inches(0.24), Inches(2.0), Inches(0.3))
+        write(tf, [(label.upper(), 10.5, True, FAINT, SANS, 0)])
+    y = CT + rh
+    for name, count, covers in rows:
+        rule(slide, MARGIN + Inches(0.25), y, tw - Inches(0.5), colour=LINE, thickness=Pt(1))
+        tf = textbox(slide, MARGIN + Inches(0.25), y + Inches(0.18), Inches(2.5), Inches(0.4))
+        write(tf, [(name, 14.5, True, INK, SANS, 0)])
+        tf = textbox(slide, MARGIN + Inches(2.75), y + Inches(0.17), Inches(1.7), Inches(0.4))
+        write(tf, [(count, 14.5, True, ACCENT_TEXT, MONO, 0)])
+        tf = textbox(slide, MARGIN + Inches(4.45), y + Inches(0.06), Inches(2.1), Inches(0.52),
+                     anchor=MSO_ANCHOR.MIDDLE)
+        write(tf, [(covers, 12.5, False, MUTED, SANS, 0)])
+        y += rh
 
-    # Infrastructure strip
-    card(slide, MARGIN, Inches(4.01), W - 2 * MARGIN, Inches(0.92), fill=PANEL)
-    tf = textbox(slide, MARGIN + Inches(0.28), Inches(4.23), Inches(1.5), Inches(0.5))
-    write(tf, [("Runtime", 12, True, INK, SANS, 0)])
-    infra = [("docker", "Docker"), ("postgresql", "Postgres"), ("ipfs", "IPFS"),
-             ("nvidia", "CUDA GPU"), ("ollama", "Ollama"), ("ethereum", "Hardhat")]
-    ix = MARGIN + Inches(1.6)
-    for ic, label in infra:
-        icon(slide, ic, ix, Inches(4.27), Inches(0.26))
-        tf = textbox(slide, ix + Inches(0.32), Inches(4.26), Inches(1.28), Inches(0.35))
-        write(tf, [(label, 11.5, False, INK2, SANS, 0)])
-        ix += Inches(1.66)
-
-    properties = [
-        ("Sandboxed execution", "Lease containers run with CPU, memory and process limits, and are removed when the lease ends."),
-        ("Recoverable index", "The event projection is durable and can be rebuilt from chain history after data loss."),
-        ("Signed request routing", "The gateway verifies a wallet signature and routes only to the credited provider."),
-        ("Reproducible stack", "The whole system starts from one compose file, including chain, storage and database."),
+    gx = MARGIN + tw + Inches(0.3)
+    gw = W - MARGIN - gx
+    gas = [
+        ("rental.requestLease", "251,540"),
+        ("rental.acceptLease", "154,207"),
+        ("rental.heartbeat", "56,487"),
+        ("rental.settle", "59,987"),
+        ("registry.issueChallenge", "129,754"),
+        ("registry.respondChallenge", "76,217"),
     ]
-    pw = (W - 2 * MARGIN - Inches(0.34) * 3) / 4
-    for i, (name, body) in enumerate(properties):
-        x = MARGIN + i * (pw + Inches(0.34))
-        card(slide, x, Inches(5.15), pw, Inches(1.4), fill=SUCCESS_WEAK, outline=SUCCESS, width=Pt(1))
-        tf = textbox(slide, x + Inches(0.26), Inches(5.37), pw - Inches(0.52), Inches(1.05))
-        write(tf, [
-            (name, 12.5, True, SUCCESS, SANS, 3),
-            (body, 10.5, False, MUTED, SANS, 0),
-        ])
-    footer(slide, 6)
+    grh = Inches(0.62)
+    card(slide, gx, CT, gw, rh * (len(rows) + 1), fill=WHITE)
+    tf = textbox(slide, gx + Inches(0.25), CT + Inches(0.24), Inches(2.0), Inches(0.3))
+    write(tf, [("TRANSACTION", 10.5, True, FAINT, SANS, 0)])
+    tf = textbox(slide, gx + gw - Inches(1.6), CT + Inches(0.24), Inches(1.35), Inches(0.3),
+                 align=PP_ALIGN.RIGHT)
+    write(tf, [("GAS USED", 10.5, True, FAINT, SANS, 0)])
+    y = CT + Inches(0.62)
+    for name, value in gas:
+        rule(slide, gx + Inches(0.25), y, gw - Inches(0.5), colour=LINE, thickness=Pt(1))
+        tf = textbox(slide, gx + Inches(0.25), y + Inches(0.13), gw - Inches(1.9), Inches(0.3))
+        write(tf, [(name, 13, False, INK, MONO, 0)])
+        tf = textbox(slide, gx + gw - Inches(1.6), y + Inches(0.12), Inches(1.35), Inches(0.3),
+                     align=PP_ALIGN.RIGHT)
+        write(tf, [(value, 14, True, ACCENT_TEXT, MONO, 0)])
+        y += Inches(0.54)
+
+    y = CT + rh * (len(rows) + 1) + Inches(0.25)
+    card(slide, MARGIN, y, W - 2 * MARGIN, Inches(0.7), fill=SUCCESS_WEAK, outline=SUCCESS)
+    tf = textbox(slide, MARGIN + Inches(0.3), y + Inches(0.2), W - 2 * MARGIN - Inches(0.6), Inches(0.35))
+    write(tf, [("CI compiles and tests every component on each push. Playwright signs real transactions.",
+                14.5, True, INK, SANS, 0)])
+    footer(slide, n)
+    notes(slide, "Counts are from the latest local run. The skipped orchestrator test is an integration test that needs a running stack. Gas figures come from the measured run in the report.")
     return slide
 
 
-def slide_demo(prs):
+def slide_eval(prs, n):
     slide = blank(prs)
-    header(slide, "Demonstration and status", "The demonstration runs locally on one machine against the GPU in it.")
+    header(slide, "Evaluation", "Detection odds and rental economics were measured.")
+    gap = Inches(0.35)
+    cw = (W - 2 * MARGIN - gap) / 2
+    items = [
+        ("chart-detection.png", "Spot-check break-even is at s* = 0.5."),
+        ("chart-rental-economics.png", "Escrow conservation holds exactly."),
+    ]
+    for i, (img, take) in enumerate(items):
+        x = MARGIN + i * (cw + gap)
+        place(slide, RFIG / img, x, CT, cw, Inches(3.4))
+        card(slide, x, CT + Inches(3.65), cw, Inches(0.85), fill=ACCENT_WEAK, outline=ACCENT, width=Pt(1.5))
+        tf = textbox(slide, x + Inches(0.25), CT + Inches(3.65), cw - Inches(0.5), Inches(0.85),
+                     anchor=MSO_ANCHOR.MIDDLE)
+        write(tf, [(take, 16, True, INK, SANS, 0)])
+    footer(slide, n)
+    notes(slide, "Detection chart: cheating pays below the break-even spot-check rate and loses above it. "
+                 "Rental economics: provider payout plus requester refund plus slash always equals escrow plus bond.")
+    return slide
 
+
+def slide_figure_cards(prs, n, title, subtitle, image, cards, note):
+    """Wide figure on top, one row of short cards below."""
+    slide = blank(prs)
+    header(slide, title, subtitle)
+    ch = Inches(1.25)
+    place(slide, image, MARGIN, TOP, W - 2 * MARGIN, BOTTOM - TOP - ch - Inches(0.2))
+    gap = Inches(0.25)
+    cw = (W - 2 * MARGIN - gap * (len(cards) - 1)) / len(cards)
+    y = BOTTOM - ch
+    for i, (head, body) in enumerate(cards):
+        x = MARGIN + i * (cw + gap)
+        card(slide, x, y, cw, ch)
+        tf = textbox(slide, x + Inches(0.2), y + Inches(0.18), cw - Inches(0.4), ch - Inches(0.3))
+        write(tf, [(head, 15, True, INK, SANS, 3), (body, 13.5, False, MUTED, SANS, 0)])
+    footer(slide, n)
+    notes(slide, note)
+    return slide
+
+
+def slide_product(prs, n):
+    from PIL import Image
+
+    CROPS.mkdir(exist_ok=True)
+    crop = CROPS / "landing-top.png"
+    with Image.open(RSCR / "landing.png") as im:
+        im.crop((0, 0, im.width, int(im.width * 0.625))).save(crop)
+    slide = blank(prs)
+    header(slide, "The product", "A web console and a public explorer, both reading the chain.")
+    gap = Inches(0.35)
+    cw = (W - 2 * MARGIN - gap) / 2
+    shots = [(crop, "Landing page"), (RSCR / "explorer-challenges.png", "Explorer: benchmark challenges")]
+    for i, (path, cap) in enumerate(shots):
+        x = MARGIN + i * (cw + gap)
+        px, py, pw, ph = place(slide, path, x, TOP + Inches(0.1), cw, Inches(3.9), border=True)
+        tf = textbox(slide, x, py + ph + Inches(0.15), cw, Inches(0.35))
+        write(tf, [(cap, 15, True, INK2, SANS, 0)])
+    tf = textbox(slide, MARGIN, Inches(6.3), W - 2 * MARGIN, Inches(0.4))
+    write(tf, [("Also built: dashboard, providers, model offers, rent flow, lease and event explorer.",
+                15, False, MUTED, SANS, 0)])
+    footer(slide, n)
+    notes(slide, "Screenshots are from the running local stack.")
+    return slide
+
+
+def slide_live(prs, n):
+    slide = blank(prs)
+    header(slide, "Live on Sepolia", "The full path ran on a public testnet with a real GPU.")
+    facts = [
+        ("6", "contracts source-verified"),
+        ("RTX 4070 Laptop", "provider GPU, attested"),
+        ("#1", "listing"),
+        ("qwen3:0.6b", "model offer #1"),
+        ("28,919", "challenge #1 passed, about 289 tokens per second"),
+        ("108 s", "time to answer"),
+    ]
+    gap = Inches(0.3)
+    cw = (W - 2 * MARGIN - 2 * gap) / 3
+    ch = Inches(2.15)
+    for i, (value, label) in enumerate(facts):
+        r, c = divmod(i, 3)
+        x = MARGIN + c * (cw + gap)
+        y = CT + Inches(0.1) + r * (ch + gap)
+        passed = i in (4, 5)
+        card(slide, x, y, cw, ch, fill=SUCCESS_WEAK if passed else SURFACE,
+             outline=SUCCESS if passed else LINE, width=Pt(1.5) if passed else Pt(1))
+        tf = textbox(slide, x + Inches(0.3), y + Inches(0.4), cw - Inches(0.6), ch - Inches(0.6))
+        write(tf, [(value, 26, True, SUCCESS if passed else INK, MONO, 8),
+                   (label, 14, False, MUTED, SANS, 0)])
+    footer(slide, n)
+    notes(slide, "Contract addresses and transaction hashes are in the final report.")
+    return slide
+
+
+def slide_limits(prs, n):
+    slide = blank(prs)
+    header(slide, "Limitations and future work", "The remaining trust assumptions are stated, not hidden.")
+    two_columns(slide, [
+        ("Limitations", PANEL, LINE, INK, [
+            "The attester is still trusted to judge challenges.",
+            "Providers submit their own heartbeats and pay the gas.",
+            "One provider tested on a public network.",
+            "No automatic check of rendering output.",
+        ]),
+        ("Future work", ACCENT_WEAK, ACCENT, ACCENT_TEXT, [
+            "Decentralized judging.",
+            "Relayed heartbeats.",
+            "More providers and an L2 deployment.",
+            "Perceptual verification for rendering.",
+        ]),
+    ], item_size=19)
+    footer(slide, n)
+    notes(slide, "Be direct about the attester: it is the main remaining trust assumption in the challenge design.")
+    return slide
+
+
+def slide_demo(prs, n):
+    slide = blank(prs)
+    header(slide, "Demo plan", "Shown live, in this order.")
     steps = [
-        "Browse staked capacity and open a lease, escrow funded up front",
-        "Provider agent accepts automatically and bonds 50 SMESH",
-        "SSH into the leased container and run nvidia-smi on the provider GPU",
-        "Watch heartbeats and escrow stream per interval, then settle on chain",
-        "Call a model through a prepaid credit and settle metered usage",
-        "Inspect the full event trail and the provider console",
+        "Open the explorer and a lease",
+        "Rent a model offer and ask a question",
+        "Run a benchmark challenge and watch it settle",
+        "Show the slash path on the local stack",
     ]
-    lw = Inches(7.15)
-    card(slide, MARGIN, Inches(1.66), lw, Inches(4.05))
-    tf = textbox(slide, MARGIN + Inches(0.32), Inches(1.9), lw - Inches(0.64), Inches(0.4))
-    write(tf, [("Demonstration flow", 16, True, INK, SANS, 0)])
-    y = Inches(2.42)
+    lw = Inches(7.6)
+    card(slide, MARGIN, CT, lw, Inches(4.0), fill=WHITE)
+    y = CT + Inches(0.45)
     for i, step in enumerate(steps, start=1):
-        badge = slide.shapes.add_shape(MSO_SHAPE.OVAL, MARGIN + Inches(0.32), y, Inches(0.3), Inches(0.3))
+        badge = slide.shapes.add_shape(MSO_SHAPE.OVAL, MARGIN + Inches(0.4), y, Inches(0.4), Inches(0.4))
         badge.fill.solid()
         badge.fill.fore_color.rgb = ACCENT
         badge.line.fill.background()
@@ -401,42 +497,30 @@ def slide_demo(prs):
         bp.alignment = PP_ALIGN.CENTER
         brun = bp.add_run()
         brun.text = str(i)
-        brun.font.size = Pt(11)
+        brun.font.size = Pt(14)
         brun.font.bold = True
-        brun.font.color.rgb = WHITE
+        brun.font.color.rgb = INK
         brun.font.name = SANS
+        tf = textbox(slide, MARGIN + Inches(1.05), y + Inches(0.04), lw - Inches(1.4), Inches(0.5))
+        write(tf, [(step, 18, False, INK2, SANS, 0)])
+        y += Inches(0.85)
+    px = MARGIN + lw + Inches(0.3)
+    side_panel(slide, px, CT, W - MARGIN - px, Inches(4.0), [
+        ("Fallback", "If the network or GPU is unavailable, the same flow runs on the local stack."),
+    ], tint=ACCENT_WEAK, outline=ACCENT)
+    footer(slide, n)
+    notes(slide, "Have the local stack running in the background before the talk starts.")
+    return slide
 
-        tf = textbox(slide, MARGIN + Inches(0.78), y + Inches(0.02), lw - Inches(1.1), Inches(0.5))
-        write(tf, [(step, 12.5, False, INK2, SANS, 0)])
-        y += Inches(0.52)
 
-    rx = MARGIN + lw + Inches(0.34)
-    rw = W - MARGIN - rx
-    card(slide, rx, Inches(1.66), rw, Inches(1.92), fill=SUCCESS_WEAK, outline=SUCCESS, width=Pt(1.5))
-    tf = textbox(slide, rx + Inches(0.3), Inches(1.88), rw - Inches(0.6), Inches(1.6))
-    write(tf, [
-        ("Verified", 15, True, SUCCESS, SANS, 5),
-        ("SSH session on an RTX 4070 obtained through a paid lease", 11.5, False, INK2, SANS, 3),
-        ("gemma3:4b served from that GPU, 761 tokens metered and settled", 11.5, False, INK2, SANS, 3),
-        ("Six contracts deployed and source-verified on Sepolia", 11.5, False, INK2, SANS, 0),
-    ])
-
-    card(slide, rx, Inches(3.78), rw, Inches(1.93), fill=SURFACE, outline=LINE)
-    tf = textbox(slide, rx + Inches(0.3), Inches(4.0), rw - Inches(0.6), Inches(1.6))
-    write(tf, [
-        ("Next", 15, True, INK, SANS, 5),
-        ("Signature-gated lease credentials", 11.5, False, MUTED, SANS, 3),
-        ("Provider-signed usage receipts for inference", 11.5, False, MUTED, SANS, 3),
-        ("On-chain benchmark challenge with slashing", 11.5, False, MUTED, SANS, 0),
-    ])
-
-    card(slide, MARGIN, Inches(5.92), W - 2 * MARGIN, Inches(0.86), fill=ACCENT_WEAK, outline=ACCENT, width=Pt(1.5))
-    tf = textbox(slide, MARGIN + Inches(0.32), Inches(6.12), W - 2 * MARGIN - Inches(0.64), Inches(0.5))
-    write(tf, [
-        ("Missed heartbeats refund the requester and slash the provider bond, enforcing availability with collateral.",
-         13, True, INK, SANS, 0),
-    ])
-    footer(slide, 7)
+def slide_end(prs, n):
+    slide = blank(prs)
+    rule(slide, MARGIN, Inches(2.6), Inches(0.9))
+    tf = textbox(slide, MARGIN, Inches(2.85), Inches(10), Inches(1.2))
+    write(tf, [("Thank you", 54, True, INK, SANS, 0)])
+    tf = textbox(slide, MARGIN, Inches(4.1), Inches(10), Inches(0.6))
+    write(tf, [("Questions", 22, False, MUTED, SANS, 0)])
+    footer(slide, n, "")
     return slide
 
 
@@ -447,14 +531,45 @@ def main() -> None:
 
     slide_title(prs)
     slide_problem(prs)
-    slide_architecture(prs)
-    slide_trust(prs)
-    slide_lifecycle(prs)
-    slide_stack(prs)
-    slide_demo(prs)
+    slide_what(prs, 3)
+    fig_slide(prs, 4, "Architecture", "Four off-chain components, one on-chain authority.",
+              RFIG / "architecture.png",
+              [("Contracts", "Escrow, stake, slashing."),
+               ("Agent and orchestrator", "Serve and index. Untrusted."),
+               ("Web", "Console and explorer.")],
+              note="The chain holds value and decides outcomes. Everything else can be replaced or can lie without moving funds.")
+    slide = blank(prs)
+    header(slide, "Trust boundary", "Contracts move funds. Off-chain parts cannot hold funds or forge settlement.")
+    place(slide, RFIG / "trust-boundary.png", MARGIN, TOP, W - 2 * MARGIN, BOTTOM - TOP + Inches(0.1))
+    footer(slide, 5)
+    notes(slide, "Contracts hold value and decide outcomes. The agent, orchestrator and web app are untrusted and cannot custody funds or forge results. The attester judges challenges and is the one trusted operator role.")
+    fig_slide(prs, 6, "Rental lifecycle", "Escrow streams to the provider one interval at a time.",
+              RFIG / "lease-state-machine.png",
+              [("Proven prefix", "Escrow releases only for contiguous proven intervals."),
+               ("Downtime", "The remainder is refunded and the bond is slashed.")],
+              note="A missed interval cannot be back-filled, so payment follows proven availability.")
+    slide_figure_cards(prs, 7, "Benchmark challenges", "Output speed is checked against a seeded hash chain.",
+              RFIG / "challenge-state-machine.png",
+              [("Seeded hash chain", "Work cannot be precomputed."),
+               ("Failure", "Free stake is slashed to the treasury."),
+               ("Expiry", "Anyone can expire a stale challenge."),
+               ("Attester", "Still trusted to judge.")],
+              "This closes the gap where a provider claims hardware it does not have. The attester remains the trusted party.")
+    fig_slide(prs, 8, "Token flow", "Every movement of value is on chain.",
+              RFIG / "token-flow.png",
+              [("In", "Requester escrow and provider stake."),
+               ("Out", "Provider payout, refund, slash to treasury.")],
+              note="Value only moves through contract calls.")
+    slide_product(prs, 9)
+    slide_testing(prs, 10)
+    slide_eval(prs, 11)
+    slide_live(prs, 12)
+    slide_limits(prs, 13)
+    slide_demo(prs, 14)
+    slide_end(prs, 15)
 
     prs.save(OUTPUT)
-    print(f"wrote {OUTPUT} ({len(prs.slides.__iter__.__self__._sldIdLst)} slides)")
+    print(f"wrote {OUTPUT} ({len(prs.slides._sldIdLst)} slides)")
 
 
 if __name__ == "__main__":
