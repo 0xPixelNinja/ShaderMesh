@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import { Icon, Logo, type IconName } from "./icons";
 import { useWallet } from "./WalletProvider";
 import { Button } from "./ui";
+import { ThemeToggle } from "./ThemeToggle";
 import { fmtUsd, shortAddr } from "@/lib/format";
 import { CHAIN_ID } from "@/lib/config";
 
@@ -18,7 +19,7 @@ const NAV: NavigationGroup[] = [
   {
     group: "Compute",
     items: [
-      { href: "/", label: "Overview", icon: "dashboard" },
+      { href: "/dashboard", label: "Overview", icon: "dashboard" },
       { href: "/rent", label: "Rent GPUs", icon: "gpu" },
       { href: "/leases", label: "My leases", icon: "clock" },
     ],
@@ -34,7 +35,7 @@ const NAV: NavigationGroup[] = [
 ];
 
 const TITLES: Record<string, { title: string; sub: string }> = {
-  "/": { title: "Overview", sub: "Your rentals and network health" },
+  "/dashboard": { title: "Overview", sub: "Your rentals and network health" },
   "/rent": { title: "Rent GPUs", sub: "Request compute from staked providers" },
   "/leases": { title: "My leases", sub: "Pending, active, and past rental requests" },
   "/models": { title: "Models", sub: "Call open models served by providers" },
@@ -69,10 +70,13 @@ export function Shell({ children }: { children: ReactNode }) {
   const { address, balanceWei, connect, connecting, disconnect } = useWallet();
   const head = TITLES[pathname] ?? { title: "ShaderMesh", sub: "" };
 
+  // The landing page draws its own editorial frame.
+  if (pathname === "/") return <>{children}</>;
+
   return (
     <div className="flex min-h-screen flex-col md:grid md:h-screen md:grid-cols-[248px_1fr]">
       <aside className="hidden min-h-0 flex-col border-r border-line bg-chrome px-3 py-4 md:flex">
-        <Link href="/" className="mb-5 flex items-center gap-2.5 px-2" aria-label="ShaderMesh overview">
+        <Link href="/" className="mb-5 flex items-center gap-2.5 px-2" aria-label="ShaderMesh home">
           <Logo />
           <span className="text-[15px] font-semibold tracking-tight text-ink">ShaderMesh</span>
         </Link>
@@ -108,7 +112,7 @@ export function Shell({ children }: { children: ReactNode }) {
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-sticky flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-line bg-chrome px-4 py-3 sm:px-6">
-          <Link href="/" className="grid shrink-0 md:hidden" aria-label="ShaderMesh overview">
+          <Link href="/" className="grid shrink-0 md:hidden" aria-label="ShaderMesh home">
             <Logo />
           </Link>
           <div className="min-w-0 flex-1">
@@ -125,6 +129,8 @@ export function Shell({ children }: { children: ReactNode }) {
             <span className="font-semibold text-ink">{fmtUsd(balanceWei)}</span>
             <span className="text-faint">SMESH</span>
           </span>
+
+          <ThemeToggle />
 
           {address ? (
             <span className="hidden items-center rounded-md border border-line bg-surface sm:inline-flex">

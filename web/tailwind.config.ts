@@ -37,6 +37,15 @@ const config: Config = {
         },
         info: "var(--info)",
       },
+      // Amber text uses a deeper tone so it meets AA on paper in light mode.
+      textColor: {
+        accent: {
+          DEFAULT: "var(--accent-text)",
+          hover: "var(--accent-hover)",
+          weak: "var(--accent-weak)",
+          ink: "var(--accent-ink)",
+        },
+      },
       fontFamily: {
         sans: ["var(--font-sans)"],
         mono: ["var(--font-mono)"],
@@ -51,9 +60,13 @@ const config: Config = {
       transitionTimingFunction: {
         out: "var(--ease-out)",
       },
+      transitionDelay: {
+        stagger: "var(--stagger)",
+      },
       transitionDuration: {
         fast: "var(--dur-fast)",
         DEFAULT: "var(--dur)",
+        slow: "var(--dur-slow)",
       },
       zIndex: {
         sticky: "var(--z-sticky)",

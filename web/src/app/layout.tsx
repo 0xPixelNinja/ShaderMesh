@@ -1,23 +1,26 @@
 import "./globals.css";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { Inter, JetBrains_Mono } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
 import { WalletProvider } from "@/components/WalletProvider";
 import { Shell } from "@/components/Shell";
 
 // Self-hosted at build time, so rendering does not depend on fonts installed
 // on the presenting machine.
-const inter = Inter({
+const geist = Geist({
   subsets: ["latin"],
   display: "swap",
-  variable: "--font-inter",
+  variable: "--font-geist",
 });
 
-const jetbrainsMono = JetBrains_Mono({
+const geistMono = Geist_Mono({
   subsets: ["latin"],
   display: "swap",
-  variable: "--font-jetbrains",
+  variable: "--font-geist-mono",
 });
+
+// Applies a remembered theme before first paint so the page never flashes.
+const THEME_SCRIPT = `try{if(localStorage.getItem("shadermesh:theme")==="dark")document.documentElement.dataset.theme="dark"}catch(e){}`;
 
 export const metadata: Metadata = {
   title: "ShaderMesh",
@@ -26,7 +29,10 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable}`}>
+    <html lang="en" className={`${geist.variable} ${geistMono.variable}`} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+      </head>
       <body>
         <WalletProvider>
           <Shell>{children}</Shell>

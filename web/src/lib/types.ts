@@ -53,6 +53,32 @@ export interface Provider {
   vramGB: number;
   benchmarkScore: string;
   models: string[];
+  challengesPassed?: number;
+  challengesFailed?: number;
+  lastChallenge?: { id: number; status: ChallengeStatus } | null;
+}
+
+export type ChallengeStatus = "open" | "responded" | "passed" | "failed" | "lapsed";
+
+export interface ChainRef {
+  blockNumber: number;
+  transactionHash: string;
+  timestamp: number | null;
+}
+
+export interface Challenge {
+  id: number;
+  provider: string;
+  seed: string;
+  issuedAt: number | null;
+  deadline: number;
+  status: ChallengeStatus;
+  score: string | null;
+  outputHash: string | null;
+  slashed: string;
+  issued: ChainRef | null;
+  responded: ChainRef | null;
+  resolved: ChainRef | null;
 }
 
 export type TaskStatus = "Open" | "Claimed" | "Submitted" | "Disputed" | "Paid";

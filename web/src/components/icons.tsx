@@ -23,7 +23,9 @@ export type IconName =
   | "close"
   | "pulse"
   | "send"
-  | "inbox";
+  | "inbox"
+  | "sun"
+  | "moon";
 
 const PATHS: Record<IconName, ReactElement> = {
   dashboard: (
@@ -93,6 +95,13 @@ const PATHS: Record<IconName, ReactElement> = {
   ),
   plus: <path d="M12 5v14M5 12h14" />,
   close: <path d="M6 6l12 12M18 6L6 18" />,
+  sun: (
+    <>
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+    </>
+  ),
+  moon: <path d="M20 14.5A8 8 0 019.5 4 8 8 0 1020 14.5z" />,
   pulse: <path d="M3 12h4l2-6 4 12 2-6h6" />,
   send: <path d="M4 12l16-8-6 16-2-6-8-2z" />,
   inbox: (

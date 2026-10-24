@@ -3,63 +3,102 @@
 @tailwind utilities;
 
 /*
- * ShaderMesh design tokens. Amber accent on a zinc neutral base.
- * Restrained color: amber marks primary actions, current selection, and state.
- * It is never decoration. See web/DESIGN.md.
+ * ShaderMesh design tokens. See web/DESIGN.md (the master design system).
+ * Light is the default theme; [data-theme="dark"] on <html> swaps the palette.
+ * Amber marks primary actions, the active state, and live signals only.
  */
 :root {
-  /* Neutral layers, darkest to lightest.
-     chrome is the app frame (sidebar, header); bg is the content field;
-     surface is a raised card; panel is an inset within a card. */
-  --bg: #0a0b0d;
-  --chrome: #0e1013;
-  --surface: #131619;
-  --panel: #191c21;
-  --hover: #1f232a;
-  --active: #262b33;
+  color-scheme: light;
 
-  --border: #272a30;
-  --border-strong: #363b43;
+  /* Neutral layers. chrome is the app frame, bg the paper field, surface a
+     card, panel an inset within a card. */
+  --bg: #fbfaf7;
+  --chrome: #f6f4ef;
+  --surface: #ffffff;
+  --panel: #f3f1ec;
+  --hover: #efece6;
+  --active: #e7e3db;
 
-  /* Ink ramp. All pairs below meet WCAG AA on --bg, --chrome and --surface. */
-  --ink: #f4f4f5;
-  --ink2: #d7d8dc;
-  --muted: #a5a7af;
-  --faint: #8b8e97;
+  --border: #e6e2da;
+  --border-strong: #d3cec4;
 
-  --accent: #f59e0b;
-  --accent-hover: #fbbf24;
-  --accent-weak: #2a2011;
+  /* Ink ramp. Every pair meets WCAG AA on bg, chrome, surface, and panel. */
+  --ink: #1a1814;
+  --ink2: #3a362f;
+  --muted: #5e5950;
+  --faint: #6f6a60;
+
+  --accent: #d97706;
+  --accent-hover: #b45309;
+  --accent-text: #a34a06;
+  --accent-weak: #fdf3e1;
   --accent-ink: #1a1205;
 
-  --success: #34d399;
-  --success-weak: #0e2a22;
-  --warning: #fbbf24;
-  --warning-weak: #2a2011;
-  --danger: #f87171;
-  --danger-weak: #2e1618;
-  --info: #a5a7af;
+  --success: #137535;
+  --success-weak: #e7f3ea;
+  --warning: #a34a06;
+  --warning-weak: #fdf3e1;
+  --danger: #b91c1c;
+  --danger-weak: #fbe9e7;
+  --info: #5e5950;
 
-  --font-sans: var(--font-inter), system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-mono: var(--font-jetbrains), ui-monospace, "Cascadia Code", Consolas, monospace;
+  --font-sans: var(--font-geist), system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, "Cascadia Code", Consolas, monospace;
 
-  /* Shape. Controls are tighter than containers. No pill shapes except chips. */
+  /* Shape. Controls are tighter than containers. Buttons are never pills. */
   --radius-control: 6px;
-  --radius-card: 10px;
+  --radius-card: 8px;
 
-  /* Elevation is reserved for overlays. Never pair with a 1px border as decoration. */
-  --shadow-overlay: 0 8px 24px -8px rgb(0 0 0 / 0.7);
+  /* Elevation is reserved for overlays. Cards stay flat. */
+  --shadow-overlay: 0 8px 24px -12px rgb(26 24 20 / 0.22);
 
-  /* Motion. Product pace: state feedback, not choreography. */
-  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
-  --dur-fast: 120ms;
-  --dur: 180ms;
+  /* Motion. Calm and quick; motion conveys state only. */
+  --ease-out: cubic-bezier(0.2, 0, 0, 1);
+  --dur-fast: 150ms;
+  --dur: 200ms;
+  --dur-slow: 250ms;
+  --stagger: 40ms;
 
   /* Semantic stacking order. Never arbitrary values. */
   --z-sticky: 10;
   --z-dropdown: 20;
   --z-overlay: 30;
   --z-toast: 40;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg: #0f0e0c;
+  --chrome: #13120f;
+  --surface: #181714;
+  --panel: #1e1c19;
+  --hover: #24221e;
+  --active: #2c2a25;
+
+  --border: #2a2824;
+  --border-strong: #3a3732;
+
+  --ink: #f3f1ec;
+  --ink2: #d6d2ca;
+  --muted: #a8a39a;
+  --faint: #8e897f;
+
+  --accent: #f59e0b;
+  --accent-hover: #fbbf24;
+  --accent-text: #f59e0b;
+  --accent-weak: #2a2011;
+  --accent-ink: #1a1205;
+
+  --success: #4cc38a;
+  --success-weak: #0f2a1e;
+  --warning: #fbbf24;
+  --warning-weak: #2a2011;
+  --danger: #f87171;
+  --danger-weak: #2e1618;
+  --info: #a8a39a;
+
+  --shadow-overlay: 0 8px 24px -8px rgb(0 0 0 / 0.7);
 }
 
 @layer base {
@@ -99,7 +138,7 @@
   h2,
   h3 {
     text-wrap: balance;
-    letter-spacing: -0.011em;
+    letter-spacing: -0.02em;
   }
 
   :focus-visible {
@@ -139,6 +178,63 @@
   .rule > * + * {
     border-top: 1px solid var(--border);
   }
+}
+
+/* Landing reveals: one-shot 8px fade-up, staggered by --i. */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.reveal {
+  animation: rise var(--dur-slow) var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * var(--stagger));
+}
+
+/* Flow dashes travel along an active diagram edge. */
+@keyframes flow {
+  to {
+    stroke-dashoffset: -16;
+  }
+}
+
+.flow-edge {
+  stroke-dasharray: 4 4;
+  animation: flow 1.2s linear infinite;
+}
+
+/* A heartbeat tick lands: brief scale from 0.6 to 1 with opacity. */
+@keyframes tick {
+  from {
+    opacity: 0;
+    transform: scaleY(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.tick-in {
+  transform-origin: bottom;
+  animation: tick var(--dur) var(--ease-out) both;
+}
+
+/* The single permitted loop: the live indicator dot. */
+@keyframes live {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.live-dot {
+  animation: live 2s var(--ease-out) infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {

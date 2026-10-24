@@ -1,7 +1,7 @@
 import { expect, test as base, type Page } from "@playwright/test";
 
 const routes = [
-  { path: "/", title: "Overview", navLabel: "Overview" },
+  { path: "/dashboard", title: "Overview", navLabel: "Overview" },
   { path: "/rent", title: "Rent GPUs", navLabel: "Rent GPUs" },
   { path: "/leases", title: "My leases", navLabel: "My leases" },
   { path: "/models", title: "Models", navLabel: "Models" },
@@ -40,7 +40,7 @@ async function expectLoaded(page: Page, statusName: string) {
 }
 
 async function expectKeySections(page: Page, path: string) {
-  if (path === "/") {
+  if (path === "/dashboard") {
     await expect(page.getByRole("heading", { name: "Your active leases", exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Top providers", exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Run a model", exact: true })).toBeVisible();
@@ -84,7 +84,7 @@ test.describe("dashboard routes", () => {
 });
 
 test("navigation reaches every route", async ({ page }, testInfo) => {
-  await page.goto("/", { waitUntil: "domcontentloaded" });
+  await page.goto("/dashboard", { waitUntil: "domcontentloaded" });
 
   const mobile = testInfo.project.name === "mobile-390-chromium";
   const mobileNavigation = page.getByRole("navigation", { name: "Mobile navigation" });
@@ -126,4 +126,21 @@ test("explorer tabs expose indexed read-only sections", async ({ page }) => {
   await expect(slashes).toHaveAttribute("aria-pressed", "true");
   await expect(page.locator('[role="alert"]:visible').filter({ hasText: /\S/ })).toHaveCount(0);
   await expectNoDocumentOverflow(page);
+});
+
+test("landing page explains the protocol and opens the app", async ({ page }) => {
+  await page.goto("/", { waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("Rent GPUs by the hour.");
+  await expect(page.getByRole("img", { name: /Lease lifecycle/ })).toBeVisible();
+  await expect(page.getByRole("img", { name: /Token flow/ })).toBeVisible();
+  await page.getByRole("link", { name: "Open app" }).first().click();
+  await expect(page).toHaveURL((url) => url.pathname === "/dashboard");
+});
+
+test("theme toggle switches to dark and persists", async ({ page }) => {
+  await page.goto("/", { waitUntil: "domcontentloaded" });
+  await page.getByRole("button", { name: "Switch to dark theme" }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await page.reload();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
 });
