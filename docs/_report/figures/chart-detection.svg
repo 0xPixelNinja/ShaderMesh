@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="560" viewBox="0 0 1000 560">
+<rect width="1000" height="560" fill="#FFFFFF"/>
+<rect x="525.0" y="40" width="425.0" height="400" rx="0" fill="#F3F1EC" stroke="none"/>
+<line x1="100" y1="440.0" x2="950" y2="440.0" stroke="#E7E3DA" stroke-width="1"/>
+<text x="88" y="445.0" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#5E5950" text-anchor="end" font-weight="normal">−100</text>
+<line x1="100" y1="340.0" x2="950" y2="340.0" stroke="#E7E3DA" stroke-width="1"/>
+<text x="88" y="345.0" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#5E5950" text-anchor="end" font-weight="normal">−50</text>
+<line x1="100" y1="240.0" x2="950" y2="240.0" stroke="#E7E3DA" stroke-width="1"/>
+<text x="88" y="245.0" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#5E5950" text-anchor="end" font-weight="normal">0</text>
+<line x1="100" y1="140.0" x2="950" y2="140.0" stroke="#E7E3DA" stroke-width="1"/>
+<text x="88" y="145.0" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#5E5950" text-anchor="end" font-weight="normal">50</text>
+<line x1="100" y1="40.0" x2="950" y2="40.0" stroke="#E7E3DA" stroke-width="1"/>
+<text x="88" y="45.0" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#5E5950" text-anchor="end" font-weight="normal">100</text>
+<line x1="100" y1="40" x2="100" y2="440" stroke="#E7E3DA" stroke-width="1"/>
+<text x="100" y="464" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#5E5950" text-anchor="middle" font-weight="normal">0.00</text>
+<line x1="312.5" y1="40" x2="312.5" y2="440" stroke="#E7E3DA" stroke-width="1"/>
+<text x="312.5" y="464" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#5E5950" text-anchor="middle" font-weight="normal">0.25</text>
+<line x1="525.0" y1="40" x2="525.0" y2="440" stroke="#E7E3DA" stroke-width="1"/>
+<text x="525.0" y="464" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#5E5950" text-anchor="middle" font-weight="normal">0.50</text>
+<line x1="737.5" y1="40" x2="737.5" y2="440" stroke="#E7E3DA" stroke-width="1"/>
+<text x="737.5" y="464" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#5E5950" text-anchor="middle" font-weight="normal">0.75</text>
+<line x1="950.0" y1="40" x2="950.0" y2="440" stroke="#E7E3DA" stroke-width="1"/>
+<text x="950.0" y="464" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#5E5950" text-anchor="middle" font-weight="normal">1.00</text>
+<line x1="100" y1="240.0" x2="950" y2="240.0" stroke="#1A1814" stroke-width="1.5"/>
+<polyline points="100.0,40.0 185.0,80.1 244.5,108.5 270.0,120.7 355.0,160.3 525.0,240.1 737.5,339.7 950.0,440.0" fill="none" stroke="#1A1814" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="100.0" cy="40.0" r="4" fill="#1A1814" stroke="#FFFFFF" stroke-width="1.5"/>
+<circle cx="185.0" cy="80.1" r="4" fill="#1A1814" stroke="#FFFFFF" stroke-width="1.5"/>
+<circle cx="244.5" cy="108.5" r="4" fill="#1A1814" stroke="#FFFFFF" stroke-width="1.5"/>
+<circle cx="270.0" cy="120.7" r="4" fill="#1A1814" stroke="#FFFFFF" stroke-width="1.5"/>
+<circle cx="355.0" cy="160.3" r="4" fill="#1A1814" stroke="#FFFFFF" stroke-width="1.5"/>
+<circle cx="525.0" cy="240.1" r="4" fill="#1A1814" stroke="#FFFFFF" stroke-width="1.5"/>
+<circle cx="737.5" cy="339.7" r="4" fill="#1A1814" stroke="#FFFFFF" stroke-width="1.5"/>
+<circle cx="950.0" cy="440.0" r="4" fill="#1A1814" stroke="#FFFFFF" stroke-width="1.5"/>
+<text x="541.0" y="66" font-family="Arial, Helvetica, sans-serif" font-size="14" fill="#3A362F" text-anchor="start" font-weight="normal">Deterred: expected profit below zero</text>
+<text x="116" y="424" font-family="Arial, Helvetica, sans-serif" font-size="14" fill="#5E5950" text-anchor="start" font-weight="normal">Profitable for the cheater</text>
+<text x="511.0" y="272.0" font-family="Arial, Helvetica, sans-serif" font-size="14" fill="#1A1814" text-anchor="end" font-weight="bold">Break-even s* = 0.500</text>
+<text x="511.0" y="292.0" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="end" font-weight="normal">s* = R / (R + B), expected profit = 0</text>
+<text x="525.0" y="508" font-family="Arial, Helvetica, sans-serif" font-size="14" fill="#3A362F" text-anchor="middle" font-weight="normal">Spot-check probability s</text>
+<text x="30" y="240.0" font-family="Arial, Helvetica, sans-serif" font-size="14" fill="#3A362F" text-anchor="middle" font-weight="normal" transform="rotate(-90 30 240.0)" data-skip="1">Expected cheater profit per task</text>
+</svg>

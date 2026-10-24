@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1230" height="600" viewBox="0 0 1230 600">
+<rect width="1230" height="600" fill="#FFFFFF"/>
+<rect x="40" y="250" width="120" height="60" rx="6" fill="#F3F1EC" stroke="#1A1814" stroke-width="1.5"/>
+<text x="100" y="286" font-family="Arial, Helvetica, sans-serif" font-size="16" fill="#1A1814" text-anchor="middle" font-weight="bold">None</text>
+<rect x="300" y="250" width="140" height="60" rx="6" fill="#F3F1EC" stroke="#1A1814" stroke-width="1.5"/>
+<text x="370" y="286" font-family="Arial, Helvetica, sans-serif" font-size="16" fill="#1A1814" text-anchor="middle" font-weight="bold">Open</text>
+<rect x="560" y="250" width="160" height="60" rx="6" fill="#F3F1EC" stroke="#1A1814" stroke-width="1.5"/>
+<text x="640" y="286" font-family="Arial, Helvetica, sans-serif" font-size="16" fill="#1A1814" text-anchor="middle" font-weight="bold">Responded</text>
+<rect x="940" y="20" width="270" height="118" rx="6" fill="#FFFFFF" stroke="#1A1814" stroke-width="1.5"/>
+<text x="956" y="48" font-family="Arial, Helvetica, sans-serif" font-size="16" fill="#1A1814" text-anchor="start" font-weight="bold">Failed</text>
+<text x="956" y="72" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#B91C1C" text-anchor="start" font-weight="normal">Free stake slashed to treasury.</text>
+<text x="956" y="90" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#3A362F" text-anchor="start" font-weight="normal">Attestation revoked.</text>
+<text x="956" y="108" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#3A362F" text-anchor="start" font-weight="normal">Reputation down.</text>
+<rect x="940" y="222" width="270" height="118" rx="6" fill="#FFFFFF" stroke="#1A1814" stroke-width="1.5"/>
+<text x="956" y="250" font-family="Arial, Helvetica, sans-serif" font-size="16" fill="#1A1814" text-anchor="start" font-weight="bold">Passed</text>
+<text x="956" y="274" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#3A362F" text-anchor="start" font-weight="normal">Attestation refreshed.</text>
+<text x="956" y="292" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#3A362F" text-anchor="start" font-weight="normal">Reputation up.</text>
+<text x="956" y="310" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#3A362F" text-anchor="start" font-weight="normal">Challenge closed.</text>
+<rect x="940" y="400" width="270" height="118" rx="6" fill="#FFFFFF" stroke="#1A1814" stroke-width="1.5"/>
+<text x="956" y="428" font-family="Arial, Helvetica, sans-serif" font-size="16" fill="#1A1814" text-anchor="start" font-weight="bold">Lapsed</text>
+<text x="956" y="452" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#3A362F" text-anchor="start" font-weight="normal">No penalty.</text>
+<text x="956" y="470" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#3A362F" text-anchor="start" font-weight="normal">Attestation unchanged.</text>
+<text x="956" y="488" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#3A362F" text-anchor="start" font-weight="normal">Challenge closed.</text>
+<path d="M160.0,280.0 L293.0,280.0" fill="none" stroke="#1A1814" stroke-width="1.75" stroke-linejoin="round"/>
+<polygon points="300.0,280.0 291.0,284.0 291.0,276.0" fill="#1A1814"/>
+<text x="230" y="266" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#1A1814" text-anchor="middle" font-weight="normal">issueChallenge</text>
+<text x="230" y="306" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="middle" font-weight="normal">attester only</text>
+<path d="M440.0,280.0 L553.0,280.0" fill="none" stroke="#1A1814" stroke-width="1.75" stroke-linejoin="round"/>
+<polygon points="560.0,280.0 551.0,284.0 551.0,276.0" fill="#1A1814"/>
+<text x="500" y="266" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#1A1814" text-anchor="middle" font-weight="normal">respond</text>
+<text x="500" y="306" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="middle" font-weight="normal">before deadline</text>
+<path d="M370.0,250.0 L370.0,70.0 L933.0,70.0" fill="none" stroke="#1A1814" stroke-width="1.75" stroke-linejoin="round"/>
+<polygon points="940.0,70.0 931.0,74.0 931.0,66.0" fill="#1A1814"/>
+<text x="390" y="58" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#1A1814" text-anchor="start" font-weight="normal">expireChallenge</text>
+<text x="390" y="92" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="start" font-weight="normal">deadline passes with no response, anyone may call</text>
+<path d="M640.0,250.0 L640.0,130.0 L933.0,130.0" fill="none" stroke="#1A1814" stroke-width="1.75" stroke-linejoin="round"/>
+<polygon points="940.0,130.0 931.0,134.0 931.0,126.0" fill="#1A1814"/>
+<text x="660" y="118" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#1A1814" text-anchor="start" font-weight="normal">resolveChallenge(false)</text>
+<text x="660" y="152" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="start" font-weight="normal">attester judges the answer wrong</text>
+<path d="M720.0,281.0 L933.0,281.0" fill="none" stroke="#1A1814" stroke-width="1.75" stroke-linejoin="round"/>
+<polygon points="940.0,281.0 931.0,285.0 931.0,277.0" fill="#1A1814"/>
+<text x="760" y="267" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#1A1814" text-anchor="start" font-weight="normal">resolveChallenge(true)</text>
+<text x="760" y="307" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="start" font-weight="normal">answer judged correct</text>
+<path d="M640.0,310.0 L640.0,459.0 L933.0,459.0" fill="none" stroke="#1A1814" stroke-width="1.75" stroke-linejoin="round"/>
+<polygon points="940.0,459.0 931.0,463.0 931.0,455.0" fill="#1A1814"/>
+<text x="660" y="447" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#1A1814" text-anchor="start" font-weight="normal">expireChallenge</text>
+<text x="660" y="481" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="start" font-weight="normal">no verdict within one window after the deadline</text>
+<text x="40" y="572" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="start" font-weight="normal">challengeWindow is 15 minutes: the time allowed to respond, and again the time allowed to judge.</text>
+</svg>

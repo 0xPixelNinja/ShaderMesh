@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700" viewBox="0 0 1200 700">
+<rect width="1200" height="700" fill="#FFFFFF"/>
+<text x="210" y="40" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="start" font-weight="bold">Component</text>
+<text x="410" y="40" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="start" font-weight="bold">Can</text>
+<text x="800" y="40" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="start" font-weight="bold">Cannot</text>
+<path d="M20.0,52.0 L1180.0,52.0" fill="none" stroke="#1A1814" stroke-width="1.5" stroke-linejoin="round"/>
+<rect x="20" y="58" width="170" height="118" rx="6" fill="#FDF3E1" stroke="#D97706" stroke-width="1.5"/>
+<text x="36" y="90" font-family="Arial, Helvetica, sans-serif" font-size="15" fill="#A34A06" text-anchor="start" font-weight="bold">On-chain</text>
+<text x="36" y="110" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#A34A06" text-anchor="start" font-weight="normal">value authority</text>
+<rect x="20" y="188" width="170" height="118" rx="6" fill="#F3F1EC" stroke="#D3CEC4" stroke-width="1.5"/>
+<text x="36" y="220" font-family="Arial, Helvetica, sans-serif" font-size="15" fill="#1A1814" text-anchor="start" font-weight="bold">Operator</text>
+<text x="36" y="240" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="start" font-weight="normal">trusted to judge</text>
+<rect x="20" y="318" width="170" height="378" rx="6" fill="#FFFFFF" stroke="#5E5950" stroke-width="1.5" stroke-dasharray="5 4"/>
+<text x="36" y="350" font-family="Arial, Helvetica, sans-serif" font-size="15" fill="#1A1814" text-anchor="start" font-weight="bold">Off-chain</text>
+<text x="36" y="370" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="start" font-weight="normal">untrusted</text>
+<text x="210" y="90" font-family="Arial, Helvetica, sans-serif" font-size="15" fill="#1A1814" text-anchor="start" font-weight="bold">Smart contracts</text>
+<text x="210" y="110" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="start" font-weight="normal">Hold all value</text>
+<text x="410" y="90" font-family="Arial, Helvetica, sans-serif" font-size="13.5" fill="#3A362F" text-anchor="start" font-weight="normal">Hold escrow, stake, and bonds</text>
+<text x="410" y="114" font-family="Arial, Helvetica, sans-serif" font-size="13.5" fill="#3A362F" text-anchor="start" font-weight="normal">Pay providers, refund requesters</text>
+<text x="410" y="138" font-family="Arial, Helvetica, sans-serif" font-size="13.5" fill="#3A362F" text-anchor="start" font-weight="normal">Slash bonds and free stake</text>
+<text x="800" y="90" font-family="Arial, Helvetica, sans-serif" font-size="13.5" fill="#3A362F" text-anchor="start" font-weight="normal">Run workloads or see their output</text>
+<text x="800" y="114" font-family="Arial, Helvetica, sans-serif" font-size="13.5" fill="#3A362F" text-anchor="start" font-weight="normal">Move funds outside the coded rules</text>
+<text x="800" y="138" font-family="Arial, Helvetica, sans-serif" font-size="13.5" fill="#3A362F" text-anchor="start" font-weight="normal">Act without a signed transaction</text>
+<path d="M200.0,182.0 L1180.0,182.0" fill="none" stroke="#D3CEC4" stroke-width="1" stroke-linejoin="round"/>
+<text x="210" y="220" font-family="Arial, Helvetica, sans-serif" font-size="15" fill="#1A1814" text-anchor="start" font-weight="bold">Attester service</text>
+<text x="210" y="240" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="start" font-weight="normal">Operator key</text>
+<text x="410" y="220" font-family="Arial, Helvetica, sans-serif" font-size="13.5" fill="#3A362F" text-anchor="start" font-weight="normal">Issue benchmark challenges</text>
+<text x="410" y="244" font-family="Arial, Helvetica, sans-serif" font-size="13.5" fill="#3A362F" text-anchor="start" font-weight="normal">Judge an answer as pass or fail</text>
+<text x="800" y="220" font-family="Arial, Helvetica, sans-serif" font-size="13.5" fill="#3A362F" text-anchor="start" font-weight="normal">Move or custody user funds</text>
+<text x="800" y="244" font-family="Arial, Helvetica, sans-serif" font-size="13.5" fill="#3A362F" text-anchor="start" font-weight="normal">Slash bonded stake, or beyond a fixed amount</text>
+<text x="800" y="268" font-family="Arial, Helvetica, sans-serif" font-size="13.5" fill="#3A362F" text-anchor="start" font-weight="normal">Penalise by silence: unjudged lapses</text>
+<path d="M200.0,312.0 L1180.0,312.0" fill="none" stroke="#D3CEC4" stroke-width="1" stroke-linejoin="round"/>
+<text x="210" y="350" font-family="Arial, Helvetica, sans-serif" font-size="15" fill="#1A1814" text-anchor="start" font-weight="bold">Orchestrator</text>
+<text x="210" y="370" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="start" font-weight="normal">Untrusted</text>
+<text x="410" y="350" font-family="Arial, Helvetica, sans-serif" font-size="13.5" fill="#3A362F" text-anchor="start" font-weight="normal">Index chain events into Postgres</text>
+<text x="410" y="374" font-family="Arial, Helvetica, sans-serif" font-size="13.5" fill="#3A362F" text-anchor="start" font-weight="normal">Route metered inference to providers</text>
+<text x="410" y="398" font-family="Arial, Helvetica, sans-serif" font-size="13.5" fill="#3A362F" text-anchor="start" font-weight="normal">Split, index, and stitch job output</text>
+<text x="800" y="350" font-family="Arial, Helvetica, sans-serif" font-size="13.5" fill="#3A362F" text-anchor="start" font-weight="normal">Custody funds or sign for users</text>
+<text x="800" y="374" font-family="Arial, Helvetica, sans-serif" font-size="13.5" fill="#3A362F" text-anchor="start" font-weight="normal">Change balances or payouts</text>
+<text x="800" y="398" font-family="Arial, Helvetica, sans-serif" font-size="13.5" fill="#3A362F" text-anchor="start" font-weight="normal">Forge a result the chain accepts</text>
+<path d="M200.0,442.0 L1180.0,442.0" fill="none" stroke="#D3CEC4" stroke-width="1" stroke-linejoin="round"/>
+<text x="210" y="480" font-family="Arial, Helvetica, sans-serif" font-size="15" fill="#1A1814" text-anchor="start" font-weight="bold">Provider agent</text>
+<text x="210" y="500" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="start" font-weight="normal">Untrusted</text>
+<text x="410" y="480" font-family="Arial, Helvetica, sans-serif" font-size="13.5" fill="#3A362F" text-anchor="start" font-weight="normal">Run containers and serve inference</text>
+<text x="410" y="504" font-family="Arial, Helvetica, sans-serif" font-size="13.5" fill="#3A362F" text-anchor="start" font-weight="normal">Send heartbeats, answer challenges</text>
+<text x="410" y="528" font-family="Arial, Helvetica, sans-serif" font-size="13.5" fill="#3A362F" text-anchor="start" font-weight="normal">Accept or reject lease requests</text>
+<text x="800" y="480" font-family="Arial, Helvetica, sans-serif" font-size="13.5" fill="#3A362F" text-anchor="start" font-weight="normal">Be paid without heartbeat evidence</text>
+<text x="800" y="504" font-family="Arial, Helvetica, sans-serif" font-size="13.5" fill="#3A362F" text-anchor="start" font-weight="normal">Pass a benchmark it did not compute</text>
+<text x="800" y="528" font-family="Arial, Helvetica, sans-serif" font-size="13.5" fill="#3A362F" text-anchor="start" font-weight="normal">Hide downtime past the grace period</text>
+<path d="M200.0,572.0 L1180.0,572.0" fill="none" stroke="#D3CEC4" stroke-width="1" stroke-linejoin="round"/>
+<text x="210" y="610" font-family="Arial, Helvetica, sans-serif" font-size="15" fill="#1A1814" text-anchor="start" font-weight="bold">Web</text>
+<text x="210" y="630" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="start" font-weight="normal">Untrusted</text>
+<text x="410" y="610" font-family="Arial, Helvetica, sans-serif" font-size="13.5" fill="#3A362F" text-anchor="start" font-weight="normal">Build transactions for wallet signing</text>
+<text x="410" y="634" font-family="Arial, Helvetica, sans-serif" font-size="13.5" fill="#3A362F" text-anchor="start" font-weight="normal">Display chain and orchestrator data</text>
+<text x="800" y="610" font-family="Arial, Helvetica, sans-serif" font-size="13.5" fill="#3A362F" text-anchor="start" font-weight="normal">Hold keys or sign for a user</text>
+<text x="800" y="634" font-family="Arial, Helvetica, sans-serif" font-size="13.5" fill="#3A362F" text-anchor="start" font-weight="normal">Change state shown by the contracts</text>
+</svg>

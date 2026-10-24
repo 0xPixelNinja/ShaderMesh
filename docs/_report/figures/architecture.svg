@@ -1,0 +1,108 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1220" height="840" viewBox="0 0 1220 840">
+<rect width="1220" height="840" fill="#FFFFFF"/>
+<rect x="20" y="30" width="860" height="770" rx="6" fill="none" stroke="#5E5950" stroke-width="1.25" stroke-dasharray="6 5"/>
+<text x="40" y="58" font-family="Arial, Helvetica, sans-serif" font-size="14" fill="#3A362F" text-anchor="start" font-weight="bold">Off-chain components (untrusted)</text>
+<rect x="920" y="30" width="280" height="770" rx="6" fill="#FDF3E1" stroke="#D97706" stroke-width="1.5"/>
+<text x="940" y="58" font-family="Arial, Helvetica, sans-serif" font-size="14" fill="#A34A06" text-anchor="start" font-weight="bold">Smart contracts</text>
+<text x="940" y="76" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#A34A06" text-anchor="start" font-weight="normal">The only value authority</text>
+<path d="M900.0,30.0 L900.0,806.0" fill="none" stroke="#3A362F" stroke-width="1.25" stroke-linejoin="round" stroke-dasharray="2 5"/>
+<text x="900" y="828" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="middle" font-weight="normal">Trust boundary</text>
+<rect x="50" y="130" width="210" height="80" rx="6" fill="#FFFFFF" stroke="#1A1814" stroke-width="1.5"/>
+<text x="155.0" y="156.8" font-family="Arial, Helvetica, sans-serif" font-size="15" fill="#1A1814" text-anchor="middle" font-weight="bold">Web</text>
+<text x="155.0" y="174.8" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="middle" font-weight="normal">Next.js dashboard</text>
+<text x="155.0" y="192.8" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="middle" font-weight="normal">wallet signs transactions</text>
+<rect x="340" y="110" width="280" height="290" rx="6" fill="#FFFFFF" stroke="#1A1814" stroke-width="1.5"/>
+<text x="480" y="138" font-family="Arial, Helvetica, sans-serif" font-size="15" fill="#1A1814" text-anchor="middle" font-weight="bold">Orchestrator</text>
+<text x="480" y="156" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="middle" font-weight="normal">Node 20, TypeScript</text>
+<rect x="360" y="172" width="240" height="34" rx="4" fill="#F3F1EC" stroke="#D3CEC4" stroke-width="1.25"/>
+<text x="480" y="194" font-family="Arial, Helvetica, sans-serif" font-size="13.5" fill="#3A362F" text-anchor="middle" font-weight="normal">REST API and SSE stream</text>
+<rect x="360" y="216" width="240" height="34" rx="4" fill="#F3F1EC" stroke="#D3CEC4" stroke-width="1.25"/>
+<text x="480" y="238" font-family="Arial, Helvetica, sans-serif" font-size="13.5" fill="#3A362F" text-anchor="middle" font-weight="normal">Event indexer</text>
+<rect x="360" y="260" width="240" height="34" rx="4" fill="#F3F1EC" stroke="#D3CEC4" stroke-width="1.25"/>
+<text x="480" y="282" font-family="Arial, Helvetica, sans-serif" font-size="13.5" fill="#3A362F" text-anchor="middle" font-weight="normal">Inference gateway</text>
+<rect x="360" y="304" width="240" height="34" rx="4" fill="#F3F1EC" stroke="#D3CEC4" stroke-width="1.25"/>
+<text x="480" y="326" font-family="Arial, Helvetica, sans-serif" font-size="13.5" fill="#3A362F" text-anchor="middle" font-weight="normal">IPFS client</text>
+<rect x="360" y="348" width="240" height="34" rx="4" fill="#F3F1EC" stroke="#D3CEC4" stroke-width="1.25"/>
+<text x="480" y="370" font-family="Arial, Helvetica, sans-serif" font-size="13.5" fill="#3A362F" text-anchor="middle" font-weight="normal">Job splitter and stitcher</text>
+<rect x="710" y="125" width="140" height="60" rx="6" fill="#FFFFFF" stroke="#1A1814" stroke-width="1.5"/>
+<text x="780.0" y="150.5" font-family="Arial, Helvetica, sans-serif" font-size="14" fill="#1A1814" text-anchor="middle" font-weight="bold">Postgres</text>
+<text x="780.0" y="168.5" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="middle" font-weight="normal">event projection</text>
+<rect x="710" y="335" width="140" height="60" rx="6" fill="#FFFFFF" stroke="#1A1814" stroke-width="1.5"/>
+<text x="780.0" y="360.5" font-family="Arial, Helvetica, sans-serif" font-size="14" fill="#1A1814" text-anchor="middle" font-weight="bold">IPFS</text>
+<text x="780.0" y="378.5" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="middle" font-weight="normal">Kubo node</text>
+<rect x="340" y="480" width="280" height="250" rx="6" fill="#FFFFFF" stroke="#1A1814" stroke-width="1.5"/>
+<text x="480" y="508" font-family="Arial, Helvetica, sans-serif" font-size="15" fill="#1A1814" text-anchor="middle" font-weight="bold">Provider agent</text>
+<text x="480" y="526" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="middle" font-weight="normal">Python 3.11</text>
+<rect x="360" y="542" width="240" height="34" rx="4" fill="#F3F1EC" stroke="#D3CEC4" stroke-width="1.25"/>
+<text x="480" y="564" font-family="Arial, Helvetica, sans-serif" font-size="13.5" fill="#3A362F" text-anchor="middle" font-weight="normal">Lease runtime</text>
+<rect x="360" y="586" width="240" height="34" rx="4" fill="#F3F1EC" stroke="#D3CEC4" stroke-width="1.25"/>
+<text x="480" y="608" font-family="Arial, Helvetica, sans-serif" font-size="13.5" fill="#3A362F" text-anchor="middle" font-weight="normal">Inference server</text>
+<rect x="360" y="630" width="240" height="34" rx="4" fill="#F3F1EC" stroke="#D3CEC4" stroke-width="1.25"/>
+<text x="480" y="652" font-family="Arial, Helvetica, sans-serif" font-size="13.5" fill="#3A362F" text-anchor="middle" font-weight="normal">Benchmark responder</text>
+<rect x="360" y="674" width="240" height="34" rx="4" fill="#F3F1EC" stroke="#D3CEC4" stroke-width="1.25"/>
+<text x="480" y="696" font-family="Arial, Helvetica, sans-serif" font-size="13.5" fill="#3A362F" text-anchor="middle" font-weight="normal">Heartbeat sender</text>
+<rect x="710" y="495" width="140" height="60" rx="6" fill="#FFFFFF" stroke="#1A1814" stroke-width="1.5"/>
+<text x="780.0" y="520.5" font-family="Arial, Helvetica, sans-serif" font-size="14" fill="#1A1814" text-anchor="middle" font-weight="bold">Docker Engine</text>
+<text x="780.0" y="538.5" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="middle" font-weight="normal">lease containers</text>
+<rect x="710" y="665" width="140" height="60" rx="6" fill="#FFFFFF" stroke="#1A1814" stroke-width="1.5"/>
+<text x="780.0" y="690.5" font-family="Arial, Helvetica, sans-serif" font-size="14" fill="#1A1814" text-anchor="middle" font-weight="bold">Ollama</text>
+<text x="780.0" y="708.5" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="middle" font-weight="normal">optional LLM backend</text>
+<rect x="50" y="520" width="210" height="100" rx="6" fill="#FFFFFF" stroke="#1A1814" stroke-width="1.5"/>
+<text x="155.0" y="556.8" font-family="Arial, Helvetica, sans-serif" font-size="15" fill="#1A1814" text-anchor="middle" font-weight="bold">Attester service</text>
+<text x="155.0" y="574.8" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="middle" font-weight="normal">Python, operator key</text>
+<text x="155.0" y="592.8" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="middle" font-weight="normal">judges benchmarks</text>
+<path d="M260.0,152.0 L333.0,152.0" fill="none" stroke="#1A1814" stroke-width="1.75" stroke-linejoin="round"/>
+<polygon points="340.0,152.0 331.0,156.0 331.0,148.0" fill="#1A1814"/>
+<text x="300" y="143" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="middle" font-weight="normal">HTTPS</text>
+<path d="M340.0,192.0 L267.0,192.0" fill="none" stroke="#1A1814" stroke-width="1.75" stroke-linejoin="round"/>
+<polygon points="260.0,192.0 269.0,188.0 269.0,196.0" fill="#1A1814"/>
+<text x="300" y="208" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="middle" font-weight="normal">SSE</text>
+<path d="M620.0,155.0 L703.0,155.0" fill="none" stroke="#1A1814" stroke-width="1.75" stroke-linejoin="round"/>
+<polygon points="710.0,155.0 701.0,159.0 701.0,151.0" fill="#1A1814"/>
+<text x="665" y="146" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="middle" font-weight="normal">SQL</text>
+<path d="M620.0,365.0 L703.0,365.0" fill="none" stroke="#1A1814" stroke-width="1.75" stroke-linejoin="round"/>
+<polygon points="710.0,365.0 701.0,369.0 701.0,361.0" fill="#1A1814"/>
+<text x="665" y="356" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="middle" font-weight="normal">HTTP API</text>
+<path d="M480.0,400.0 L480.0,473.0" fill="none" stroke="#1A1814" stroke-width="1.75" stroke-linejoin="round"/>
+<polygon points="480.0,480.0 476.0,471.0 484.0,471.0" fill="#1A1814"/>
+<text x="494" y="444" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="start" font-weight="normal">OpenAI HTTP</text>
+<path d="M620.0,525.0 L703.0,525.0" fill="none" stroke="#1A1814" stroke-width="1.75" stroke-linejoin="round"/>
+<polygon points="710.0,525.0 701.0,529.0 701.0,521.0" fill="#1A1814"/>
+<text x="665" y="516" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="middle" font-weight="normal">Docker API</text>
+<path d="M620.0,695.0 L703.0,695.0" fill="none" stroke="#1A1814" stroke-width="1.75" stroke-linejoin="round"/>
+<polygon points="710.0,695.0 701.0,699.0 701.0,691.0" fill="#1A1814"/>
+<text x="665" y="686" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="middle" font-weight="normal">HTTP</text>
+<path d="M155.0,130.0 L155.0,94.0 L913.0,94.0" fill="none" stroke="#D97706" stroke-width="1.75" stroke-linejoin="round"/>
+<polygon points="920.0,94.0 911.0,98.0 911.0,90.0" fill="#D97706"/>
+<text x="400" y="86" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#A34A06" text-anchor="start" font-weight="normal">JSON-RPC (wallet signs transactions)</text>
+<path d="M620.0,270.0 L913.0,270.0" fill="none" stroke="#D97706" stroke-width="1.75" stroke-linejoin="round"/>
+<polygon points="920.0,270.0 911.0,274.0 911.0,266.0" fill="#D97706"/>
+<text x="640" y="261" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#A34A06" text-anchor="start" font-weight="normal">JSON-RPC (event reads)</text>
+<path d="M620.0,610.0 L913.0,610.0" fill="none" stroke="#D97706" stroke-width="1.75" stroke-linejoin="round"/>
+<polygon points="920.0,610.0 911.0,614.0 911.0,606.0" fill="#D97706"/>
+<text x="640" y="601" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#A34A06" text-anchor="start" font-weight="normal">JSON-RPC (heartbeats, settlement)</text>
+<path d="M155.0,620.0 L155.0,772.0 L913.0,772.0" fill="none" stroke="#D97706" stroke-width="1.75" stroke-linejoin="round"/>
+<polygon points="920.0,772.0 911.0,776.0 911.0,768.0" fill="#D97706"/>
+<text x="400" y="764" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#A34A06" text-anchor="start" font-weight="normal">JSON-RPC (issue and resolve challenges)</text>
+<rect x="950" y="130" width="220" height="66" rx="6" fill="#FFFFFF" stroke="#D97706" stroke-width="1.5"/>
+<text x="1060" y="158" font-family="Consolas, 'Courier New', monospace" font-size="15" fill="#A34A06" text-anchor="middle" font-weight="bold">SmeshToken</text>
+<text x="1060" y="178" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="middle" font-weight="normal">ERC-20 payment token</text>
+<rect x="950" y="216" width="220" height="66" rx="6" fill="#FFFFFF" stroke="#D97706" stroke-width="1.5"/>
+<text x="1060" y="244" font-family="Consolas, 'Courier New', monospace" font-size="15" fill="#A34A06" text-anchor="middle" font-weight="bold">ProviderRegistry</text>
+<text x="1060" y="264" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="middle" font-weight="normal">stake, bonds, attestation</text>
+<rect x="950" y="302" width="220" height="66" rx="6" fill="#FFFFFF" stroke="#D97706" stroke-width="1.5"/>
+<text x="1060" y="330" font-family="Consolas, 'Courier New', monospace" font-size="15" fill="#A34A06" text-anchor="middle" font-weight="bold">RentalMarket</text>
+<text x="1060" y="350" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="middle" font-weight="normal">listings, leases, escrow</text>
+<rect x="950" y="388" width="220" height="66" rx="6" fill="#FFFFFF" stroke="#D97706" stroke-width="1.5"/>
+<text x="1060" y="416" font-family="Consolas, 'Courier New', monospace" font-size="15" fill="#A34A06" text-anchor="middle" font-weight="bold">InferenceMarket</text>
+<text x="1060" y="436" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="middle" font-weight="normal">offers, prepaid credit</text>
+<rect x="950" y="474" width="220" height="66" rx="6" fill="#FFFFFF" stroke="#D97706" stroke-width="1.5"/>
+<text x="1060" y="502" font-family="Consolas, 'Courier New', monospace" font-size="15" fill="#A34A06" text-anchor="middle" font-weight="bold">JobMarket</text>
+<text x="1060" y="522" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="middle" font-weight="normal">verifiable tasks</text>
+<rect x="950" y="560" width="220" height="66" rx="6" fill="#FFFFFF" stroke="#D97706" stroke-width="1.5"/>
+<text x="1060" y="588" font-family="Consolas, 'Courier New', monospace" font-size="15" fill="#A34A06" text-anchor="middle" font-weight="bold">Verification</text>
+<text x="1060" y="608" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="middle" font-weight="normal">spot-check game</text>
+<text x="940" y="672" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#A34A06" text-anchor="start" font-weight="normal">Escrow, stake, and bonds live</text>
+<text x="940" y="690" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#A34A06" text-anchor="start" font-weight="normal">here only. Off-chain parts hold</text>
+<text x="940" y="708" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#A34A06" text-anchor="start" font-weight="normal">no funds and cannot forge results.</text>
+</svg>

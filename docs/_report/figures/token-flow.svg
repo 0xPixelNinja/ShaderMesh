@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1150" height="700" viewBox="0 0 1150 700">
+<rect width="1150" height="700" fill="#FFFFFF"/>
+<rect x="40" y="90" width="150" height="530" rx="6" fill="#F3F1EC" stroke="#D3CEC4" stroke-width="1.5"/>
+<text x="115" y="120" font-family="Arial, Helvetica, sans-serif" font-size="15" fill="#1A1814" text-anchor="middle" font-weight="bold">Requester</text>
+<text x="115" y="138" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="middle" font-weight="normal">wallet</text>
+<rect x="960" y="90" width="150" height="410" rx="6" fill="#F3F1EC" stroke="#D3CEC4" stroke-width="1.5"/>
+<text x="1035" y="120" font-family="Arial, Helvetica, sans-serif" font-size="15" fill="#1A1814" text-anchor="middle" font-weight="bold">Provider</text>
+<text x="1035" y="138" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="middle" font-weight="normal">wallet</text>
+<rect x="960" y="540" width="150" height="80" rx="6" fill="#F3F1EC" stroke="#D3CEC4" stroke-width="1.5"/>
+<text x="1035" y="574" font-family="Arial, Helvetica, sans-serif" font-size="15" fill="#1A1814" text-anchor="middle" font-weight="bold">Treasury</text>
+<text x="1035" y="592" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="middle" font-weight="normal">slash recipient</text>
+<rect x="420" y="90" width="310" height="120" rx="6" fill="#FDF3E1" stroke="#D97706" stroke-width="1.5"/>
+<text x="575" y="120" font-family="Consolas, 'Courier New', monospace" font-size="15" fill="#A34A06" text-anchor="middle" font-weight="bold">RentalMarket</text>
+<text x="575" y="144" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#A34A06" text-anchor="middle" font-weight="normal">Escrow per lease</text>
+<rect x="420" y="260" width="310" height="120" rx="6" fill="#FDF3E1" stroke="#D97706" stroke-width="1.5"/>
+<text x="575" y="290" font-family="Consolas, 'Courier New', monospace" font-size="15" fill="#A34A06" text-anchor="middle" font-weight="bold">InferenceMarket</text>
+<text x="575" y="314" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#A34A06" text-anchor="middle" font-weight="normal">Prepaid credit per offer</text>
+<rect x="420" y="440" width="310" height="180" rx="6" fill="#FDF3E1" stroke="#D97706" stroke-width="1.5"/>
+<text x="575" y="468" font-family="Consolas, 'Courier New', monospace" font-size="15" fill="#A34A06" text-anchor="middle" font-weight="bold">ProviderRegistry</text>
+<rect x="440" y="486" width="270" height="52" rx="6" fill="#FFFFFF" stroke="#D97706" stroke-width="1.25"/>
+<text x="575" y="517" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#3A362F" text-anchor="middle" font-weight="normal">Bond held by active leases</text>
+<rect x="440" y="552" width="270" height="52" rx="6" fill="#FFFFFF" stroke="#D97706" stroke-width="1.25"/>
+<text x="575" y="583" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#3A362F" text-anchor="middle" font-weight="normal">Free stake</text>
+<path d="M190.0,125.0 L413.0,125.0" fill="none" stroke="#3A362F" stroke-width="1.75" stroke-linejoin="round"/>
+<polygon points="420.0,125.0 411.0,129.0 411.0,121.0" fill="#3A362F"/>
+<text x="305.0" y="116" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#3A362F" text-anchor="middle" font-weight="normal">escrow deposit</text>
+<path d="M420.0,185.0 L197.0,185.0" fill="none" stroke="#5E5950" stroke-width="1.75" stroke-linejoin="round"/>
+<polygon points="190.0,185.0 199.0,181.0 199.0,189.0" fill="#5E5950"/>
+<text x="305.0" y="176" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="middle" font-weight="normal">refund of remainder</text>
+<path d="M190.0,295.0 L413.0,295.0" fill="none" stroke="#3A362F" stroke-width="1.75" stroke-linejoin="round"/>
+<polygon points="420.0,295.0 411.0,299.0 411.0,291.0" fill="#3A362F"/>
+<text x="305.0" y="286" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#3A362F" text-anchor="middle" font-weight="normal">prepaid credit</text>
+<path d="M420.0,355.0 L197.0,355.0" fill="none" stroke="#5E5950" stroke-width="1.75" stroke-linejoin="round"/>
+<polygon points="190.0,355.0 199.0,351.0 199.0,359.0" fill="#5E5950"/>
+<text x="305.0" y="346" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="middle" font-weight="normal">unspent credit refunded</text>
+<path d="M440.0,512.0 L197.0,512.0" fill="none" stroke="#B91C1C" stroke-width="1.75" stroke-linejoin="round"/>
+<polygon points="190.0,512.0 199.0,508.0 199.0,516.0" fill="#B91C1C"/>
+<text x="315.0" y="503" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#B91C1C" text-anchor="middle" font-weight="normal">bond slashed</text>
+<text x="315.0" y="534" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="middle" font-weight="normal">missed heartbeat</text>
+<path d="M730.0,150.0 L953.0,150.0" fill="none" stroke="#137535" stroke-width="1.75" stroke-linejoin="round"/>
+<polygon points="960.0,150.0 951.0,154.0 951.0,146.0" fill="#137535"/>
+<text x="845.0" y="141" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#137535" text-anchor="middle" font-weight="normal">paid per settled interval</text>
+<path d="M730.0,305.0 L953.0,305.0" fill="none" stroke="#137535" stroke-width="1.75" stroke-linejoin="round"/>
+<polygon points="960.0,305.0 951.0,309.0 951.0,301.0" fill="#137535"/>
+<text x="845.0" y="296" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#137535" text-anchor="middle" font-weight="normal">paid per settled usage</text>
+<path d="M960.0,455.0 L737.0,455.0" fill="none" stroke="#3A362F" stroke-width="1.75" stroke-linejoin="round"/>
+<polygon points="730.0,455.0 739.0,451.0 739.0,459.0" fill="#3A362F"/>
+<text x="845.0" y="446" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#3A362F" text-anchor="middle" font-weight="normal">stake deposit</text>
+<path d="M710.0,578.0 L953.0,578.0" fill="none" stroke="#B91C1C" stroke-width="1.75" stroke-linejoin="round"/>
+<polygon points="960.0,578.0 951.0,582.0 951.0,574.0" fill="#B91C1C"/>
+<text x="835.0" y="569" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#B91C1C" text-anchor="middle" font-weight="normal">slashed on failed challenge</text>
+<path d="M40.0,668.0 L73.0,668.0" fill="none" stroke="#3A362F" stroke-width="1.75" stroke-linejoin="round"/>
+<polygon points="80.0,668.0 71.0,672.0 71.0,664.0" fill="#3A362F"/>
+<text x="92" y="673" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#3A362F" text-anchor="start" font-weight="normal">Deposit</text>
+<path d="M190.0,668.0 L223.0,668.0" fill="none" stroke="#137535" stroke-width="1.75" stroke-linejoin="round"/>
+<polygon points="230.0,668.0 221.0,672.0 221.0,664.0" fill="#137535"/>
+<text x="242" y="673" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#3A362F" text-anchor="start" font-weight="normal">Payout</text>
+<path d="M340.0,668.0 L373.0,668.0" fill="none" stroke="#5E5950" stroke-width="1.75" stroke-linejoin="round"/>
+<polygon points="380.0,668.0 371.0,672.0 371.0,664.0" fill="#5E5950"/>
+<text x="392" y="673" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#3A362F" text-anchor="start" font-weight="normal">Refund</text>
+<path d="M490.0,668.0 L523.0,668.0" fill="none" stroke="#B91C1C" stroke-width="1.75" stroke-linejoin="round"/>
+<polygon points="530.0,668.0 521.0,672.0 521.0,664.0" fill="#B91C1C"/>
+<text x="542" y="673" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#3A362F" text-anchor="start" font-weight="normal">Slash</text>
+</svg>

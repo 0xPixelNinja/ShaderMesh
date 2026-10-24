@@ -1,0 +1,105 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="859" viewBox="0 0 1000 859">
+<rect width="1000" height="859" fill="#FFFFFF"/>
+<rect x="290" y="22" width="12" height="12" rx="2" fill="#5E5950" stroke="none"/>
+<text x="310" y="33" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#3A362F" text-anchor="start" font-weight="normal">Other transactions</text>
+<rect x="480" y="22" width="12" height="12" rx="2" fill="#D97706" stroke="none"/>
+<text x="500" y="33" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#3A362F" text-anchor="start" font-weight="normal">Benchmark challenge</text>
+<line x1="290.0" y1="76" x2="290.0" y2="755" stroke="#E7E3DA" stroke-width="1"/>
+<text x="290.0" y="777" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#5E5950" text-anchor="middle" font-weight="normal">0</text>
+<line x1="383.3333333333333" y1="76" x2="383.3333333333333" y2="755" stroke="#E7E3DA" stroke-width="1"/>
+<text x="383.3333333333333" y="777" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#5E5950" text-anchor="middle" font-weight="normal">50k</text>
+<line x1="476.66666666666663" y1="76" x2="476.66666666666663" y2="755" stroke="#E7E3DA" stroke-width="1"/>
+<text x="476.66666666666663" y="777" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#5E5950" text-anchor="middle" font-weight="normal">100k</text>
+<line x1="570.0" y1="76" x2="570.0" y2="755" stroke="#E7E3DA" stroke-width="1"/>
+<text x="570.0" y="777" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#5E5950" text-anchor="middle" font-weight="normal">150k</text>
+<line x1="663.3333333333333" y1="76" x2="663.3333333333333" y2="755" stroke="#E7E3DA" stroke-width="1"/>
+<text x="663.3333333333333" y="777" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#5E5950" text-anchor="middle" font-weight="normal">200k</text>
+<line x1="756.6666666666667" y1="76" x2="756.6666666666667" y2="755" stroke="#E7E3DA" stroke-width="1"/>
+<text x="756.6666666666667" y="777" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#5E5950" text-anchor="middle" font-weight="normal">250k</text>
+<line x1="850.0" y1="76" x2="850.0" y2="755" stroke="#E7E3DA" stroke-width="1"/>
+<text x="850.0" y="777" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#5E5950" text-anchor="middle" font-weight="normal">300k</text>
+<line x1="290" y1="76" x2="290" y2="755" stroke="#D3CEC4" stroke-width="1.5"/>
+<text x="276" y="95" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#3A362F" text-anchor="end" font-weight="normal">rental.requestLease</text>
+<path d="M290,84 h465.5 a4,4 0 0 1 4,4 v5 a4,4 0 0 1 -4,4 h-465.5 z" fill="#5E5950"/>
+<text x="769.5413333333333" y="95" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#1A1814" text-anchor="start" font-weight="normal">251,540</text>
+<text x="276" y="120" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#3A362F" text-anchor="end" font-weight="normal">inference.openCredit</text>
+<path d="M290,109 h421.4 a4,4 0 0 1 4,4 v5 a4,4 0 0 1 -4,4 h-421.4 z" fill="#5E5950"/>
+<text x="725.4096" y="120" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#1A1814" text-anchor="start" font-weight="normal">227,898</text>
+<text x="276" y="145" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#3A362F" text-anchor="end" font-weight="normal">verification.challenge</text>
+<path d="M290,134 h331.1 a4,4 0 0 1 4,4 v5 a4,4 0 0 1 -4,4 h-331.1 z" fill="#5E5950"/>
+<text x="635.1077333333333" y="145" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#1A1814" text-anchor="start" font-weight="normal">179,522</text>
+<text x="276" y="170" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#3A362F" text-anchor="end" font-weight="normal">job.postJob</text>
+<path d="M290,159 h330.9 a4,4 0 0 1 4,4 v5 a4,4 0 0 1 -4,4 h-330.9 z" fill="#5E5950"/>
+<text x="634.908" y="170" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#1A1814" text-anchor="start" font-weight="normal">179,415</text>
+<text x="276" y="195" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#3A362F" text-anchor="end" font-weight="normal">job.claimTask (disputed)</text>
+<path d="M290,184 h293.8 a4,4 0 0 1 4,4 v5 a4,4 0 0 1 -4,4 h-293.8 z" fill="#5E5950"/>
+<text x="597.7613333333334" y="195" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#1A1814" text-anchor="start" font-weight="normal">159,515</text>
+<text x="276" y="220" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#3A362F" text-anchor="end" font-weight="normal">job.claimTask</text>
+<path d="M290,209 h293.7 a4,4 0 0 1 4,4 v5 a4,4 0 0 1 -4,4 h-293.7 z" fill="#5E5950"/>
+<text x="597.7389333333333" y="220" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#1A1814" text-anchor="start" font-weight="normal">159,503</text>
+<text x="276" y="245" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#3A362F" text-anchor="end" font-weight="normal">rental.acceptLease</text>
+<path d="M290,234 h283.9 a4,4 0 0 1 4,4 v5 a4,4 0 0 1 -4,4 h-283.9 z" fill="#5E5950"/>
+<text x="587.8530666666667" y="245" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#1A1814" text-anchor="start" font-weight="normal">154,207</text>
+<text x="276" y="270" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#3A362F" text-anchor="end" font-weight="normal">rental.createListing</text>
+<path d="M290,259 h255.9 a4,4 0 0 1 4,4 v5 a4,4 0 0 1 -4,4 h-255.9 z" fill="#5E5950"/>
+<text x="559.8922666666667" y="270" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#1A1814" text-anchor="start" font-weight="normal">139,228</text>
+<text x="276" y="295" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#3A362F" text-anchor="end" font-weight="normal">inference.createOffer</text>
+<path d="M290,284 h247.5 a4,4 0 0 1 4,4 v5 a4,4 0 0 1 -4,4 h-247.5 z" fill="#5E5950"/>
+<text x="551.5090666666666" y="295" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#1A1814" text-anchor="start" font-weight="normal">134,737</text>
+<text x="276" y="320" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#3A362F" text-anchor="end" font-weight="normal">registry.issueChallenge</text>
+<path d="M290,309 h238.2 a4,4 0 0 1 4,4 v5 a4,4 0 0 1 -4,4 h-238.2 z" fill="#D97706"/>
+<text x="542.2074666666667" y="320" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#1A1814" text-anchor="start" font-weight="normal">129,754</text>
+<text x="276" y="345" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#3A362F" text-anchor="end" font-weight="normal">verification.resolve</text>
+<path d="M290,334 h238.1 a4,4 0 0 1 4,4 v5 a4,4 0 0 1 -4,4 h-238.1 z" fill="#5E5950"/>
+<text x="542.1066666666667" y="345" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#1A1814" text-anchor="start" font-weight="normal">129,700</text>
+<text x="276" y="370" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#3A362F" text-anchor="end" font-weight="normal">inference.settleUsage</text>
+<path d="M290,359 h228.4 a4,4 0 0 1 4,4 v5 a4,4 0 0 1 -4,4 h-228.4 z" fill="#5E5950"/>
+<text x="532.3850666666667" y="370" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#1A1814" text-anchor="start" font-weight="normal">124,492</text>
+<text x="276" y="395" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#3A362F" text-anchor="end" font-weight="normal">job.finalizeTask</text>
+<path d="M290,384 h187.5 a4,4 0 0 1 4,4 v5 a4,4 0 0 1 -4,4 h-187.5 z" fill="#5E5950"/>
+<text x="491.4752" y="395" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#1A1814" text-anchor="start" font-weight="normal">102,576</text>
+<text x="276" y="420" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#3A362F" text-anchor="end" font-weight="normal">registry.attest</text>
+<path d="M290,409 h177.5 a4,4 0 0 1 4,4 v5 a4,4 0 0 1 -4,4 h-177.5 z" fill="#5E5950"/>
+<text x="481.53706666666665" y="420" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#1A1814" text-anchor="start" font-weight="normal">97,252</text>
+<text x="276" y="445" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#3A362F" text-anchor="end" font-weight="normal">registry.register</text>
+<path d="M290,434 h166.5 a4,4 0 0 1 4,4 v5 a4,4 0 0 1 -4,4 h-166.5 z" fill="#5E5950"/>
+<text x="470.47333333333336" y="445" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#1A1814" text-anchor="start" font-weight="normal">91,325</text>
+<text x="276" y="470" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#3A362F" text-anchor="end" font-weight="normal">rental.finalizeExpired</text>
+<path d="M290,459 h161.5 a4,4 0 0 1 4,4 v5 a4,4 0 0 1 -4,4 h-161.5 z" fill="#5E5950"/>
+<text x="465.4501333333333" y="470" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#1A1814" text-anchor="start" font-weight="normal">88,634</text>
+<text x="276" y="495" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#3A362F" text-anchor="end" font-weight="normal">job.submitResult (disputed)</text>
+<path d="M290,484 h151.9 a4,4 0 0 1 4,4 v5 a4,4 0 0 1 -4,4 h-151.9 z" fill="#5E5950"/>
+<text x="455.87226666666663" y="495" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#1A1814" text-anchor="start" font-weight="normal">83,503</text>
+<text x="276" y="520" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#3A362F" text-anchor="end" font-weight="normal">job.submitResult</text>
+<path d="M290,509 h151.8 a4,4 0 0 1 4,4 v5 a4,4 0 0 1 -4,4 h-151.8 z" fill="#5E5950"/>
+<text x="455.8498666666667" y="520" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#1A1814" text-anchor="start" font-weight="normal">83,491</text>
+<text x="276" y="545" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#3A362F" text-anchor="end" font-weight="normal">registry.stake</text>
+<path d="M290,534 h148.4 a4,4 0 0 1 4,4 v5 a4,4 0 0 1 -4,4 h-148.4 z" fill="#5E5950"/>
+<text x="452.44506666666666" y="545" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#1A1814" text-anchor="start" font-weight="normal">81,667</text>
+<text x="276" y="570" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#3A362F" text-anchor="end" font-weight="normal">registry.expireChallenge (slash)</text>
+<path d="M290,559 h145.7 a4,4 0 0 1 4,4 v5 a4,4 0 0 1 -4,4 h-145.7 z" fill="#D97706"/>
+<text x="449.6936" y="570" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#1A1814" text-anchor="start" font-weight="normal">80,193</text>
+<text x="276" y="595" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#3A362F" text-anchor="end" font-weight="normal">token.faucet</text>
+<path d="M290,584 h138.9 a4,4 0 0 1 4,4 v5 a4,4 0 0 1 -4,4 h-138.9 z" fill="#5E5950"/>
+<text x="442.8616" y="595" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#1A1814" text-anchor="start" font-weight="normal">76,533</text>
+<text x="276" y="620" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#3A362F" text-anchor="end" font-weight="normal">registry.respondChallenge</text>
+<path d="M290,609 h138.3 a4,4 0 0 1 4,4 v5 a4,4 0 0 1 -4,4 h-138.3 z" fill="#D97706"/>
+<text x="442.2717333333334" y="620" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#1A1814" text-anchor="start" font-weight="normal">76,217</text>
+<text x="276" y="645" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#3A362F" text-anchor="end" font-weight="normal">rental.settle</text>
+<path d="M290,634 h108.0 a4,4 0 0 1 4,4 v5 a4,4 0 0 1 -4,4 h-108.0 z" fill="#5E5950"/>
+<text x="411.9757333333333" y="645" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#1A1814" text-anchor="start" font-weight="normal">59,987</text>
+<text x="276" y="670" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#3A362F" text-anchor="end" font-weight="normal">rental.heartbeat</text>
+<path d="M290,659 h101.4 a4,4 0 0 1 4,4 v5 a4,4 0 0 1 -4,4 h-101.4 z" fill="#5E5950"/>
+<text x="405.4424" y="670" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#1A1814" text-anchor="start" font-weight="normal">56,487</text>
+<text x="276" y="695" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#3A362F" text-anchor="end" font-weight="normal">registry.resolveChallenge (pass)</text>
+<path d="M290,684 h97.4 a4,4 0 0 1 4,4 v5 a4,4 0 0 1 -4,4 h-97.4 z" fill="#D97706"/>
+<text x="401.3768" y="695" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#1A1814" text-anchor="start" font-weight="normal">54,309</text>
+<text x="276" y="720" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#3A362F" text-anchor="end" font-weight="normal">inference.closeCredit</text>
+<path d="M290,709 h95.1 a4,4 0 0 1 4,4 v5 a4,4 0 0 1 -4,4 h-95.1 z" fill="#5E5950"/>
+<text x="399.1312" y="720" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#1A1814" text-anchor="start" font-weight="normal">53,106</text>
+<text x="276" y="745" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#3A362F" text-anchor="end" font-weight="normal">registry.updateCapabilities</text>
+<path d="M290,734 h56.1 a4,4 0 0 1 4,4 v5 a4,4 0 0 1 -4,4 h-56.1 z" fill="#5E5950"/>
+<text x="360.06" y="745" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#1A1814" text-anchor="start" font-weight="normal">32,175</text>
+<text x="570.0" y="811" font-family="Arial, Helvetica, sans-serif" font-size="14" fill="#3A362F" text-anchor="middle" font-weight="normal">Gas used per transaction (receipt gasUsed)</text>
+<text x="30" y="841" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="start" font-weight="normal">Total across the 27 transactions: 3,086,966 gas</text>
+</svg>

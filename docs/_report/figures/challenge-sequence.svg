@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1170" height="1120" viewBox="0 0 1170 1120">
+<rect width="1170" height="1120" fill="#FFFFFF"/>
+<path d="M120.0,68.0 L120.0,1100.0" fill="none" stroke="#D3CEC4" stroke-width="1.25" stroke-linejoin="round" stroke-dasharray="4 4"/>
+<path d="M450.0,68.0 L450.0,1100.0" fill="none" stroke="#D3CEC4" stroke-width="1.25" stroke-linejoin="round" stroke-dasharray="4 4"/>
+<path d="M790.0,68.0 L790.0,1100.0" fill="none" stroke="#D3CEC4" stroke-width="1.25" stroke-linejoin="round" stroke-dasharray="4 4"/>
+<path d="M1050.0,68.0 L1050.0,1100.0" fill="none" stroke="#D3CEC4" stroke-width="1.25" stroke-linejoin="round" stroke-dasharray="4 4"/>
+<rect x="45.0" y="20" width="150" height="48" rx="6" fill="#F3F1EC" stroke="#D3CEC4" stroke-width="1.5"/>
+<text x="120" y="49" font-family="Arial, Helvetica, sans-serif" font-size="15" fill="#1A1814" text-anchor="middle" font-weight="bold">Attester</text>
+<rect x="370.0" y="20" width="160" height="48" rx="6" fill="#FDF3E1" stroke="#D97706" stroke-width="1.5"/>
+<text x="450" y="49" font-family="Arial, Helvetica, sans-serif" font-size="15" fill="#A34A06" text-anchor="middle" font-weight="bold">ProviderRegistry</text>
+<rect x="715.0" y="20" width="150" height="48" rx="6" fill="#F3F1EC" stroke="#D3CEC4" stroke-width="1.5"/>
+<text x="790" y="49" font-family="Arial, Helvetica, sans-serif" font-size="15" fill="#1A1814" text-anchor="middle" font-weight="bold">Provider agent</text>
+<rect x="975.0" y="20" width="150" height="48" rx="6" fill="#F3F1EC" stroke="#D3CEC4" stroke-width="1.5"/>
+<text x="1050" y="49" font-family="Arial, Helvetica, sans-serif" font-size="15" fill="#1A1814" text-anchor="middle" font-weight="bold">Any account</text>
+<path d="M120.0,130.0 L443.0,130.0" fill="none" stroke="#1A1814" stroke-width="1.75" stroke-linejoin="round"/>
+<polygon points="450.0,130.0 441.0,134.0 441.0,126.0" fill="#1A1814"/>
+<text x="285.0" y="121" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#1A1814" text-anchor="middle" font-weight="normal">issueChallenge(provider)</text>
+<text x="464" y="117.5" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="start" font-weight="normal">Seed from chain randomness:</text>
+<text x="464" y="134.6" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="start" font-weight="normal">keccak256(prevrandao, provider, id)</text>
+<text x="464" y="151.6" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="start" font-weight="normal">deadline = now + challengeWindow</text>
+<path d="M450.0,220.0 L783.0,220.0" fill="none" stroke="#5E5950" stroke-width="1.75" stroke-linejoin="round" stroke-dasharray="6 4"/>
+<polygon points="790.0,220.0 781.0,224.0 781.0,216.0" fill="#5E5950"/>
+<text x="620.0" y="211" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#5E5950" text-anchor="middle" font-weight="normal">ChallengeIssued(id, seed, deadline)</text>
+<rect x="482" y="262" width="293" height="82" rx="6" fill="#F3F1EC" stroke="#D3CEC4" stroke-width="1.25"/>
+<text x="497" y="285" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#3A362F" text-anchor="start" font-weight="normal">Hash chain from the seed:</text>
+<text x="497" y="302" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#3A362F" text-anchor="start" font-weight="normal">500,000 SHA-256 iterations</text>
+<text x="497" y="319" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#3A362F" text-anchor="start" font-weight="normal">score: Ollama tokens/s x 100,</text>
+<text x="497" y="336" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#3A362F" text-anchor="start" font-weight="normal">else hash rate in kH/s</text>
+<path d="M790.0,405.0 L457.0,405.0" fill="none" stroke="#1A1814" stroke-width="1.75" stroke-linejoin="round"/>
+<polygon points="450.0,405.0 459.0,401.0 459.0,409.0" fill="#1A1814"/>
+<text x="620.0" y="396" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#1A1814" text-anchor="middle" font-weight="normal">respondChallenge(id, score, outputHash)</text>
+<text x="436" y="401.1" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="end" font-weight="normal">Before the deadline:</text>
+<text x="436" y="418.1" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="end" font-weight="normal">status Open to Responded</text>
+<rect x="150" y="470" width="285" height="82" rx="6" fill="#F3F1EC" stroke="#D3CEC4" stroke-width="1.25"/>
+<text x="165" y="493" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#3A362F" text-anchor="start" font-weight="normal">Recomputes the hash chain,</text>
+<text x="165" y="510" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#3A362F" text-anchor="start" font-weight="normal">compares output hash and</text>
+<text x="165" y="527" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#3A362F" text-anchor="start" font-weight="normal">score to the attested value</text>
+<path d="M120.0,610.0 L443.0,610.0" fill="none" stroke="#1A1814" stroke-width="1.75" stroke-linejoin="round"/>
+<polygon points="450.0,610.0 441.0,614.0 441.0,606.0" fill="#1A1814"/>
+<text x="285.0" y="601" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#1A1814" text-anchor="middle" font-weight="normal">resolveChallenge(id, passed)</text>
+<text x="464" y="606.0" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="start" font-weight="normal">Within one window</text>
+<text x="464" y="623.0" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="start" font-weight="normal">after the deadline</text>
+<rect x="30" y="650" width="1110" height="215" rx="4" fill="none" stroke="#D3CEC4" stroke-width="1.25"/>
+<rect x="30" y="650" width="38" height="24" rx="4" fill="#F3F1EC" stroke="#D3CEC4" stroke-width="1.25"/>
+<text x="49.0" y="667" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#1A1814" text-anchor="middle" font-weight="bold">alt</text>
+<rect x="74" y="654" width="108.0" height="18" rx="0" fill="#FFFFFF" stroke="none"/>
+<text x="80" y="667" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="start" font-weight="normal">[verdict: pass]</text>
+<rect x="470" y="686" width="305" height="52" rx="6" fill="#FFFFFF" stroke="#1A1814" stroke-width="1.25"/>
+<text x="485" y="708" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#1A1814" text-anchor="start" font-weight="bold">Passed</text>
+<text x="485" y="727" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#3A362F" text-anchor="start" font-weight="normal">Attestation refreshed, reputation up</text>
+<path d="M30.0,760.0 L1140.0,760.0" fill="none" stroke="#D3CEC4" stroke-width="1.25" stroke-linejoin="round" stroke-dasharray="6 4"/>
+<rect x="36" y="768" width="108.0" height="18" rx="0" fill="#FFFFFF" stroke="none"/>
+<text x="42" y="782" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="start" font-weight="normal">[verdict: fail]</text>
+<rect x="470" y="795" width="305" height="66" rx="6" fill="#FFFFFF" stroke="#1A1814" stroke-width="1.25"/>
+<text x="485" y="815" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#1A1814" text-anchor="start" font-weight="bold">Failed</text>
+<text x="485" y="832" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#B91C1C" text-anchor="start" font-weight="normal">Free stake slashed to treasury</text>
+<text x="485" y="852" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#3A362F" text-anchor="start" font-weight="normal">Attestation revoked, reputation down</text>
+<rect x="30" y="880" width="1110" height="210" rx="4" fill="none" stroke="#D3CEC4" stroke-width="1.25"/>
+<rect x="30" y="880" width="38" height="24" rx="4" fill="#F3F1EC" stroke="#D3CEC4" stroke-width="1.25"/>
+<text x="49.0" y="897" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#1A1814" text-anchor="middle" font-weight="bold">alt</text>
+<rect x="74" y="884" width="204.0" height="18" rx="0" fill="#FFFFFF" stroke="none"/>
+<text x="80" y="897" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="start" font-weight="normal">[provider misses the deadline]</text>
+<path d="M1050.0,950.0 L457.0,950.0" fill="none" stroke="#1A1814" stroke-width="1.75" stroke-linejoin="round"/>
+<polygon points="450.0,950.0 459.0,946.0 459.0,954.0" fill="#1A1814"/>
+<text x="475" y="941" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#1A1814" text-anchor="start" font-weight="normal">expireChallenge(id)</text>
+<text x="436" y="946.0" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="end" font-weight="normal">Same slash as a fail,</text>
+<text x="436" y="963.0" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="end" font-weight="normal">no trusted input</text>
+<path d="M30.0,985.0 L1140.0,985.0" fill="none" stroke="#D3CEC4" stroke-width="1.25" stroke-linejoin="round" stroke-dasharray="6 4"/>
+<rect x="36" y="993" width="248.8" height="18" rx="0" fill="#FFFFFF" stroke="none"/>
+<text x="42" y="1007" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="start" font-weight="normal">[answer never judged within a window]</text>
+<path d="M1050.0,1060.0 L457.0,1060.0" fill="none" stroke="#1A1814" stroke-width="1.75" stroke-linejoin="round"/>
+<polygon points="450.0,1060.0 459.0,1056.0 459.0,1064.0" fill="#1A1814"/>
+<text x="475" y="1051" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#1A1814" text-anchor="start" font-weight="normal">expireChallenge(id)</text>
+<text x="436" y="1056.0" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="end" font-weight="normal">Status Lapsed,</text>
+<text x="436" y="1073.0" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="end" font-weight="normal">no penalty</text>
+</svg>

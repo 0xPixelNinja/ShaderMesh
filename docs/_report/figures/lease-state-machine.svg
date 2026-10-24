@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1220" height="620" viewBox="0 0 1220 620">
+<rect width="1220" height="620" fill="#FFFFFF"/>
+<path d="M30.0,280.0 L173.0,280.0" fill="none" stroke="#1A1814" stroke-width="1.75" stroke-linejoin="round"/>
+<polygon points="180.0,280.0 171.0,284.0 171.0,276.0" fill="#1A1814"/>
+<text x="105" y="266" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#1A1814" text-anchor="middle" font-weight="normal">requestLease</text>
+<text x="105" y="306" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="middle" font-weight="normal">escrow locked</text>
+<rect x="180" y="250" width="140" height="60" rx="6" fill="#F3F1EC" stroke="#1A1814" stroke-width="1.5"/>
+<text x="250" y="286" font-family="Arial, Helvetica, sans-serif" font-size="16" fill="#1A1814" text-anchor="middle" font-weight="bold">Pending</text>
+<rect x="500" y="244" width="220" height="72" rx="6" fill="#F3F1EC" stroke="#1A1814" stroke-width="1.5"/>
+<text x="610" y="276" font-family="Arial, Helvetica, sans-serif" font-size="16" fill="#1A1814" text-anchor="middle" font-weight="bold">Active</text>
+<text x="610" y="298" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="middle" font-weight="normal">heartbeat, settle, extendLease</text>
+<rect x="40" y="40" width="300" height="100" rx="6" fill="#FFFFFF" stroke="#1A1814" stroke-width="1.5"/>
+<text x="56" y="68" font-family="Arial, Helvetica, sans-serif" font-size="16" fill="#1A1814" text-anchor="start" font-weight="bold">Rejected</text>
+<text x="56" y="92" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#3A362F" text-anchor="start" font-weight="normal">Full escrow refunded to requester.</text>
+<text x="56" y="110" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#3A362F" text-anchor="start" font-weight="normal">No bond was taken.</text>
+<rect x="40" y="440" width="300" height="100" rx="6" fill="#FFFFFF" stroke="#1A1814" stroke-width="1.5"/>
+<text x="56" y="468" font-family="Arial, Helvetica, sans-serif" font-size="16" fill="#1A1814" text-anchor="start" font-weight="bold">Cancelled</text>
+<text x="56" y="492" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#3A362F" text-anchor="start" font-weight="normal">Full escrow refunded to requester.</text>
+<text x="56" y="510" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#3A362F" text-anchor="start" font-weight="normal">No bond was taken.</text>
+<rect x="920" y="40" width="280" height="118" rx="6" fill="#FFFFFF" stroke="#1A1814" stroke-width="1.5"/>
+<text x="936" y="68" font-family="Arial, Helvetica, sans-serif" font-size="16" fill="#1A1814" text-anchor="start" font-weight="bold">Ended</text>
+<text x="936" y="92" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#3A362F" text-anchor="start" font-weight="normal">Pays heartbeated intervals.</text>
+<text x="936" y="110" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#3A362F" text-anchor="start" font-weight="normal">Refunds remaining escrow.</text>
+<text x="936" y="128" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#3A362F" text-anchor="start" font-weight="normal">Releases the bond.</text>
+<rect x="920" y="440" width="280" height="118" rx="6" fill="#FFFFFF" stroke="#1A1814" stroke-width="1.5"/>
+<text x="936" y="468" font-family="Arial, Helvetica, sans-serif" font-size="16" fill="#1A1814" text-anchor="start" font-weight="bold">Terminated</text>
+<text x="936" y="492" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#3A362F" text-anchor="start" font-weight="normal">Pays heartbeated intervals.</text>
+<text x="936" y="510" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#3A362F" text-anchor="start" font-weight="normal">Refunds remaining escrow.</text>
+<text x="936" y="528" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#B91C1C" text-anchor="start" font-weight="normal">Bond slashed to requester.</text>
+<path d="M250.0,250.0 L250.0,147.0" fill="none" stroke="#1A1814" stroke-width="1.75" stroke-linejoin="round"/>
+<polygon points="250.0,140.0 254.0,149.0 246.0,149.0" fill="#1A1814"/>
+<text x="264" y="188" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#1A1814" text-anchor="start" font-weight="normal">rejectLease</text>
+<text x="264" y="206" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="start" font-weight="normal">by provider</text>
+<path d="M250.0,310.0 L250.0,433.0" fill="none" stroke="#1A1814" stroke-width="1.75" stroke-linejoin="round"/>
+<polygon points="250.0,440.0 246.0,431.0 254.0,431.0" fill="#1A1814"/>
+<text x="264" y="372" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#1A1814" text-anchor="start" font-weight="normal">cancelLease</text>
+<text x="264" y="390" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="start" font-weight="normal">by requester</text>
+<path d="M320.0,280.0 L493.0,280.0" fill="none" stroke="#1A1814" stroke-width="1.75" stroke-linejoin="round"/>
+<polygon points="500.0,280.0 491.0,284.0 491.0,276.0" fill="#1A1814"/>
+<text x="410" y="266" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#1A1814" text-anchor="middle" font-weight="normal">acceptLease</text>
+<text x="410" y="306" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="middle" font-weight="normal">bond held from stake</text>
+<path d="M700.0,244.0 L700.0,99.0 L913.0,99.0" fill="none" stroke="#1A1814" stroke-width="1.75" stroke-linejoin="round"/>
+<polygon points="920.0,99.0 911.0,103.0 911.0,95.0" fill="#1A1814"/>
+<text x="716" y="86" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#1A1814" text-anchor="start" font-weight="normal">endLease, finalizeExpired</text>
+<text x="716" y="122" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="start" font-weight="normal">requester ends, or</text>
+<text x="716" y="140" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="start" font-weight="normal">every interval is served</text>
+<path d="M700.0,316.0 L700.0,499.0 L913.0,499.0" fill="none" stroke="#1A1814" stroke-width="1.75" stroke-linejoin="round"/>
+<polygon points="920.0,499.0 911.0,503.0 911.0,495.0" fill="#1A1814"/>
+<text x="716" y="486" font-family="Consolas, 'Courier New', monospace" font-size="13" fill="#1A1814" text-anchor="start" font-weight="normal">terminate</text>
+<text x="716" y="522" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="start" font-weight="normal">heartbeat missed past</text>
+<text x="716" y="540" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#5E5950" text-anchor="start" font-weight="normal">the grace period</text>
+</svg>
