@@ -58,7 +58,7 @@ def chapter2(R, F):
         "**Secure rented compute without result verification** using stake, signed uptime heartbeats, hardware attestation and benchmark challenges, reputation, and slashing for service-level breaches. Outcome: implemented and tested. Benchmark challenges run live on Sepolia.",
         "**Specialize in LLM and AI compute** through a managed OpenAI-compatible inference endpoint and raw GPU leases, while allowing any containerized workload. Outcome: prepaid inference for `qwen3:0.6b` and a GPU container lease were validated on an RTX 4070 Laptop GPU provider.",
         "**Retain a verifiable-task mode** for deterministic jobs, using an optimistic re-execution game on the same staking and reputation layer. Outcome: implemented with exact-hash comparison. Commit-reveal, randomized selection, and perceptual comparison remain future work.",
-        "**Deliver a live prototype and evaluate it.** Outcome: a Docker Compose stack, a Sepolia deployment, a simulator, a gas report, and a test suite of 42, 58, 54, 15, and 24 checks across five components (Chapter 9).",
+        "**Deliver a live prototype and evaluate it.** Outcome: a Docker Compose stack, a Sepolia deployment, a simulator, a gas report, and a test suite of 42, 58, 54, 15, and 30 checks across five components (Chapter 9).",
     ])
     R.h2("Motivation")
     R.h3("Economic")

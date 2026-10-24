@@ -356,7 +356,7 @@ def chapter9(R, F):
                 ["Provider agent", "pytest, local chain, fakes", "58", "Task and rental lifecycles, sandbox controls, task I/O, restart recovery, offer reconciliation, hardware parsing, retries, challenger behavior, benchmark answering and judging."],
                 ["Orchestrator", "Vitest, Postgres", "54 (plus 1 skipped without a database)", "Bounded log-range replay, durable projection, ordered replay, challenge indexing, replay protection, gateway controls, API, split, stitch."],
                 ["Simulator", "unittest", "15", "Closed-form thresholds, mixed populations, rental uptime, false heartbeats, escrow conservation, determinism."],
-                ["Web", "Playwright", "24", "20 read-only checks over 10 specs on desktop and 390-pixel mobile, plus 4 desktop wallet-write specs."],
+                ["Web", "Playwright", "30", "26 read-only checks over 13 specs on desktop and 390-pixel mobile, plus 4 desktop wallet-write specs."],
             ],
             [2.4, 3.0, 2.4, 6.7], size=9.5)
     R.h2("Contract Tests")
@@ -368,7 +368,7 @@ def chapter9(R, F):
     R.h2("Simulator Tests")
     R.p("The 15 simulator tests check the closed-form break-even values, the rental false-heartbeat economics, escrow conservation, determinism by seed, mixed population accounting, full uptime, immediate downtime detection, undetected false heartbeats, behavior with no challengers, and rejection of invalid inputs.")
     R.h2("End-to-End Browser Tests")
-    R.p("Playwright runs 24 checks against the running Compose stack. It does not start or stop services. There are two projects: a desktop Chromium viewport of 1440 by 900 pixels and a mobile viewport 390 pixels wide. Ten read-only specs run on both and check that each route renders cleanly with no browser errors or horizontal overflow, that navigation reaches every route, that the explorer tabs expose indexed sections, that the landing page opens the app, and that the theme toggle switches to dark and persists. This gives 20 read-only checks.")
+    R.p("Playwright runs 30 checks against the running Compose stack. It does not start or stop services. There are two projects: a desktop Chromium viewport of 1440 by 900 pixels and a mobile viewport 390 pixels wide. Thirteen read-only specs run on both and check that each of the eight app routes renders cleanly with no browser errors or horizontal overflow, that navigation reaches every route, that the retired /providers route redirects to /provide, that the explorer tabs expose indexed sections, that the landing page opens the app, and that the theme toggle switches to dark and persists. This gives 26 read-only checks.")
     R.h3("Wallet-write automation")
     R.p("Four further specs perform real wallet writes and run on desktop only, because they share one chain and one listing. A real browser wallet cannot be driven reliably in continuous integration, so the specs inject a minimal EIP-1193 provider [@eip1193] into the page. The provider forwards JSON-RPC calls to the local Hardhat node, which signs for its unlocked accounts. This exercises the real application code, real contract calls, and the real orchestrator, and replaces only the wallet user interface. The four specs are:")
     R.numbered([
@@ -379,6 +379,6 @@ def chapter9(R, F):
     ])
     R.p("The specs use Hardhat accounts 5, 6, and 7 and a new random address for the provider spec. If every listing is reserved by another lease, the fixture ends or cancels that lease first. The specs must not be run against a public network.")
     R.h2("Continuous Integration")
-    R.p("GitHub Actions runs five component jobs and a dependent full-stack job on every push and pull request. The contracts job compiles, tests, and records gas. The agent job runs the Python suite. The orchestrator job runs all tests against a Postgres service and type checks. The web job runs lint, type check, and a production build. The simulator job runs its tests and the simulation. The full-stack job starts a fresh Compose deployment with the echo inference backend, runs the signed prepaid-inference smoke flow, and runs the 24 Playwright checks.")
+    R.p("GitHub Actions runs five component jobs and a dependent full-stack job on every push and pull request. The contracts job compiles, tests, and records gas. The agent job runs the Python suite. The orchestrator job runs all tests against a Postgres service and type checks. The web job runs lint, type check, and a production build. The simulator job runs its tests and the simulation. The full-stack job starts a fresh Compose deployment with the echo inference backend, runs the signed prepaid-inference smoke flow, and runs the 30 Playwright checks.")
     R.h2("Gaps")
     R.p("Property-based fuzzing of the contracts is not present. Escrow conservation is covered by lifecycle tests for the current paths, but not by randomized sequences. A formal accessibility audit, a measurement of event latency, and cross-platform runs beyond Windows development and Linux continuous integration are also not complete. The contracts have not been externally audited.")

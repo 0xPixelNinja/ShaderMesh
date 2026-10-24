@@ -298,7 +298,7 @@ def slide_testing(prs, n):
         ("Provider agent", "58", "leases, challenges"),
         ("Orchestrator", "54 + 1 skipped", "skipped needs live stack"),
         ("Simulator", "15", "game economics"),
-        ("Web (Playwright)", "24", "incl. 4 wallet-write"),
+        ("Web (Playwright)", "30", "incl. 4 wallet-write"),
     ]
     tw = Inches(6.7)
     rh = Inches(0.64)
