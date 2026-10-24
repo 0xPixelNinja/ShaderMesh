@@ -141,7 +141,7 @@ contract as the payment authority.
 - Python: provider, rental daemon, inference, hardware discovery, Docker execution
 - TypeScript: durable Postgres projection, APIs, signed gateway, job orchestration
 - Python: provider benchmark answers and the attester service that issues and judges challenges
-- Next.js: landing page, requester dashboard, provider console, and explorer (light and dark themes)
+- Next.js: landing page, role workspaces for renting and providing, and explorer (light and dark themes)
 - Docker Compose: chain, deployer, IPFS, Postgres, provider, seed, attester, API, web
 
 **Say**
@@ -161,7 +161,7 @@ contract as the payment authority.
 - Pending manifest-bound requests and provider acceptance or rejection
 - Current-interval-only heartbeats with no retroactive coverage
 - Durable event projection, ordered replay, APIs, and explorer history
-- Wallet transaction support, including the provider console
+- Wallet transaction support, including the provide workspace
 - Prepaid inference credits, signed gateway requests, and requester usage settlement
 - Gateway request-size, timeout, hostname allowlist, redirect, and replay controls
 - Seeded benchmark challenges answered by the provider and judged by the attester, with free-stake slashing to a treasury and attestation revocation
@@ -196,7 +196,7 @@ contract as the payment authority.
 - Provider agent: 58 passing tests
 - Orchestrator: 54 passing tests with Postgres and clean typecheck
 - Simulator: 15 passing tests
-- Web: lint, typecheck, production build, and 24 Playwright checks, including browser wallet-write flows
+- Web: lint, typecheck, production build, and 30 Playwright checks, including browser wallet-write flows
 - Full Compose flow: three listings, one active lease, one workload container
 - Sepolia: live 36-token inference payment and normally completed GPU rental
 - GitHub Actions: five component jobs plus dependent full-stack smoke and browser job
@@ -285,12 +285,12 @@ Expected state:
 Open `http://localhost:3000`. It opens on the landing page, which explains the
 protocol with diagrams (lease lifecycle, token flow, escrow by interval, heartbeat
 strip, and challenge track). The app routes are `/dashboard`, `/rent`, `/leases`,
-`/models`, `/providers`, and `/explorer`. The theme toggle switches between light
+`/models`, `/provide` (with `/provide/capacity` and `/provide/stake`), and `/explorer`. The theme toggle switches between light
 (default) and dark.
 
-### Step 1: Overview
+### Step 1: Home
 
-Open `/dashboard` and point out:
+Open `/dashboard`. The **Renting** and **Providing** panels summarize the connected wallet. The **Network now**, **Recent activity**, and **Available capacity** sections show network state. Point out:
 
 - Three listed GPUs from three attested providers; one listing is reserved by the seeded lease.
 - One active network lease.
@@ -307,7 +307,7 @@ Say:
 
 ### Step 2: Marketplace
 
-Open **Rent GPUs**.
+Open **Marketplace** (`/rent`) in the Rent group.
 
 Show:
 
@@ -317,7 +317,7 @@ Show:
 
 Say:
 
-> A renter chooses a listing, duration, and IPFS manifest. The browser approves the
+> A renter chooses a listing, configures intervals and the workload manifest in the three-step lease composer, reviews the lease, and requests it. The browser approves the
 > escrow token and submits a pending request. The provider accepts only its exact
 > configured manifest. The clock and bond start on acceptance, and funds are released
 > only for completed intervals with uninterrupted heartbeat evidence.
@@ -349,7 +349,7 @@ depend on it.
 
 ### Step 4: Managed inference
 
-Open **Models**, select the `llama-3.1-8b` offer, and open a 1 SMESH prepaid
+Open **Inference** (`/models`), select the `llama-3.1-8b` offer, and open a 1 SMESH prepaid
 credit. Confirm the ERC-20 approval and `openCredit` transactions. Then enter:
 
 ```text
@@ -427,11 +427,9 @@ Point out:
 - Provider logs report heartbeats for one active lease.
 - The credit records match the selected inference offer and provider.
 
-### Step 7: Provider console and explorer
+### Step 7: Provide workspace and explorer
 
-Open **Providers**. Show the registry, stake and bonded balances, attestation,
-reputation, listings, model offers, and earnings. Explain that every mutation on
-this page is wallet signed. Then open **Explorer** and show the network token-flow figure, the lease
+Open **Node** (`/provide`) in the Provide group. Show provider health, stake, served work, benchmark challenges, and the **Provider registry** table. Then open **Capacity** (listings and inference offers) and **Stake** (faucet, register, stake, unstake). Explain that every mutation in this workspace is wallet signed. Then open **Explorer** and show the network token-flow figure, the lease
 inspector, the **Challenges** tab, and the colour-coded event timeline with slashes,
 all backed by the durable projection.
 

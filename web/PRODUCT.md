@@ -28,13 +28,13 @@ anyone inspects the on-chain state.
 ## Surfaces
 
 1. Dashboard: network at a glance, my rentals and jobs, live activity.
-2. Rent GPUs: marketplace of provider listings (GPU, VRAM, price/hour,
+2. Marketplace (`/rent`): marketplace of provider listings (GPU, VRAM, price/hour,
    reputation, uptime); lease flow; My rentals with live uptime and streamed spend.
-3. Models: catalog of served models with a prompt playground, usage, and cost.
+3. Inference (`/models`): catalog of served models with a prompt playground, usage, and cost.
 4. Jobs: verifiable-task list and Job detail (live tile assembly for rendering).
-5. Providers: registry with stake, reputation, capabilities, uptime.
+5. Provider registry (on the Node page): registry with stake, reputation, capabilities, uptime.
 6. Explorer: leases, jobs, tasks, disputes, and slashing events.
-7. Provider console: stake, listings, heartbeats, earnings, availability.
+7. Provide workspace (`/provide`, `/provide/capacity`, `/provide/stake`): stake, listings, heartbeats, earnings, availability.
 
 ## Principles
 

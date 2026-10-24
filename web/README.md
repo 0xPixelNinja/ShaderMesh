@@ -22,7 +22,7 @@ inference playground supports these optional settings:
 
 ## Prepaid inference
 
-The Models page lists active `InferenceMarket` offers and requester-owned
+The Inference page (`/models`) lists active `InferenceMarket` offers and requester-owned
 credits. Opening a credit requires an ERC-20 approval followed by `openCredit`.
 Each chat request is signed with the orchestrator's canonical EIP-191 payload.
 After a response, the dashboard submits cumulative prompt and completion usage
@@ -51,7 +51,7 @@ $env:PLAYWRIGHT_BASE_URL = "http://127.0.0.1:3000"; npm run test:e2e
 
 The default base URL is `http://127.0.0.1:3000`. Install the Chromium browser
 binary with `npx playwright install chromium` if it is not already available.
-The read-only suite has 16 checks across desktop and mobile viewports.
+The read-only suite has 13 specs on desktop and a 390px mobile viewport (26 checks), plus 4 desktop wallet-write specs (30 checks in total).
 
 ### Wallet write tests
 

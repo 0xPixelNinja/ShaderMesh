@@ -414,7 +414,7 @@ The authoritative roadmap and per-requirement status are in
 | pytest provider agent | 58 passing |
 | Vitest orchestrator with Postgres | 54 passing |
 | unittest simulator | 15 passing |
-| Playwright web app, desktop and mobile, including wallet-write flows | 24 passing |
+| Playwright web app, desktop and mobile, including wallet-write flows | 30 passing |
 
 GitHub Actions compiles and tests contracts, emits the gas report, runs agent and
 simulator tests, runs orchestrator tests against Postgres and type checking, and runs

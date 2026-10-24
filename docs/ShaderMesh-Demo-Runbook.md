@@ -118,7 +118,7 @@ provider is responding on its own.
 
 Open one browser window at `http://localhost:3000` and set zoom to 125 percent.
 The page opens on the landing page. The app routes are `/dashboard`, `/rent`,
-`/leases`, `/models`, `/providers`, and `/explorer`. The theme toggle switches
+`/leases`, `/models`, `/provide` (with `/provide/capacity` and `/provide/stake`), and `/explorer`. The theme toggle switches
 between the light default and the dark theme; pick one before presenting.
 The layout is verified at 1536x864 and 1280x720 with no horizontal overflow.
 
@@ -146,16 +146,18 @@ Start at `/`. It explains the product with protocol diagrams: the lease lifecycl
 token flow, escrow by interval, the heartbeat strip, and the challenge track. Use
 it for a short framing, then open the app from its call to action.
 
-### 6.1 Overview
+### 6.1 Home
 
-Open `/dashboard`. Show network state: available capacity, attested providers, and
-streaming spend.
+Open `/dashboard`. Show the **Renting** and **Providing** panels for the connected wallet, then the **Network now** figures, **Recent activity**, and **Available capacity**.
 
-### 6.2 Rent GPUs
+### 6.2 Marketplace
 
-The RTX 4070 Laptop GPU at 1.20 USD per hour with 60 second intervals is
-preselected. Point out **Escrow to deposit** before committing funds, then select
-**Request lease** and confirm in MetaMask.
+Open **Marketplace** (`/rent`) in the Rent group. The lease composer has three steps: configure intervals and the workload manifest, **Review lease**, then **Request lease**.
+
+Select the RTX 4070 Laptop GPU card (25.20 SMESH per hour, 1 minute intervals),
+set the intervals, and select **Review lease**. Point out **Escrow to deposit**
+before committing funds, then select **Request lease** and confirm the escrow
+approval and the request in MetaMask.
 
 State clearly that there is no approval step. The provider runs as a daemon and
 accepts automatically, because a provider cannot depend on a human being present.
@@ -169,7 +171,7 @@ Watch terminal 3. Within about ten seconds:
 
 ### 6.3 My leases
 
-The lease status becomes **Active**. Heartbeat bars advance every interval and
+Open **My leases** (`/leases`). The lease status becomes **Active**. The heartbeat strip advances every interval and
 escrow streams down. Select **Settle** to settle completed intervals on chain.
 
 ### 6.4 Connect to the leased GPU
@@ -199,10 +201,12 @@ The address adapts to how the dashboard was reached. Browsing on a LAN address
 returns that address instead of `localhost`, so another machine on the same
 network can connect and confirm the hardware is real.
 
-### 6.5 Models
+### 6.5 Inference
 
-`gemma3:4b` is preselected. Use it rather than `qwen3:0.6b`, which is a reasoning
-model and returns terse output.
+Open **Inference** (`/models`).
+
+On Sepolia the provider offers `qwen3:0.6b`. It is a small reasoning model, so keep
+the prompt short and direct.
 
 Open a prepaid credit, send a prompt, and settle usage on chain. The response
 comes from the GPU through the provider's OpenAI-compatible endpoint.
@@ -216,13 +220,12 @@ English descriptions). Show the chronological on-chain trail: `LeaseRequested`,
 `LeaseAccepted`, `Heartbeat`, `IntervalSettled`. On the **Challenges** tab, show
 that the provider has passed challenges automatically.
 
-### 6.7 Provider console
+### 6.7 Node
 
-Switch MetaMask to the provider account and reload. **Lease activity** shows the
-lease, its heartbeat state, and the bond at risk. The header shows attestation,
-stake, reputation, and earnings.
-
-The console also lists challenge history for the provider.
+Switch MetaMask to the provider account and open **Node** (`/provide`). It shows provider health,
+stake, served work, and benchmark challenge history, with the **Provider registry** table below.
+Listings and offers are published on **Capacity** (`/provide/capacity`), and the faucet, register,
+stake, and unstake actions are on **Stake** (`/provide/stake`).
 
 Do not select **Set inactive** or unstake. Either stops the agent serving and ends
 the demo.
@@ -264,7 +267,7 @@ one to two minutes the next challenge is issued, answered, and judged:
   (Hardhat account 0, `0xf39F...2266`). Its SMESH balance rises by 10 SMESH. The
   slash comes from free stake only. Bonded stake backing the active lease is not
   touched, and the lease continues under its bond.
-- **Provider console**: attestation is revoked and reputation falls. A revoked
+- **Node page**: attestation is revoked and reputation falls. A revoked
   provider cannot publish new listings or offers.
 
 The slash is the configured challenge slash, one fifth of the 50 SMESH minimum
@@ -293,7 +296,7 @@ docker compose up -d --build
 |---|---|---|
 | Transaction fails with a chain mismatch | MetaMask on another network | Switch to ShaderMesh Dev |
 | Dashboard empty but all services healthy | Chain restarted, seed did not re-run | Full reset |
-| Model returns nothing, or Models page errors | Ollama not running | Start `ollama serve` in terminal 1 |
+| Model returns nothing, or Inference page errors | Ollama not running | Start `ollama serve` in terminal 1 |
 | SSH connection refused | Lease not active yet | Wait for the heartbeat in terminal 3 |
 | Lease stays Pending | Listing has no running agent | Use the RTX 4070 listing |
 | Challenges tab empty | Attester not running, or under two minutes since start | Check `docker compose logs attester`, wait, or full reset |
@@ -306,7 +309,7 @@ curl -s http://localhost:11434/api/tags
 ```
 
 An empty or failed response means Ollama stopped. Restart it with `ollama serve`.
-The rental and lease flows keep working without it; only the Models page depends
+The rental and lease flows keep working without it; only the Inference page depends
 on it.
 
 ---

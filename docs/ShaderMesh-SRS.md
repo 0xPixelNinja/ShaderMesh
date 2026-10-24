@@ -549,7 +549,7 @@ multi color gradients used as decoration.
 
 - A 4 pixel spacing grid. Generous spacing that still respects data density.
 - The landing page at `/` has a top bar and no sidebar. App routes (`/dashboard`, `/rent`,
-  `/leases`, `/models`, `/providers`, `/explorer`) use a left sidebar with a top bar for
+  `/leases`, `/models`, `/provide`, `/explorer`) use a left sidebar with a top bar for
   wallet and network status. The sidebar collapses to a scrolling tab row below 768 pixels.
 - Content is constrained to 1280 pixels with breakpoints at 375, 768, 1024, and 1440.
 
@@ -606,14 +606,14 @@ read-only browser pass against the full local stack.
 | Contracts | Hardhat, Chai | 42 tests for token, registry, jobs, disputes, pending rental acceptance, strict heartbeats, escrow conservation, prepaid inference credits, and benchmark challenges. |
 | Agent | pytest, local chain, fakes | 58 tests for task and rental lifecycles, sandbox controls, Docker-native task I/O, restart recovery, offer reconciliation, hardware parsing, retries, challenger behavior, and benchmark answering and judging. |
 | Orchestrator | Vitest, Postgres | 54 tests in CI, including bounded log-range replay, durable projection, ordered replay, challenge indexing, inference replay protection, gateway controls, APIs, split, and stitch. Without `TEST_DATABASE_URL`, the Postgres integration test is skipped. |
-| Web | Playwright | 24 checks. Sixteen read-only route, navigation, landing, theme toggle, explorer, responsive, overflow, and browser-error checks across desktop and 390-pixel mobile viewports, plus four desktop wallet-write specs (connect, lease request to end and refund, prepaid inference credit to signed prompt and close, provider register and stake shown unattested). The wallet specs use an injected EIP-1193 wallet backed by unlocked Hardhat accounts (`web/tests/e2e/wallet.ts`). |
+| Web | Playwright | 30 checks. Twenty-six read-only route, navigation, redirect, landing, theme toggle, explorer, responsive, overflow, and browser-error checks across desktop and 390-pixel mobile viewports, plus four desktop wallet-write specs (connect, lease request to end and refund, prepaid inference credit to signed prompt and close, provider register and stake shown unattested). The wallet specs use an injected EIP-1193 wallet backed by unlocked Hardhat accounts (`web/tests/e2e/wallet.ts`). |
 | Economic | unittest | 15 tests for closed-form thresholds, heterogeneous task behavior, rental uptime, false heartbeats, escrow conservation, and deterministic seeds. |
 
 GitHub Actions runs five component jobs and a dependent full-stack job on pushes and pull
 requests. It compiles and tests contracts and records gas, runs the agent and simulator
 suites, runs all orchestrator tests against Postgres plus type checking, and runs web lint,
 type checking, and production build. The full-stack job starts a fresh Compose deployment,
-runs the signed prepaid-inference smoke flow, and runs the 24 Playwright checks, including the
+runs the signed prepaid-inference smoke flow, and runs the 30 Playwright checks, including the
 browser wallet-write specs. Property-based contract fuzzing remains a testing gap.
 
 ---
@@ -818,7 +818,7 @@ path (phases 1 to 4) is complete and is retained as the second market mode.
 - Goal: rent GPUs, use models, and manage leases on the light-first editorial design system
   documented in `web/DESIGN.md`.
 - Deliverables: a Next.js, TypeScript, viem, and Tailwind app with a landing page at `/`,
-  and Overview (`/dashboard`), Rent GPUs, My leases, Models, Provider console, and Explorer.
+  and Home (`/dashboard`), Marketplace (`/rent`), My leases (`/leases`), Inference (`/models`), Node (`/provide`), Capacity (`/provide/capacity`), Stake (`/provide/stake`), and Explorer (`/explorer`).
   Light and dark themes with a toggle, Geist and Geist Mono, and SVG protocol diagrams
   (lease lifecycle, token flow, escrow by interval, heartbeat strip, challenge track). Wallet writes cover manifest-bound
   lease requests, cancellation, settlement and end; inference credit open, signed request,
@@ -826,7 +826,7 @@ path (phases 1 to 4) is complete and is retained as the second market mode.
   availability, listing, and offer actions.
 - Acceptance: met. Built and verified live end to end: the app renders real listings, a live
   lease with streamed spend, and the model catalog from real on chain data via the orchestrator.
-  The provider console shows collateral, attestation, inventory, earnings, uptime, and
+  The Node page shows collateral, attestation, inventory, earnings, uptime, and
   reputation, and challenge history. The explorer has a network token-flow figure, a lease
   inspector, a Challenges tab, and a colour-coded event timeline with plain-English
   descriptions of events and slashes. My leases shows lease evidence. The seeded app is built
@@ -837,7 +837,7 @@ path (phases 1 to 4) is complete and is retained as the second market mode.
 ### Phase 9: Full stack end to end and continuous integration. Status: done for the current prototype
 - Goal: confidence that the whole system works together.
 - Deliverables: GitHub Actions component jobs, Postgres-backed orchestrator integration,
-  a fresh Compose job, signed prepaid-inference smoke test, and 24 Playwright checks
+  a fresh Compose job, signed prepaid-inference smoke test, and 30 Playwright checks
   (read-only pages plus browser wallet-write flows).
 - Acceptance: implemented in `.github/workflows/ci.yml`. The public Sepolia inference and
   rental paths were also validated manually. Browser wallet-write automation is done with an injected test wallet.
@@ -896,7 +896,7 @@ Status is based on behavior in the repository, not roadmap intent.
 | FR-AGT-01..07, FR-AGT-09 | done | Worker, challenger, IPFS, sandbox, retries, and inference endpoint are implemented. |
 | FR-AGT-08 | partial | The agent serves accepted leases and sends strict health-backed heartbeats, but executes provider-configured workloads rather than requester-defined containers. |
 | FR-AGT-10 | done, should | The provider agent answers open challenges with the seeded hash chain output and a score (Ollama tokens per second or hash rate). Hardware discovery is also available. |
-| FR-WEB-01..03, FR-WEB-05..08 | done | Wallet, rental, prepaid inference, provider console with challenge history, explorer with a Challenges tab and event timeline, copy-safe protocol values, and wallet-only writes are implemented. |
+| FR-WEB-01..03, FR-WEB-05..08 | done | Wallet, rental, prepaid inference, Node page with challenge history, explorer with a Challenges tab and event timeline, copy-safe protocol values, and wallet-only writes are implemented. |
 | FR-WEB-04 | planned, should | Explorer views jobs and tasks, but requester job posting and live tile assembly are not implemented. |
 | FR-SIM-01..04 | done | The standard-library simulator covers both heterogeneous verification and rental economics with 15 tests. |
 | FR-RENT-01..07, FR-RENT-09..10 | done | `RentalMarket` and its agent and web clients implement listings, pending manifest-bound requests, acceptance, strict heartbeats, settlement, refunds, extension, termination, slashing, and events. |

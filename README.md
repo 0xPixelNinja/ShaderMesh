@@ -42,7 +42,7 @@ The orchestrator and provider agents hold no requester funds and cannot force co
 - Deterministic jobs with IPFS inputs and outputs, constrained execution, commitments, disputes, and settlement.
 - Rebuildable Postgres projections with exact event cursors and bounded RPC log queries.
 - Windows NVIDIA discovery, Ollama support, Docker GPU passthrough, and isolated task I/O.
-- A light-first editorial web interface (light and dark themes) with a landing page at `/`, protocol diagrams, a dashboard at `/dashboard`, and requester, provider, model, lease, and explorer pages. The explorer has a Challenges tab and an event timeline.
+- A light-first editorial web interface (light and dark themes) with a landing page at `/`, protocol diagrams, a Home overview at `/dashboard`, a Rent workspace (Marketplace, My leases, Inference), a Provide workspace (Node, Capacity, Stake), and the explorer. The explorer has a Challenges tab and an event timeline.
 - Local, provider-only, and Sepolia operator Compose topologies.
 
 ## Repository Layout
@@ -176,7 +176,7 @@ Each provider requires a unique wallet, Sepolia ETH, the public `sepolia.json` d
 | Provider agent | 58 passing tests |
 | Orchestrator | 54 passing tests with Postgres |
 | Simulator | 15 passing tests |
-| Web app | Lint, typecheck, production build, and 24 Playwright checks, including browser wallet-write flows |
+| Web app | Lint, typecheck, production build, and 30 Playwright checks, including browser wallet-write flows |
 | Full stack | Local Compose, Sepolia inference, GPU rental, deterministic jobs, Postgres restart recovery |
 
 GitHub Actions repeats the component suites and starts a fresh full stack for smoke and browser checks.

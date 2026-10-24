@@ -402,14 +402,16 @@ Its pages:
 
 - `/` (landing page): explains the product with diagrams of the lease lifecycle,
   token flow, escrow by interval, heartbeats, and the challenge track.
-- `/dashboard`: network overview with available capacity, attested providers, and
-  streaming spend.
-- `/rent`: browse GPU listings and request a lease.
-- `/leases` (My leases): your leases, heartbeat progress, streamed spend, and
-  lease evidence.
-- `/models`: model catalog and a prompt playground using prepaid credits.
-- `/providers` (Provider console): registration, stake, listings, offers,
-  earnings, reputation, and challenge history.
+- `/dashboard` (Home): Renting and Providing panels for the connected wallet, plus
+  network figures, recent activity, and available capacity.
+- `/rent` (Marketplace): browse GPU listings and request a lease with a
+  three-step composer (configure, review, request).
+- `/leases` (My leases): active lease cards with a heartbeat strip, pending
+  requests, lease history, and lease evidence.
+- `/models` (Inference): offers, prepaid credits, and a signed chat.
+- `/provide` (Node): provider health, stake, served work, benchmark challenges,
+  and the provider registry. `/provide/capacity` publishes listings and
+  offers, and `/provide/stake` handles the faucet, registration, and stake.
 - `/explorer`: a network token-flow figure, a lease inspector, a Challenges tab,
   and a colour-coded timeline of on-chain events and slashes with plain-English
   descriptions.
