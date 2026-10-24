@@ -466,7 +466,7 @@ export default function ModelsPage() {
           title={selectedModel || "Inference playground"}
           sub={selectedCredit ? `credit #${selectedCredit.id} · ${shortAddr(selectedCredit.provider)}` : "Select an active prepaid credit"}
           action={lastUsage && (
-            <span className="mono text-right text-[11px] text-faint">
+            <span className="mono text-right text-[12px] text-faint">
               {lastUsage.prompt.toString()} in · {lastUsage.completion.toString()} out
               <b className="ml-2 font-medium text-ink2">{fmtSmesh(lastUsage.cost, 4)}</b>
             </span>
@@ -537,7 +537,7 @@ export default function ModelsPage() {
               disabled={locked || !selectedCredit}
               rows={2}
               placeholder={selectedCredit ? "Ask anything, or paste a prompt" : "Select an active credit first"}
-              className="min-h-[46px] flex-1 resize-none rounded-md border border-line bg-bg px-3 py-2.5 text-[14px] leading-relaxed text-ink outline-none transition-colors duration-fast ease-out placeholder:text-faint hover:border-line-strong disabled:cursor-not-allowed disabled:opacity-50"
+              className="min-h-[46px] flex-1 resize-none rounded-md border border-line bg-bg px-3 py-2.5 text-[14px] leading-relaxed text-ink transition-colors duration-fast ease-out placeholder:text-faint hover:border-line-strong focus-visible:border-accent disabled:cursor-not-allowed disabled:opacity-50"
             />
             <Button
               variant="primary"
