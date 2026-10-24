@@ -8,6 +8,7 @@
     "test": "hardhat test",
     "typecheck": "tsc --noEmit",
     "gas": "hardhat run scripts/gas-report.ts",
+    "verify:sepolia": "hardhat run scripts/verify.ts --network sepolia",
     "node": "hardhat node",
     "deploy:local": "hardhat run scripts/deploy.ts --network localhost",
     "deploy:sepolia": "hardhat run scripts/deploy.ts --network sepolia",
