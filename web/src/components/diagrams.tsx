@@ -255,7 +255,9 @@ export function EscrowIntervals({
   current?: number | null;
 }) {
   const total = Math.max(max, funded, 1);
-  const cells = Array.from({ length: total }, (_, i) => {
+  // Long listings can allow hundreds of intervals; draw a short run of headroom.
+  const drawn = Math.min(total, Math.max(funded, 1) + 8);
+  const cells = Array.from({ length: drawn }, (_, i) => {
     if (i < settled) return "settled";
     if (i < heartbeated) return "attested";
     if (i < funded) return "funded";
@@ -280,6 +282,9 @@ export function EscrowIntervals({
             {current === i && <span className="absolute -bottom-2 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-accent" aria-hidden />}
           </li>
         ))}
+        {drawn < total && (
+          <li className="self-center pl-1 text-[12px] text-faint">+{total - drawn} more</li>
+        )}
       </ol>
       <ul className="mt-4 flex flex-wrap gap-x-5 gap-y-1.5 text-[12px] text-muted">
         <Legend swatch="bg-success border-success" label={`settled ${settled}`} />
