@@ -44,16 +44,18 @@ const test = base.extend<{ browserErrors: string[] }>({
   ],
 });
 
-const header = (page: Page) => page.getByRole("banner");
+// Lease cards also contain a header element, so take the first (page-level) banner.
+const header = (page: Page) => page.getByRole("banner").first();
 
 async function connect(page: Page, account: string) {
   // A grant from earlier in the tab is restored on load, so connect only if needed.
   const address = header(page).getByText(`${account.slice(0, 6)}…${account.slice(-4)}`);
-  const button = header(page).getByRole("button", { name: "Connect wallet" });
+  const button = header(page).getByRole("button", { name: "Connect wallet", exact: true });
   // The server-rendered button can be clicked before hydration attaches its
   // handler, so retry the click until the address appears.
   await expect(async () => {
-    if (await button.isVisible()) await button.click();
+    // The button can vanish mid-click when a restored grant finishes hydrating.
+    if (await button.isVisible()) await button.click({ timeout: 2_000 }).catch(() => {});
     await expect(address).toBeVisible({ timeout: 2_000 });
   }).toPass({ timeout: 20_000 });
 }
@@ -67,11 +69,11 @@ test.describe("wallet writes against the local stack", () => {
     await installWallet(page, account);
 
     await page.goto("/dashboard");
-    await expect(header(page).getByRole("button", { name: "Connect wallet" })).toBeVisible();
+    await expect(header(page).getByRole("button", { name: "Connect wallet", exact: true })).toBeVisible();
     await connect(page, account);
 
     const balance = Number(await smeshBalance(account)) / 1e18;
-    const shown = header(page).locator("span", { hasText: /^\$[\d,.]+SMESH$/ }).first();
+    const shown = header(page).locator("span", { hasText: /^[\d,.]+\s*SMESH$/ }).first();
     await expect(shown).toBeVisible();
     await expect.poll(async () => Number((await shown.innerText()).replace(/[^\d.]/g, ""))).toBeGreaterThan(0);
     const text = Number((await shown.innerText()).replace(/[^\d.]/g, ""));
@@ -81,7 +83,7 @@ test.describe("wallet writes against the local stack", () => {
     await page.reload();
     await expect(header(page).getByRole("button", { name: "Disconnect wallet" })).toBeVisible();
     await header(page).getByRole("button", { name: "Disconnect wallet" }).click();
-    await expect(header(page).getByRole("button", { name: "Connect wallet" })).toBeVisible();
+    await expect(header(page).getByRole("button", { name: "Connect wallet", exact: true })).toBeVisible();
   });
 
   test("rents a GPU, shows heartbeat evidence, and ends the lease with a refund", async ({ page }) => {
@@ -98,9 +100,9 @@ test.describe("wallet writes against the local stack", () => {
     // Use a short lease and set the manifest explicitly so the test does not
     // depend on the dev server's NEXT_PUBLIC defaults.
     await expect(page.getByRole("heading", { name: "Configure lease" })).toBeVisible();
-    await page.getByRole("spinbutton").fill("3");
-    await page.getByRole("button", { name: "Workload manifest" }).click();
-    await page.getByPlaceholder("ipfs://<CID>").fill(MANIFEST);
+    await page.getByLabel("Intervals").fill("3");
+    await page.getByLabel("Workload manifest").fill(MANIFEST);
+    await page.getByRole("button", { name: "Review lease" }).click();
     await page.getByRole("button", { name: /^Request lease/ }).click();
     await expect(page.getByText(/Lease requested for/)).toBeVisible({ timeout: 60_000 });
 
@@ -116,22 +118,24 @@ test.describe("wallet writes against the local stack", () => {
 
     await page.goto("/leases");
     await connect(page, account);
-    const row = page.getByRole("row").filter({ hasText: `lease #${leaseId}` });
-    await expect(row).toBeVisible();
-    await expect(row.getByText("Active", { exact: true })).toBeVisible({ timeout: 90_000 });
+    const card = page.getByRole("article").filter({ hasText: `lease #${leaseId}` });
+    await expect(card).toBeVisible();
+    await expect(card.locator("header").getByText("Active", { exact: true })).toBeVisible({ timeout: 90_000 });
 
-    await expect(page.getByText("Lease evidence")).toBeVisible();
-    await expect(page.getByText("Escrow intervals")).toBeVisible();
-    await expect(page.getByText("Lifecycle")).toBeVisible();
+    await expect(card.getByText("Lease evidence", { exact: true })).toBeVisible();
+    await expect(card.getByText("Escrow intervals", { exact: true })).toBeVisible();
+    await expect(card.getByText("Lifecycle", { exact: true })).toBeVisible();
     // The agent heartbeats once per 60 second interval.
-    await expect(row.getByText(/· [1-9]\d*\/\d+ beats/)).toBeVisible({ timeout: 120_000 });
+    await expect(card.locator("dd").filter({ hasText: /^[1-9]\d* \/ \d+$/ })).toBeVisible({ timeout: 120_000 });
 
     const balanceBefore = await smeshBalance(account);
     const escrowBefore = BigInt((await api<ApiLease[]>("/leases")).find((entry) => entry.id === leaseId)!.escrow);
-    await row.getByRole("button", { name: "End", exact: true }).click();
+    await card.getByRole("button", { name: "End", exact: true }).click();
+    await card.getByRole("button", { name: "Confirm end", exact: true }).click();
     await expect(page.getByText(`End transaction submitted for lease #${leaseId}.`)).toBeVisible({ timeout: 30_000 });
-    await expect(row.getByText("Ended", { exact: true })).toBeVisible({ timeout: 30_000 });
-    await expect(row.getByText("No actions")).toBeVisible();
+    const history = page.getByRole("row").filter({ hasText: `lease #${leaseId}` });
+    await expect(history.getByText("Ended", { exact: true })).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByRole("article").filter({ hasText: `lease #${leaseId}` })).toHaveCount(0);
 
     const refunded = (await smeshBalance(account)) - balanceBefore;
     expect(refunded).toBeGreaterThan(0n);
@@ -152,7 +156,7 @@ test.describe("wallet writes against the local stack", () => {
 
     await expect(page.getByRole("button", { pressed: true }).first()).toBeVisible();
     await page.getByLabel("New credit amount").fill("2");
-    await page.getByRole("button", { name: "Open", exact: true }).click();
+    await page.getByRole("button", { name: "Open credit", exact: true }).click();
     await expect(page.getByText(/Credit confirmed/)).toBeVisible({ timeout: 60_000 });
 
     let creditId = "";
@@ -204,25 +208,34 @@ test.describe("wallet writes against the local stack", () => {
     await rpc("hardhat_impersonateAccount", [account]);
 
     await installWallet(page, account);
-    await page.goto("/providers");
+    await page.goto("/provide/stake");
     await connect(page, account);
 
     await expect(page.getByText("Not registered", { exact: true })).toBeVisible();
     await page.getByRole("button", { name: "Claim 1,000 SMESH" }).click();
-    await expect(header(page).getByText("$1,000.00")).toBeVisible({ timeout: 60_000 });
+    await expect(header(page).getByText("1,000.00")).toBeVisible({ timeout: 60_000 });
 
+    await page.goto("/provide/capacity");
+    await expect(page.getByLabel("Capabilities JSON")).toBeVisible();
     await page.getByRole("button", { name: "Register provider" }).click();
-    await expect(page.getByRole("button", { name: "Update capabilities" })).toBeVisible({ timeout: 60_000 });
+    await expect(page.getByRole("button", { name: "Update profile" })).toBeVisible({ timeout: 60_000 });
 
-    await page.getByLabel("Add stake").fill("100");
+    await page.goto("/provide/stake");
+    await page.getByLabel("Add stake (SMESH)").fill("100");
     await page.getByRole("button", { name: "Approve and stake" }).click();
     await expect(page.getByText(/Stake confirmed/)).toBeVisible({ timeout: 60_000 });
 
     // Attestation comes from the attester service, so a new provider stays unattested.
-    await expect(page.getByText("Required for market offers")).toBeVisible({ timeout: 30_000 });
-    await expect(page.getByText(/Not attested\. Market listings and inference offers require/)).toBeVisible();
-    await expect(page.getByRole("button", { name: "Create listing" })).toBeDisabled();
-    await expect(page.getByRole("button", { name: "Create inference offer" })).toBeDisabled();
+    await page.goto("/provide/capacity");
+    await expect(page.getByText("Registered, awaiting attestation")).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText("Waiting for the operator to attest your hardware.").first()).toBeVisible();
+    await expect(page.getByRole("button", { name: "Publish listing" })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "Publish offer" })).toBeDisabled();
+
+    await page.goto("/provide");
+    const setup = page.getByText("Set up your node", { exact: true });
+    await expect(setup).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText("Not attested", { exact: true }).first()).toBeVisible();
 
     const registry = page.getByRole("row").filter({ has: page.locator(`[title="${account}" i]`) });
     await expect(registry).toBeVisible({ timeout: 30_000 });

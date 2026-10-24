@@ -1,11 +1,13 @@
 import { expect, test as base, type Page } from "@playwright/test";
 
 const routes = [
-  { path: "/dashboard", title: "Overview", navLabel: "Overview" },
-  { path: "/rent", title: "Rent GPUs", navLabel: "Rent GPUs" },
+  { path: "/dashboard", title: "Home", navLabel: "Home" },
+  { path: "/rent", title: "Marketplace", navLabel: "Marketplace" },
   { path: "/leases", title: "My leases", navLabel: "My leases" },
-  { path: "/models", title: "Models", navLabel: "Models" },
-  { path: "/providers", title: "Provider console", navLabel: "Provider console" },
+  { path: "/models", title: "Inference", navLabel: "Inference" },
+  { path: "/provide", title: "Node", navLabel: "Node" },
+  { path: "/provide/capacity", title: "Capacity", navLabel: "Capacity" },
+  { path: "/provide/stake", title: "Stake", navLabel: "Stake" },
   { path: "/explorer", title: "Explorer", navLabel: "Explorer" },
 ] as const;
 
@@ -41,9 +43,10 @@ async function expectLoaded(page: Page, statusName: string) {
 
 async function expectKeySections(page: Page, path: string) {
   if (path === "/dashboard") {
-    await expect(page.getByRole("heading", { name: "Your active leases", exact: true })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Top providers", exact: true })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Run a model", exact: true })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Renting" })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Providing" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Network now", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Recent activity", exact: true })).toBeVisible();
   } else if (path === "/rent") {
     await expect(page.getByRole("heading", { name: "Available GPUs", exact: true })).toBeVisible();
     await expectLoaded(page, "Loading available GPUs");
@@ -54,10 +57,12 @@ async function expectKeySections(page: Page, path: string) {
     await expect(page.getByRole("heading", { name: "Prepaid credit", exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Transaction state", exact: true })).toBeVisible();
     await expectLoaded(page, "Loading inference offers");
-  } else if (path === "/providers") {
-    await expect(page.getByRole("heading", { name: "Operate as a provider", exact: true })).toBeVisible();
+  } else if (path === "/provide") {
+    await expect(page.getByRole("heading", { name: "Connect your provider wallet", exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Provider registry", exact: true })).toBeVisible();
-    await expectLoaded(page, "Loading providers");
+  } else if (path === "/provide/capacity" || path === "/provide/stake") {
+    await expect(page.getByRole("heading", { name: "Connect your provider wallet", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Connect wallet", exact: true }).first()).toBeVisible();
   } else {
     await expect(page.getByRole("heading", { name: "Protocol state", exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Rental leases", exact: true })).toBeVisible();
@@ -101,6 +106,12 @@ test("navigation reaches every route", async ({ page }, testInfo) => {
 
   expect(page.viewportSize()?.width).toBe(mobile ? 390 : 1440);
   await expectNoDocumentOverflow(page);
+});
+
+test("/providers redirects to /provide", async ({ page }) => {
+  await page.goto("/providers", { waitUntil: "domcontentloaded" });
+  await expect(page).toHaveURL((url) => url.pathname === "/provide");
+  await expect(page.locator("h1")).toHaveText("Node");
 });
 
 test("explorer tabs expose indexed read-only sections", async ({ page }) => {
