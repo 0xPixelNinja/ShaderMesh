@@ -55,6 +55,40 @@ contract ProviderRegistry is Ownable {
     /// @notice Attestation is considered fresh for this long.
     uint256 public attestationTtl = 7 days;
 
+    enum ChallengeStatus {
+        None,
+        Open,
+        Responded,
+        Passed,
+        Failed,
+        Lapsed
+    }
+
+    /// @notice A benchmark challenge issued by the attester. The provider must answer
+    ///         with the seeded output hash and a measured score before the deadline.
+    struct Challenge {
+        address provider;
+        bytes32 seed;
+        uint64 issuedAt;
+        uint64 deadline;
+        uint64 respondedAt;
+        ChallengeStatus status;
+        uint256 score;
+        bytes32 outputHash;
+    }
+
+    mapping(uint256 => Challenge) public challenges;
+    /// @notice Open (unresolved) challenge per provider, 0 when none.
+    mapping(address => uint256) public openChallenge;
+    uint256 public nextChallengeId = 1;
+    /// @notice Time a provider has to answer a challenge. The attester has the same
+    ///         window after the deadline to judge an answer before it lapses.
+    uint256 public challengeWindow = 15 minutes;
+    /// @notice Free stake slashed when a provider fails or misses a challenge.
+    uint256 public challengeSlash;
+    /// @notice Recipient of challenge slashes.
+    address public treasury;
+
     event ProviderRegistered(address indexed provider, string capabilities);
     event CapabilitiesUpdated(address indexed provider, string capabilities);
     event Staked(address indexed provider, uint256 amount, uint256 totalStake);
@@ -67,10 +101,18 @@ contract ProviderRegistry is Ownable {
     event ActiveSet(address indexed provider, bool active);
     event AttesterSet(address indexed attester);
     event Attested(address indexed provider, string gpuModel, uint32 vramGB, uint256 benchmarkScore);
+    event AttestationRevoked(address indexed provider);
+    event TreasurySet(address indexed treasury);
+    event ChallengeParamsSet(uint256 window, uint256 slashAmount);
+    event ChallengeIssued(uint256 indexed id, address indexed provider, bytes32 seed, uint64 deadline);
+    event ChallengeResponded(uint256 indexed id, address indexed provider, uint256 score, bytes32 outputHash);
+    event ChallengeResolved(uint256 indexed id, address indexed provider, ChallengeStatus status, uint256 slashed);
 
     constructor(IERC20 token_, uint256 minStake_, address owner_) Ownable(owner_) {
         token = token_;
         minStake = minStake_;
+        treasury = owner_;
+        challengeSlash = minStake_ / 5;
     }
 
     modifier onlyAuthorized() {
@@ -100,6 +142,19 @@ contract ProviderRegistry is Ownable {
         attestationTtl = value;
     }
 
+    function setTreasury(address account) external onlyOwner {
+        require(account != address(0), "registry: zero treasury");
+        treasury = account;
+        emit TreasurySet(account);
+    }
+
+    function setChallengeParams(uint256 window, uint256 slashAmount) external onlyOwner {
+        require(window > 0, "registry: zero window");
+        challengeWindow = window;
+        challengeSlash = slashAmount;
+        emit ChallengeParamsSet(window, slashAmount);
+    }
+
     /// @notice Record a passed hardware attestation for a provider. Only the attester
     ///         (the challenge verifier) may call this.
     function attest(
@@ -123,6 +178,101 @@ contract ProviderRegistry is Ownable {
     function isAttested(address who) public view returns (bool) {
         uint64 at = attestations[who].attestedAt;
         return at != 0 && block.timestamp <= uint256(at) + attestationTtl;
+    }
+
+    // --------------------------------------------------------------------- //
+    // Benchmark challenges
+    // --------------------------------------------------------------------- //
+
+    /// @notice Issue a benchmark challenge to an attested provider. The seed comes
+    ///         from chain randomness so the provider cannot precompute the answer.
+    function issueChallenge(address provider) external returns (uint256 id) {
+        require(msg.sender == attester, "registry: not attester");
+        require(attestations[provider].attestedAt != 0, "registry: not attested");
+        require(openChallenge[provider] == 0, "registry: challenge open");
+        id = nextChallengeId++;
+        bytes32 seed = keccak256(abi.encode(block.prevrandao, provider, id));
+        uint64 deadline = uint64(block.timestamp + challengeWindow);
+        challenges[id] = Challenge({
+            provider: provider,
+            seed: seed,
+            issuedAt: uint64(block.timestamp),
+            deadline: deadline,
+            respondedAt: 0,
+            status: ChallengeStatus.Open,
+            score: 0,
+            outputHash: bytes32(0)
+        });
+        openChallenge[provider] = id;
+        emit ChallengeIssued(id, provider, seed, deadline);
+    }
+
+    /// @notice Answer an open challenge with the seeded output hash and measured score.
+    function respondChallenge(uint256 id, uint256 score, bytes32 outputHash) external {
+        Challenge storage c = challenges[id];
+        require(c.provider == msg.sender, "registry: not challenged");
+        require(c.status == ChallengeStatus.Open, "registry: not open");
+        require(block.timestamp <= c.deadline, "registry: deadline passed");
+        c.status = ChallengeStatus.Responded;
+        c.respondedAt = uint64(block.timestamp);
+        c.score = score;
+        c.outputHash = outputHash;
+        emit ChallengeResponded(id, msg.sender, score, outputHash);
+    }
+
+    /// @notice Judge an answered challenge. The attester recomputes the output hash
+    ///         off chain and compares the score to the attested benchmark. A pass
+    ///         refreshes the attestation; a fail slashes free stake and revokes it.
+    function resolveChallenge(uint256 id, bool passed) external {
+        require(msg.sender == attester, "registry: not attester");
+        Challenge storage c = challenges[id];
+        require(c.status == ChallengeStatus.Responded, "registry: not responded");
+        require(block.timestamp <= uint256(c.deadline) + challengeWindow, "registry: judging lapsed");
+        if (passed) {
+            c.status = ChallengeStatus.Passed;
+            openChallenge[c.provider] = 0;
+            attestations[c.provider].attestedAt = uint64(block.timestamp);
+            _recordOutcome(c.provider, true);
+            emit ChallengeResolved(id, c.provider, ChallengeStatus.Passed, 0);
+        } else {
+            _failChallenge(id, c);
+        }
+    }
+
+    /// @notice Close a challenge whose window ran out. Anyone may call it. A missed
+    ///         deadline fails the provider with no trusted input; an answer the
+    ///         attester never judged lapses without penalty.
+    function expireChallenge(uint256 id) external {
+        Challenge storage c = challenges[id];
+        if (c.status == ChallengeStatus.Open) {
+            require(block.timestamp > c.deadline, "registry: not expired");
+            _failChallenge(id, c);
+        } else {
+            require(c.status == ChallengeStatus.Responded, "registry: not open");
+            require(block.timestamp > uint256(c.deadline) + challengeWindow, "registry: not expired");
+            c.status = ChallengeStatus.Lapsed;
+            openChallenge[c.provider] = 0;
+            emit ChallengeResolved(id, c.provider, ChallengeStatus.Lapsed, 0);
+        }
+    }
+
+    /// @dev Slashes only free stake, so bonds held by active leases and tasks stay whole.
+    function _failChallenge(uint256 id, Challenge storage c) internal {
+        address who = c.provider;
+        c.status = ChallengeStatus.Failed;
+        openChallenge[who] = 0;
+        attestations[who].attestedAt = 0;
+        Provider storage p = providers[who];
+        uint256 free = p.stake - p.bonded;
+        uint256 amt = challengeSlash > free ? free : challengeSlash;
+        p.stake -= amt;
+        _recordOutcome(who, false);
+        emit AttestationRevoked(who);
+        emit ChallengeResolved(id, who, ChallengeStatus.Failed, amt);
+        if (amt > 0) {
+            token.safeTransfer(treasury, amt);
+            emit Slashed(who, amt, treasury);
+        }
     }
 
     // --------------------------------------------------------------------- //
@@ -162,6 +312,7 @@ contract ProviderRegistry is Ownable {
 
     function unstake(uint256 amount) external {
         Provider storage p = providers[msg.sender];
+        require(openChallenge[msg.sender] == 0, "registry: challenge open");
         require(availableStake(msg.sender) >= amount, "registry: exceeds free stake");
         p.stake -= amount;
         token.safeTransfer(msg.sender, amount);
@@ -225,6 +376,10 @@ contract ProviderRegistry is Ownable {
 
     /// @notice Update reputation via EMA toward 100% (success) or 0% (failure).
     function recordOutcome(address who, bool success) external onlyAuthorized {
+        _recordOutcome(who, success);
+    }
+
+    function _recordOutcome(address who, bool success) internal {
         Provider storage p = providers[who];
         uint256 target = success ? REP_SCALE : 0;
         p.reputation = (p.reputation * (REP_EMA_K - 1) + target) / REP_EMA_K;

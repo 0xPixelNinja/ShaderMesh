@@ -59,6 +59,15 @@ async function main() {
   await (await market.setVerification(await verification.getAddress())).wait();
   // The deployer acts as the attestation verifier for the demo.
   await (await registry.setAttester(owner)).wait();
+  // Optional benchmark challenge tuning (short windows keep local demos quick).
+  const challengeWindow = process.env.CHALLENGE_WINDOW_SECONDS;
+  const challengeSlash = process.env.CHALLENGE_SLASH_SMESH;
+  if (challengeWindow || challengeSlash) {
+    const window = challengeWindow ? BigInt(challengeWindow) : await registry.challengeWindow();
+    const slash = challengeSlash ? ethers.parseEther(challengeSlash) : await registry.challengeSlash();
+    await (await registry.setChallengeParams(window, slash)).wait();
+    console.log(`Challenge window ${window}s, slash ${ethers.formatEther(slash)} SMESH`);
+  }
 
   console.log("\nWiring complete. ShaderMesh is deployed and authorized.");
   const deploymentBlock = tokenReceipt?.blockNumber ?? await ethers.provider.getBlockNumber();
