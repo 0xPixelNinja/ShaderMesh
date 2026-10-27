@@ -95,6 +95,8 @@ docker compose exec -T orchestrator npm run smoke:inference
 cd web; npm run test:e2e
 ```
 
+To run this stack beside the Sepolia stack on one host, reachable from other devices on the network, use `docker-compose.local-demo.yml` (web 3001, orchestrator 4001, provider 8101) through `scripts/demo.ps1`. See [`docs/ShaderMesh-Demo-Day.md`](docs/ShaderMesh-Demo-Day.md).
+
 Stop the local stack with `docker compose down`. Add `-v` only when intentionally discarding local chain, IPFS, and Postgres data.
 
 ## Component Development
