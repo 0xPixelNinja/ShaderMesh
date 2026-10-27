@@ -171,6 +171,11 @@ function Add-FirewallRules {
       -LocalPort ($rule.Ports -split ',') -Profile Private | Out-Null
     Write-Host "added inbound allow rule '$($rule.Name)' on TCP $($rule.Ports) (Private profile)"
   }
+  # The rules apply to Private networks only, so mark the current Wi-Fi or LAN as Private.
+  Get-NetConnectionProfile | Where-Object { $_.NetworkCategory -eq 'Public' -and $_.InterfaceAlias -notmatch 'vEthernet|WSL|Docker|Loopback' } | ForEach-Object {
+    Set-NetConnectionProfile -InterfaceIndex $_.InterfaceIndex -NetworkCategory Private
+    Write-Host "set network '$($_.Name)' to the Private profile"
+  }
   Read-Host 'Press Enter to close'
 }
 

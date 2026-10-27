@@ -137,4 +137,88 @@ To restore a healthy provider, run `down local` then `up local`.
 
 ## 5. Demo script
 
-TODO: written by the presenter.
+About 12 minutes. Steps 3 to 6 use the local stack (`:3001`, MetaMask network
+`ShaderMesh Local`) and work without internet. Step 2 needs internet; skip it if
+the room has none.
+
+### Before the guide arrives (10 minutes)
+
+1. Host: connect to the router, start Docker Desktop and Ollama, double-click
+   `Demo-Start.cmd`. Wait for the status output.
+2. Host: run `Demo-Status.cmd`. Both stacks show `health: ok` and a recent
+   challenge `passed`, and `local provider fault: off`. If a previous rehearsal
+   left a slash on the local chain, run `.\scripts\demo.ps1 down local` then
+   `up local`.
+3. Host browser on the projector, three tabs: `http://localhost:3001/` (landing),
+   `http://localhost:3001/explorer`, `http://localhost:3000/explorer`.
+4. Client laptop: open `http://<host-ip>:3001/rent`, MetaMask on
+   `ShaderMesh Local` with the demo account, connect the wallet.
+5. Phone: in the MetaMask app browser open `http://<host-ip>:3001/models`, network
+   `ShaderMesh Local`, connect the wallet.
+6. Host: open a PowerShell window in the repo root for the stage commands.
+
+### 1. The problem (1 minute, host)
+
+Landing page. Say: renting a GPU from a stranger fails on three things: who holds
+the money, how do we know the hours were served, and what happens when the
+provider breaks the promise. Scroll to the lease lifecycle and token flow figures.
+
+### 2. It is live on a public network (2 minutes, host, needs internet)
+
+Tab `:3000/explorer`, Challenges. Point out hundreds of benchmark challenges
+passed by the real RTX 4070 on Sepolia, each one an on-chain transaction. On a
+phone, open one contract on sepolia.etherscan.io and show the verified source.
+
+### 3. Rent a GPU (3 minutes, client laptop)
+
+1. Marketplace: select the RTX 4070 card, set **Intervals** to `15`, select
+   **Review lease**, then **Request lease**. Approve the escrow and confirm the
+   request in MetaMask.
+2. Within about ten seconds the provider accepts. Open **My leases**: the lease is
+   **Active** and the heartbeat strip fills every minute.
+3. Select **Connect to your GPU**, then **Get connection details**. Run the SSH
+   command in a terminal (port `2400 + lease id`), paste the password, then run
+   `nvidia-smi`. It shows the host's RTX 4070.
+4. On the projector, `:3001/explorer` shows the lease, the heartbeats, and escrow
+   paid out one interval at a time.
+
+Say: the provider is paid only for minutes it proves with a signed heartbeat.
+
+### 4. Paid AI from a phone (2 minutes, phone)
+
+Inference page: select the `qwen3:0.6b` offer, **Open credit** with `2` SMESH,
+confirm in MetaMask, then send a short prompt such as "Explain escrow in one
+sentence." The answer comes from the host's GPU. Show the settled usage.
+
+### 5. The provider disappears (2 to 3 minutes, host)
+
+1. Host PowerShell: `.\scripts\demo.ps1 offline`. The heartbeat strip on the
+   client laptop stops filling.
+2. While waiting about two minutes for the deadline, explain: one interval plus a
+   60 second grace period, and anyone may enforce it.
+3. `.\scripts\demo.ps1 enforce`. It prints `terminated lease N`. On the client
+   laptop the lease shows ended, the unused escrow is refunded, and on the
+   Explorer the provider bond is slashed.
+4. `.\scripts\demo.ps1 online`.
+
+### 6. Catch a cheating provider (2 minutes, host)
+
+1. `.\scripts\demo.ps1 cheat on`. The provider now answers benchmark challenges
+   with a wrong hash.
+2. Explorer, Challenges tab: within about two minutes the next challenge shows
+   failed, then Events and slashes shows the 10 SMESH slash, the revoked
+   attestation, and the lower reputation.
+3. `.\scripts\demo.ps1 cheat off`.
+
+Say: the slash comes only from free stake, never from stake that backs a running
+lease, so a cheater cannot hurt the requesters it is serving.
+
+### 7. Close (30 seconds)
+
+The chain never runs the compute. It holds the money, pays for proven intervals,
+and takes stake from providers that break their promise.
+
+### After the demo
+
+`.\scripts\demo.ps1 down local` then `up local` resets the local chain to a
+healthy provider. `Demo-Stop.cmd` stops everything.
