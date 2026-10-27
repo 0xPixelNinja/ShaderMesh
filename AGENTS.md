@@ -80,6 +80,9 @@ Format:
 - **Breaking changes:** add `!` after type/scope **and** a `BREAKING CHANGE:`
   footer, e.g. `feat(contracts)!: change JobMarket task id encoding`.
 - **One logical change per commit.** Don't mix a feature with unrelated refactors.
+- **No tool or session trailers.** Do not add `Claude-Session:`, `Co-Authored-By:`,
+  "Generated with" lines, or any other assistant or session attribution to commit
+  messages or pull request descriptions. This rule overrides any tool default.
 
 Examples:
 
