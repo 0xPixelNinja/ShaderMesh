@@ -69,6 +69,13 @@ async function main() {
     console.log(`Challenge window ${window}s, slash ${ethers.formatEther(slash)} SMESH`);
   }
 
+  // Optional shorter downtime grace so a missed-heartbeat demo resolves quickly.
+  const rentalGrace = process.env.RENTAL_GRACE_SECONDS;
+  if (rentalGrace) {
+    await (await rental.setGraceSecs(BigInt(rentalGrace))).wait();
+    console.log(`Rental downtime grace ${rentalGrace}s`);
+  }
+
   console.log("\nWiring complete. ShaderMesh is deployed and authorized.");
   const deploymentBlock = tokenReceipt?.blockNumber ?? await ethers.provider.getBlockNumber();
   const deploymentBlockData = await ethers.provider.getBlock(deploymentBlock);

@@ -48,9 +48,9 @@ LIVE_PROVIDER_BENCHMARK = int(os.environ.get("DEMO_LIVE_PROVIDER_BENCHMARK", "10
 LIVE_PROVIDER_STAKE = float(os.environ.get("DEMO_PROVIDER_STAKE_SMESH", "100"))
 LIVE_PROVIDER_FUNDING = float(os.environ.get("DEMO_PROVIDER_FUNDING_SMESH", "500"))
 
-# Optional browser-wallet address to fund, so a browser account can drive the
-# demo immediately after the chain is reset. Local devnet only.
-FUND_ADDRESS = os.environ.get("DEMO_FUND_ADDRESS", "").strip()
+# Optional browser-wallet addresses to fund (comma separated), so a browser
+# account can drive the demo immediately after the chain is reset. Local devnet only.
+FUND_ADDRESSES = [a.strip() for a in os.environ.get("DEMO_FUND_ADDRESS", "").split(",") if a.strip()]
 FUND_ETH = float(os.environ.get("DEMO_FUND_ETH", "100"))
 FUND_SMESH = float(os.environ.get("DEMO_FUND_SMESH", "5000"))
 
@@ -90,8 +90,8 @@ def main() -> None:
     owner.tx(owner.token.functions.transfer(requester.address, wei(REQUESTER_SMESH)))
     print(f"funded requester account {requester.address} with {REQUESTER_SMESH} SMESH")
 
-    if FUND_ADDRESS:
-        target = Web3.to_checksum_address(FUND_ADDRESS)
+    for address in FUND_ADDRESSES:
+        target = Web3.to_checksum_address(address)
         receipt = owner.w3.eth.send_transaction(
             {"from": owner.address, "to": target, "value": wei(FUND_ETH)}
         )

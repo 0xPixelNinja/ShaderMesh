@@ -1,0 +1,59 @@
+# Local Hardhat stack on its own host ports, so it runs beside the Sepolia stack.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.local-demo.yml up --build -d
+#
+# Host ports: web 3001, orchestrator 4001, ipfs 5002/8081, postgres 5433,
+# provider 8101, hardhat 8545, lease SSH 2400 + lease id. The Sepolia stack keeps
+# 3000, 4000, 5001, 8080, 8100 and 2200 + lease id. Plain `docker compose up`
+# (CI, developers) does not read this file and keeps the default ports.
+name: shadermesh
+
+services:
+  ipfs:
+    ports: !override
+      - "127.0.0.1:5002:5001"
+      - "8081:8080"
+
+  postgres:
+    ports: !override
+      - "127.0.0.1:5433:5432"
+
+  orchestrator:
+    ports: !override
+      - "4001:4000"
+
+  provider:
+    ports: !override
+      - "8101:8100"
+    environment:
+      # Real Ollama on the host GPU, one small model so the demo answers quickly.
+      INFERENCE_BACKEND: ollama
+      MODELS: qwen3:0.6b
+      RENTAL_SPEC: '{"gpu":"RTX 4070 Laptop GPU","vram":8,"region":"local","models":["qwen3:0.6b"],"endpoint":"http://provider:8100"}'
+      # Distinct from the Sepolia provider (2200 + lease id).
+      LEASE_SSH_PORT_BASE: "2400"
+
+  deployer:
+    environment:
+      # A provider that stops heartbeating can be terminated about 2 minutes after
+      # its lease starts (one 60 s interval plus this grace), not 6.
+      RENTAL_GRACE_SECONDS: "${LOCAL_RENTAL_GRACE_SECONDS:-60}"
+
+  seed:
+    environment:
+      # A dedicated demo requester (Hardhat account #5) next to any address in the root .env.
+      DEMO_FUND_ADDRESS: "${DEMO_FUND_ADDRESS:-},0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc"
+
+  attester:
+    environment:
+      # Short enough that a cheating provider is caught within a minute or two on stage.
+      CHALLENGE_INTERVAL_SECONDS: "${LOCAL_CHALLENGE_INTERVAL_SECONDS:-75}"
+
+  web:
+    build:
+      args:
+        NEXT_PUBLIC_ORCHESTRATOR_URL: http://localhost:4001
+    # A separate tag so building this does not replace the Sepolia web image.
+    image: shadermesh/web-local
+    ports: !override
+      - "3001:3000"
