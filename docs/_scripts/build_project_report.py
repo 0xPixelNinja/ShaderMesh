@@ -26,7 +26,7 @@ from docx.enum.table import WD_TABLE_ALIGNMENT
 
 from report_lib import Report, set_font, fmt, field, cell_shade
 from report_refs import REFS
-from build_report import MEMBERS, GUIDE_NAME, GUIDE_DESIGNATION, TITLE, MONTH_YEAR, ADDR, LOGO, export_pdf
+from build_report import MEMBERS, GUIDE_NAME, TEAM_NAME, TITLE, MONTH_YEAR, ADDR, LOGO, export_pdf
 
 ROOT = HERE.parents[1]
 DOCS = ROOT / "docs"
@@ -47,7 +47,8 @@ def cover(R):
     d = R.d
     R.line(TITLE, 18, True, after=14)
     R.line("Project Report: Proposal and Design", 14, after=18)
-    R.line("Submitted by", 13, italic=True, after=6)
+    R.line("Submitted by", 13, italic=True, after=2)
+    R.line(f"Team {TEAM_NAME}", 13, True, after=6, spacing=1.15)
     t = d.add_table(rows=1, cols=2)
     t.style = "Table Grid"
     t.alignment = WD_TABLE_ALIGNMENT.CENTER
@@ -65,7 +66,7 @@ def cover(R):
         r.cells[0].width, r.cells[1].width = Cm(7.0), Cm(6.0)
         for c in r.cells:
             fmt(c.paragraphs[0], AL.LEFT, 2, 2, 1.15)
-    R.line(f"Under the guidance of {GUIDE_NAME}, {GUIDE_DESIGNATION}", 12, italic=True, before=18, after=12, spacing=1.15)
+    R.line(f"Under the guidance of {GUIDE_NAME}", 12, italic=True, before=18, after=12, spacing=1.15)
     if LOGO.exists():
         lp = d.add_paragraph()
         lp.add_run().add_picture(str(LOGO), width=Cm(6))
@@ -92,10 +93,10 @@ def body(R):
     R.p("ShaderMesh lets people with idle GPUs rent them to people who need compute, without a company in the middle holding the money. Ethereum smart contracts hold the escrow and the providers' collateral, pay providers one interval at a time, and penalize providers that stop serving. The workloads themselves, such as GPU containers and LLM inference, run off chain on the provider's machine.")
 
     section(R, "TEAM MEMBERS AND ROLL NUMBERS")
-    R.p("{t:team} lists the team members.")
+    R.p(f"Team name: **{TEAM_NAME}**. {{t:team}} lists the team members.")
     R.table("team", "Team members", ["S. No.", "Name", "Roll number"],
             [[str(i), n, reg] for i, (n, reg) in enumerate(MEMBERS, 1)], [2, 8, 5])
-    R.p(f"Guide: {GUIDE_NAME}, {GUIDE_DESIGNATION}, School of Computer Science and Engineering, VIT-AP University.")
+    R.p(f"Guide: {GUIDE_NAME}, School of Computer Science and Engineering, VIT-AP University.")
 
     section(R, "PROBLEM STATEMENT")
     R.h2("What problem is being addressed")

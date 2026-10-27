@@ -44,7 +44,8 @@ MEMBERS = [
     ("Nilam Sikdar", "24BCC7025"),
     ("Animesh Mishra", "24BCC7016"),
 ]
-GUIDE_NAME = "[GUIDE NAME]"
+GUIDE_NAME = "Prof. Varunkumar Anantharaman"
+TEAM_NAME = "teamNinja()"
 GUIDE_DESIGNATION = "[GUIDE DESIGNATION]"
 HOD_NAME = "[HOD NAME]"
 
