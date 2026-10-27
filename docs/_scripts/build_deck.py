@@ -226,7 +226,7 @@ def slide_title(prs):
 
     tf = textbox(slide, MARGIN, Inches(3.9), Inches(9), Inches(1.2))
     write(tf, [
-        ("[TEAM MEMBERS]", 18, True, INK, SANS, 6),
+        ("Rakesh Kumar Rabha (24BCC7002), Nilam Sikdar (24BCC7025), Animesh Mishra (24BCC7016)", 13, True, INK, SANS, 6),
         ("Guide: [GUIDE NAME]", 16, False, INK2, SANS, 0),
     ])
     tf = textbox(slide, MARGIN, Inches(5.1), Inches(9), Inches(0.9))

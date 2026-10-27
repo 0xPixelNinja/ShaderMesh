@@ -41,8 +41,8 @@ import report_content_c as C
 # --------------------------------------------------------------------------
 MEMBERS = [
     ("Rakesh Kumar Rabha", "24BCC7002"),
-    ("[MEMBER 2 NAME]", "[MEMBER 2 REG. NO.]"),
-    ("[MEMBER 3 NAME]", "[MEMBER 3 REG. NO.]"),
+    ("Nilam Sikdar", "24BCC7025"),
+    ("Animesh Mishra", "24BCC7016"),
 ]
 GUIDE_NAME = "[GUIDE NAME]"
 GUIDE_DESIGNATION = "[GUIDE DESIGNATION]"
