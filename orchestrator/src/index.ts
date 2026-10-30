@@ -39,7 +39,18 @@ async function main() {
   };
   const persistence = new PostgresPersistence(cfg.databaseUrl, identity);
   try {
-    await persistence.initialize();
+    // After an unclean Docker restart, Postgres can still be in crash recovery
+    // when this container starts, so wait for it instead of giving up.
+    for (let attempt = 1; ; attempt++) {
+      try {
+        await persistence.initialize();
+        break;
+      } catch (error) {
+        if (attempt >= 24) throw error;
+        console.warn(`[orchestrator] database not ready (attempt ${attempt}), retrying in 5 s`);
+        await new Promise((resolve) => setTimeout(resolve, 5_000));
+      }
+    }
     health.recover("persistence");
   } catch (error) {
     health.fail("persistence", error);
