@@ -11,6 +11,7 @@ export interface Config {
   requestBodyLimitBytes: number;
   providerFetchTimeoutMs: number;
   providerHostAllowlist: string[];
+  leaseSshHost?: string;
   indexerBlockRange: number;
   indexerPollIntervalMs: number;
   indexerRpcRetryAttempts: number;
@@ -30,6 +31,7 @@ export function loadConfig(): Config {
     port: Number(process.env.PORT ?? 4000),
     requestBodyLimitBytes: Number(process.env.REQUEST_BODY_LIMIT_BYTES ?? 1_048_576),
     providerFetchTimeoutMs: Number(process.env.PROVIDER_FETCH_TIMEOUT_MS ?? 30_000),
+    leaseSshHost: process.env.LEASE_SSH_PUBLIC_HOST?.trim() || undefined,
     providerHostAllowlist: (process.env.PROVIDER_HOST_ALLOWLIST ?? "provider")
       .split(",")
       .map((host) => host.trim().toLowerCase())

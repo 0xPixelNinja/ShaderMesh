@@ -11,6 +11,8 @@ export interface ApiOptions {
   requestBodyLimitBytes?: number;
   providerFetchTimeoutMs?: number;
   providerHostAllowlist?: string[];
+  /** Public host for lease SSH details, when requesters reach providers through a relay. */
+  leaseSshHost?: string;
   now?: () => number;
   replayStore?: ReplayStore;
   health?: ServiceHealth;
@@ -244,7 +246,9 @@ export function createApi(
           // with the host the requester actually used to reach this API. That
           // keeps the connection string correct from another device on the
           // network without pinning an address that changes with the network.
-          if (response.ok && LOOPBACK_HOSTS.has(String(payload.host ?? "").toLowerCase())) {
+          if (response.ok && options.leaseSshHost) {
+            payload.host = options.leaseSshHost;
+          } else if (response.ok && LOOPBACK_HOSTS.has(String(payload.host ?? "").toLowerCase())) {
             const reachedHost = (req.headers.host ?? "").replace(/:\d+$/, "").trim();
             if (reachedHost) payload.host = reachedHost;
           }

@@ -61,6 +61,7 @@ async function main() {
     requestBodyLimitBytes: cfg.requestBodyLimitBytes,
     providerFetchTimeoutMs: cfg.providerFetchTimeoutMs,
     providerHostAllowlist: cfg.providerHostAllowlist,
+    leaseSshHost: cfg.leaseSshHost,
     replayStore: persistence,
     health,
   });
