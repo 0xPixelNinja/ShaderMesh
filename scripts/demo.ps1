@@ -3,7 +3,8 @@
   Start, stop, and drive the ShaderMesh demo (Sepolia stack and local Hardhat stack on one host).
 
 .EXAMPLE
-  .\scripts\demo.ps1 up            # both stacks
+  .\scripts\demo.ps1 build         # one time, needs internet: builds and pulls every image
+  .\scripts\demo.ps1 up            # both stacks, works offline once built
   .\scripts\demo.ps1 up local      # local Hardhat stack only
   .\scripts\demo.ps1 status
   .\scripts\demo.ps1 cheat on      # local provider fails its next benchmark challenge
@@ -13,7 +14,7 @@
 #>
 param(
   [Parameter(Position = 0)]
-  [ValidateSet('up', 'down', 'status', 'cheat', 'offline', 'online', 'enforce', 'firewall', 'help')]
+  [ValidateSet('build', 'up', 'down', 'status', 'cheat', 'offline', 'online', 'enforce', 'firewall', 'help')]
   [string]$Command = 'status',
   [Parameter(Position = 1)]
   [string]$Target = ''
@@ -68,14 +69,29 @@ function Start-Sepolia {
   if (-not (Test-Path './agent/.env')) { Write-Warn 'agent/.env is missing; the Sepolia provider cannot sign.' }
   # The provider goes first so it is serving when the attester issues its first challenge.
   Write-Step 'Sepolia provider (host port 8100)'
-  Invoke-Compose $ProviderFiles @('up', '-d')
+  Invoke-Compose $ProviderFiles @('up', '-d', '--pull', 'never', '--no-build')
   Write-Step 'Sepolia stack: ipfs, postgres, orchestrator, web, attester'
-  Invoke-Compose $SepoliaFiles @('up', '-d')
+  Invoke-Compose $SepoliaFiles @('up', '-d', '--pull', 'never', '--no-build')
 }
 
 function Start-Local {
   Write-Step 'Local Hardhat stack (web 3001, orchestrator 4001, chain 8545, provider 8101)'
-  Invoke-Compose $LocalFiles @('up', '-d', '--build', '--wait', '--wait-timeout', '600')
+  # No build and no registry lookups, so this works without internet once `build` has run.
+  Invoke-Compose $LocalFiles @('up', '-d', '--pull', 'never', '--no-build', '--wait', '--wait-timeout', '600')
+}
+
+function Build-All {
+  # Needs internet: pulls base images and installs packages into the images.
+  Write-Step 'Pulling base images and building the local stack images'
+  foreach ($image in @('postgres:16-alpine', 'ipfs/kubo@sha256:63f5502f7a01b82a675e45bae81b2f5dfa90248ec4a86cd0a58c218347e1f2d2')) {
+    & docker pull $image
+    if ($LASTEXITCODE -ne 0) { throw "docker pull $image failed" }
+  }
+  Invoke-Compose $LocalFiles @('build', '--pull')
+  Write-Step 'Building the Sepolia stack images'
+  Invoke-Compose $SepoliaFiles @('build')
+  Invoke-Compose $ProviderFiles @('build')
+  Write-Host 'All images are on this machine. `up` now works without internet.'
 }
 
 function Stop-Sepolia {
@@ -94,7 +110,7 @@ function Stop-Local {
 function Set-LocalFault([string]$Fault) {
   Write-Step "Recreating only the local provider (BENCHMARK_FAULT='$Fault')"
   if ($Fault) { $env:BENCHMARK_FAULT = $Fault } else { Remove-Item Env:BENCHMARK_FAULT -ErrorAction SilentlyContinue }
-  try { Invoke-Compose $LocalFiles @('up', '-d', '--no-deps', '--force-recreate', 'provider') }
+  try { Invoke-Compose $LocalFiles @('up', '-d', '--pull', 'never', '--no-build', '--no-deps', '--force-recreate', 'provider') }
   finally { Remove-Item Env:BENCHMARK_FAULT -ErrorAction SilentlyContinue }
 }
 
@@ -180,6 +196,7 @@ function Add-FirewallRules {
 }
 
 switch ($Command) {
+  'build' { Build-All }
   'up' {
     switch ($Target) {
       '' { if (-not (Test-Ollama)) { Write-Warn 'Ollama is not running on :11434.' }; Start-Sepolia; Start-Local }
