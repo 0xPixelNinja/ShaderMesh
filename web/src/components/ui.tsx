@@ -4,6 +4,7 @@ import { useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type Rea
 import Link from "next/link";
 import { Icon, type IconName } from "./icons";
 import { shortHash } from "@/lib/format";
+import { copyText } from "@/lib/browser";
 
 /* ------------------------------------------------------------------ surfaces */
 
@@ -279,13 +280,9 @@ export function CopyValue({ value, label = "value" }: { value: string; label?: s
   const [copied, setCopied] = useState(false);
 
   async function copy() {
-    try {
-      await navigator.clipboard.writeText(value);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1600);
-    } catch {
-      setCopied(false);
-    }
+    const ok = await copyText(value);
+    setCopied(ok);
+    if (ok) window.setTimeout(() => setCopied(false), 1600);
   }
 
   return (

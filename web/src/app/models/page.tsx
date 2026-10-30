@@ -21,6 +21,7 @@ import {
 } from "@/lib/config";
 import { fmtSmesh, shortAddr } from "@/lib/format";
 import type { Deployment, InferenceCredit, InferenceOffer } from "@/lib/types";
+import { randomId } from "@/lib/browser";
 
 interface Message {
   role: "user" | "assistant";
@@ -312,7 +313,7 @@ export default function ModelsPage() {
     }
 
     const nextMessages: Message[] = [...messages, { role: "user", content: prompt }];
-    const requestId = crypto.randomUUID();
+    const requestId = randomId();
     const expiry = authorizationExpiry();
     const authorization = {
       creditId: selectedCredit.id,

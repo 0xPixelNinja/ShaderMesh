@@ -22,6 +22,7 @@ import { EscrowIntervals, HeartbeatStrip, LeaseLifecycle } from "@/components/di
 import { fmtInterval, fmtSmesh, shortAddr } from "@/lib/format";
 import { cancelLease, endLease, settleLease } from "@/lib/actions";
 import type { Deployment, Lease, LeaseAccess, Listing } from "@/lib/types";
+import { copyText } from "@/lib/browser";
 
 type Kind = "cancel" | "settle" | "end";
 
@@ -529,13 +530,9 @@ function Fact({ label, value, sub }: { label: string; value: string; sub?: strin
 function CopyButton({ value, label }: { value: string; label: string }) {
   const [copied, setCopied] = useState(false);
   async function copy() {
-    try {
-      await navigator.clipboard.writeText(value);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1600);
-    } catch {
-      setCopied(false);
-    }
+    const ok = await copyText(value);
+    setCopied(ok);
+    if (ok) window.setTimeout(() => setCopied(false), 1600);
   }
   return (
     <button
